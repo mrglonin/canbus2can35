@@ -10,6 +10,11 @@ firmware/local/
 *.elf
 *.map
 
+# These are project artifacts intentionally published for our own CAN logging
+# work. Keep other random binaries ignored.
+!firmware/canlog/
+!firmware/canlog/*.bin
+
 # Local captures can grow fast. Curated examples may be force-added if needed.
 logs/*.tmp
 logs/live_*.txt

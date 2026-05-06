@@ -18,6 +18,8 @@ is ignored by git.
 | `/Users/legion/Downloads/37FFDA054247303859412243_04350004_skipMediaState3_min.bin` | 19168 | `e3296f6a7a32a60ce054cee976799420327d56b56841a70868ed9047080ceb29` | One-byte patch: `0x08005959: 3A -> 11`. It did not remove the spam in car test. |
 | `/Users/legion/Downloads/gs_2can35.bin` | 11264 | `44ec1b79f7dc49a12beae622c33ac8cefb1f9b211419ee5e41451b208bad5609` | GS USB / budgetcan-style logger reference. Mac sees this class as VID/PID `1d50:606f` when the logger slot boots correctly. |
 | `/Users/legion/Downloads/Sportage.apk` | 2351349 | `fb41a1f38c4f2a020aed3003c27301e527e24c01fc83c94512a2357e9e26898e` | Android app `com.sorento.navi`, version `2.1`; used only for reverse engineering. |
+| `firmware/canlog/2can35_canlog_v1_usb_update.bin` | 19616 | `81245cc636644c86128b8d0f7d4c17fd4b3c1a44b127f2de7bf55709be8b61dd` | Our experimental CAN-log USB update package. |
+| `firmware/canlog/2can35_canlog_v1_stlink_full.bin` | 65536 | `d8cbec300e75c264babbc98488e4c75a452ab2b3b37bb2af0d25b8deaa202813` | Our experimental CAN-log full ST-Link image. |
 
 ## Update Package Header
 
