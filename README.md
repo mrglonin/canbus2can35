@@ -41,6 +41,9 @@ docs/
   RECOVERY_STLINK_SEQUENCE.md     порядок восстановления через ST-Link
 data/
   can_function_matrix.csv         CSV-шаблон для заполнения по реальным логам
+dashboard/
+  server.py                       локальный web-интерфейс CAN Lab
+  static/                         UI: live state, transmit tests, matrix, frames
 firmware/
   MANIFEST.md                     хэши и статусы локальных прошивок
   canlog/                         наш экспериментальный CAN-log firmware комплект

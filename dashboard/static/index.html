@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2CAN35 CAN Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>2CAN35 CAN Lab</h1>
+          <p>Live CAN state, DBC matrix, USB media/nav transmit tests</p>
+        </div>
+        <div class="topbar-actions">
+          <span id="connectionBadge" class="badge neutral">idle</span>
+          <button class="icon-button" id="refreshStatus" title="Refresh status">
+            <span aria-hidden="true">↻</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="rail">
+          <button class="rail-item active" data-tab="live">Live</button>
+          <button class="rail-item" data-tab="transmit">Transmit</button>
+          <button class="rail-item" data-tab="matrix">Matrix</button>
+          <button class="rail-item" data-tab="frames">Frames</button>
+        </aside>
+
+        <section class="content">
+          <section class="toolbar">
+            <div class="control-group">
+              <button id="startSample">Sample replay</button>
+              <button id="startGsusb">Live GS USB</button>
+              <button id="startCdc">Live CDC</button>
+              <button id="stopLog" class="danger">Stop</button>
+            </div>
+            <div class="port-control">
+              <label for="portInput">CDC port</label>
+              <input id="portInput" placeholder="/dev/cu.usbmodemKIA1" />
+            </div>
+          </section>
+
+          <section class="metrics">
+            <div class="metric">
+              <span class="metric-label">Frames</span>
+              <strong id="framesTotal">0</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Rate</span>
+              <strong id="fps">0.0/s</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Last frame</span>
+              <strong id="lastFrameAge">-</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Device</span>
+              <strong id="deviceState">unknown</strong>
+            </div>
+          </section>
+
+          <section id="tab-live" class="tab active">
+            <div id="stateGroups" class="state-grid"></div>
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Top IDs</h2>
+                <span>rate and changing bytes</span>
+              </div>
+              <div id="topIds" class="id-grid"></div>
+            </section>
+          </section>
+
+          <section id="tab-transmit" class="tab">
+            <section class="panel transmit-panel">
+              <div class="panel-head">
+                <h2>USB display tests</h2>
+                <span>frames repeat for the selected duration</span>
+              </div>
+              <div class="form-grid">
+                <label>FM text<input id="fmText" value="FM TEST 101.7" maxlength="32" /></label>
+                <label>Media text<input id="mediaText" value="MUSIC TEST" maxlength="32" /></label>
+                <label>Track text<input id="trackText" value="TRACK TEST" maxlength="32" /></label>
+                <label>Nav meters<input id="navMeters" value="120" type="number" min="0" max="9999" /></label>
+                <label>ETA tenths km<input id="etaDistance" value="12" type="number" min="0" max="9999" /></label>
+                <label>Repeat seconds<input id="repeatSeconds" value="5" type="number" min="1" max="30" /></label>
+              </div>
+              <div class="control-group">
+                <button data-send="full">Full demo</button>
+                <button data-send="music">Music only</button>
+                <button data-send="fm">FM only</button>
+                <button data-send="nav">Navigation only</button>
+              </div>
+              <div class="mode-row">
+                <button data-mode="normal">Mode 1</button>
+                <button data-mode="update">Mode 2</button>
+                <button data-mode="canlog">Mode 3</button>
+              </div>
+              <pre id="actionLog" class="action-log"></pre>
+            </section>
+          </section>
+
+          <section id="tab-matrix" class="tab">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>CAN function matrix</h2>
+                <input id="matrixSearch" placeholder="filter: doors, 0x541, media..." />
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Function</th>
+                      <th>Bus</th>
+                      <th>ID</th>
+                      <th>DBC</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="matrixBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="tab-frames" class="tab">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Recent frames</h2>
+                <div class="marker-control">
+                  <input id="markerText" placeholder="marker name" />
+                  <button id="addMarker">Mark</button>
+                </div>
+              </div>
+              <div id="recentFrames" class="frames-list"></div>
+            </section>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>
