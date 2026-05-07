@@ -58,6 +58,9 @@
 | Капот | car -> adapter | C-CAN `0x541 CGW1`: `CF_Gway_HoodSw`; C-CAN `0x4B2 CGW3`: `CF_Hoodsw_memory` | open/close, если доступно безопасно | `dbc_candidate` |
 | Lock/unlock | car -> adapter | C-CAN `0x541 CGW1`: `CF_Gway_RKECmd`, `CF_Gway_DrvKeyLockSw`, `CF_Gway_DrvKeyUnlockSw`, `CF_Gway_PassiveAccessLock`, `CF_Gway_PassiveAccessUnlock` | key fob lock/unlock, кнопка салона отдельно | `dbc_candidate` |
 | Ремень водителя/пассажира | car -> adapter | C-CAN `0x541 CGW1`: `CF_Gway_DrvSeatBeltSw`, `CF_Gway_AstSeatBeltSw`; C-CAN `0x560 ACU11`: `CF_PasBkl_Stat` | пристегнуть/отстегнуть отдельно | `dbc_candidate` |
+| Люк открыт | car -> adapter | C-CAN `0x541 CGW1`: `C_SunRoofOpenState`, `CF_Gway_RrSunRoofOpenState` | открыть/закрыть люк, если безопасно; проверить сообщение на приборке | `dbc_candidate` |
+| Стекла дверей | car -> adapter | C-CAN `0x559 CGW4`: `CF_Gway_DrvWdwStat`, `CF_Gway_AstWdwStat`, `CF_Gway_RLWdwState`, `CF_Gway_RRWdwState` | каждое стекло отдельно: чуть открыть/закрыть | `dbc_candidate` |
+| Подогрев руля, статус | car -> adapter | C-CAN `0x559 CGW4`: `CF_Gway_StrgWhlHeatedState` | кнопка подогрева руля on/off, 3 цикла | `dbc_candidate` |
 | Наружная температура | car -> adapter / adapter -> HU | C-CAN `0x383 FATC11`: `CR_Fatc_OutTemp`; C-CAN `0x044 DATC11`: `CR_Datc_OutTempC`; C-CAN `0x4B2 CGW3`: `C_MirOutTempSns` | сравнить с приборкой/климатом | `dbc_candidate` |
 | Температура двигателя | car -> adapter | C-CAN `0x329 EMS12`: `TEMP_ENG`; C-CAN `0x492 EMS19`: `CR_Ems_EngOilTemp` | холодный старт -> прогрев | `dbc_candidate` |
 | Напряжение АКБ | car -> adapter | C-CAN `0x545 EMS14`: `VB` | ACC/engine_idle | `dbc_candidate` |
@@ -148,6 +151,7 @@
 | AQS | `HU_DATC_AqsSet` | on/off/levels | `dbc_candidate` |
 | Front defog | `HU_DATC_FrontDefog` | on/off | `dbc_candidate` |
 | Rear defog | `HU_DATC_RearDefog` | on/off | `dbc_candidate` |
+| Подогрев руля | C-CAN `0x559 CGW4`: `CF_Gway_StrgWhlHeatedState`; command frame пока неизвестен | on/off кнопкой, потом отдельно искать команду StarLine/BCM | `dbc_candidate` |
 | Zone / sync | `HU_DATC_ZoneControl` | sync/dual/zone | `dbc_candidate` |
 | CO2 | `HU_DATC_CO2Set` | if present | `dbc_candidate` |
 | Smart vent | `DATC_SmartVentOnOffSet` | if present | `dbc_candidate` |
@@ -183,6 +187,66 @@
 | ABS/TCS/ESP lamps | car -> adapter/HU | C-CAN `0x38A ABS11`, `0x153 TCS11`, `0x507 TCS15` | только пассивно, без провокации | `dbc_candidate` |
 | SCC/AEB settings | car -> adapter/HU | C-CAN `0x50A SCC13`: `AebDrvSetStatus`, `SCCDrvModeRValue`; C-CAN `0x522 CLU14` settings | только читать | `dbc_candidate` |
 
+## Настройки Приборки, USM, Диагностика, Экспериментальные Команды
+
+Этот раздел отдельно от обычных функций. Тут есть два разных типа:
+
+- `settings/read`: меню приборки, значения настроек, подтверждения gateway.
+- `control/active`: команды, которые могут реально управлять машиной. Их нельзя
+  слать вслепую. Сначала только логируем, потом повторяем на столе/в безопасном
+  состоянии короткими пакетами.
+
+| Функция | Направление | Приоритетные кандидаты | Что проверять в логе | Статус |
+|---|---|---|---|---|
+| Настройки приборки/USM, новые значения | cluster/HU -> gateway | C-CAN `0x515 CLU14`: `CF_Clu_*NValueSet`, включая `DoorLS`, `TempUnit`, `Lca`, `Rcta`, `Rcw`, `LkasMode`, `Fcw`, `PasSpkrLv`, `HfreeTrunk` | менять настройки в меню приборки по одной | `dbc_candidate` |
+| Ответ gateway по настройкам | gateway -> cluster/HU | C-CAN `0x410 CGW_USM1`: `CF_Gway_*RValue` | после изменения настройки смотреть подтверждение | `dbc_candidate` |
+| HU запрос/установка настроек gateway | HU -> gateway | C-CAN `0x526 HU_GW_E_00`, `0x527 HU_GW_E_01` | если магнитола меняет настройки авто | `dbc_candidate` |
+| Gateway confirm для HU | gateway -> HU | C-CAN `0x524 GW_HU_E_00`, `0x525 GW_HU_E_01` | пара к `HU_GW_E_*` | `dbc_candidate` |
+| Телематика/StarLine-подобные команды | telematics/HU -> gateway | M-CAN `0x043 TMU_GW_E_01`: `C_ReqDrLock`, `C_ReqDrUnlock`, `C_ReqHazard`, `C_ReqHorn`, `C_ReqEngineOperate`; C-CAN `0x53A TMU_GW_E_01`: `CF_Gway_TeleReq*` | только логировать при работе сигнализации/приложения; активную отправку не делать | `blocked` |
+| Подогрев руля, команда включения | unknown -> gateway/BCM | Статус виден в C-CAN `0x559 CGW4`; команду надо поймать при StarLine/штатной кнопке | лог `heated_steering_button` и `heated_steering_remote`, если есть | `blocked` |
+| Задний обогрев, активное включение | HU/adapter -> DATC/BCM | M-CAN `0x034 HU_DATC_E_02`: `HU_DATC_RearDefog`; C-CAN `0x541 CGW1`: `CF_Gway_DefoggerRly`; M-CAN `0x134 DATC_PE_05`: `DATC_RrDefLed` | кнопка заднего обогрева, потом пробная команда только после подтверждения | `dbc_candidate` |
+| DATC self-diagnostic | DATC -> cluster/HU | C-CAN `0x040 DATC14`: `CF_Datc_DiagMode`, `CR_Datc_SelfDiagCode`; M-CAN `0x133 DATC_PE_04`: `DATC_DiagMode`, `DATC_SelfDiagDisp` | не включать диагностику специально; читать пассивно | `dbc_candidate` |
+| Airbag/ACU DTC passive | ACU -> cluster/HU | C-CAN `0x5A0 ACU11`: `CF_Acu_Dtc` | только пассивно, ничего не отправлять | `blocked` |
+| Gateway/module diag states | gateway -> cluster/HU | C-CAN `0x553 CGW2`: `CF_Gway_GwayDiagState`, `DDMDiagState`, `SCMDiagState`, `PSMDiagState`, `SJBDiagState`, `IPMDiagState` | baseline и после включения зажигания | `dbc_candidate` |
+| OBD/UDS over CAN | tester <-> ECU | Скорее ISO-TP `0x7DF/0x7E0..0x7EF` или model-specific TP frames; отдельно от canbox-функций | только read-only запросы после отдельного решения | `blocked` |
+
+## Локальный Интерфейс / Dashboard
+
+Сделать реально. Нормальная архитектура такая:
+
+```text
+2CAN35 logger/update USB
+        |
+Python service on Mac
+        |
+CAN decoder + function matrix CSV
+        |
+Web dashboard at localhost
+```
+
+Что должен уметь dashboard:
+
+- показывать live state: двери, багажник, капот, люк, IGN, R, скорость, RPM,
+  температура, поворотники, парктроники, RCTA/LCA;
+- показывать только отфильтрованные события, а не сырой CAN поток;
+- иметь вкладку `Log Session`: выбрать marker, нажать start/stop, сохранить лог;
+- иметь вкладку `Transmit Tests`: FM/USB/BT source, трек, навигация, TBT,
+  distance/ETA, но только для whitelisted пакетов;
+- иметь вкладку `Experimental`: задний обогрев, подогрев руля, настройки приборки,
+  диагностика. По умолчанию все выключено и требует явного unlock;
+- писать все клики и отправленные CAN/USB команды в audit log.
+
+Первую версию проще сделать как локальную web-страницу на Mac:
+
+- backend: Python `FastAPI` или обычный `aiohttp`;
+- USB: наши текущие `tools/*logger.py` и `tools/usb_mode_2can35.py`;
+- frontend: одна страница с таблицей состояний и кнопками тестов;
+- входные данные: `data/can_function_matrix.csv`.
+
+Это не заменяет прошивку. Это лабораторный пульт: видим события, кликаем
+безопасные тесты, собираем доказательства, потом переносим подтвержденную
+логику в прошивку адаптера/APK.
+
 ## Что Снимать Первым
 
 Приоритет на ближайший день:
@@ -195,9 +259,13 @@
 6. `climate_main_blower_steps`.
 7. `climate_ac_auto_intake_defog`.
 8. `door_driver/passenger/rear/trunk`.
-9. `reverse_gear_no_obstacle`.
-10. `parking_rear_obstacle`.
-11. `rcta_left/right`, только если безопасно.
+9. `sunroof_open_close`.
+10. `heated_steering_button`.
+11. `rear_defog_button`.
+12. `cluster_settings_one_by_one`.
+13. `reverse_gear_no_obstacle`.
+14. `parking_rear_obstacle`.
+15. `rcta_left/right`, только если безопасно.
 
 ## Поле Для Реализации
 
