@@ -35,6 +35,7 @@
 ```text
 docs/
   REVERSE_SPORTAGE_2CAN35.md      подробный reverse APK/update/firmware
+  HYUNDAI_KIA_MCAN_MEDIA_RESEARCH.md  публичные DBC-кандидаты для media/source на приборку
   RECOVERY_STLINK_SEQUENCE.md     порядок восстановления через ST-Link
 firmware/
   MANIFEST.md                     хэши и статусы локальных прошивок
