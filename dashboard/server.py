@@ -590,9 +590,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/mode":
                 port = payload.get("port") or auto_cdc_port()
                 mode = payload.get("mode")
-                if not port or mode not in {"normal", "update", "canlog", "logger", "log"}:
-                    raise RuntimeError("port and valid mode are required")
-                cmd = [sys.executable, str(USB_MODE), port, mode, "--no-wait"]
+                if mode not in {"normal", "update", "canlog", "logger", "log"}:
+                    raise RuntimeError("valid mode is required")
+                if mode == "normal" and not port and gsusb_present():
+                    cmd = [sys.executable, str(GSUSB_LOGGER), "--exit-to-mode1"]
+                else:
+                    if not port:
+                        raise RuntimeError("CDC port is required for this mode")
+                    cmd = [sys.executable, str(USB_MODE), port, mode, "--no-wait"]
                 result = subprocess.run(cmd, cwd=str(ROOT), text=True, capture_output=True, timeout=8)
                 STATE.marker(f"mode {mode}: rc={result.returncode}")
                 json_response(self, {"ok": result.returncode == 0, "stdout": result.stdout, "stderr": result.stderr})
