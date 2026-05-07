@@ -12,8 +12,9 @@ is ignored by git.
 
 | File | Size | SHA256 | Status |
 |---|---:|---|---|
-| `/Users/legion/Downloads/2CAN35_base_1uart_usb_v3_0.bin` | 30464 | `9c6cf03a1179244fa44635a7b56ea20801f879af0d46b19c8beae0c826fba5c9` | Base full image / stock loader + app v3.0. |
+| `/Users/legion/Downloads/2CAN35_base_1uart_usb_v3_0.bin` | 30488 | `9c6cf03a1179244fa44635a7b56ea20801f879af0d46b19c8beae0c826fba5c9` | Base full image / stock loader + app v3.0. |
 | `/Users/legion/Downloads/37FFDA054247303859412243_04350004.bin` | 19168 | `a3cb8fc7edd3fd95083eb5f3332ca662a17ac686e4e543d9ce94b30fd046aa3d` | Programmer update for adapter UID `37 FF DA 05 42 47 30 38 59 41 22 43`, version `04 35 00 04`. Normal mode works, but observed fallback media spam `Музыка USB`. |
+| `/Users/legion/Downloads/30FFD3054747353756551343_04100005.bin` | 19400 | `4fba0d32af864979a1945ed2528f21ddfa3ee6d66ac78940f0482ea381e7a2c8` | Other-car programmer update, UID `30 FF D3 05 47 47 35 37 56 55 13 43`, version `04 10 00 05`. Useful as v05 reference for media cleanup, reverse, and speed logic. Not directly flashable to the user adapter through stock USB loader. |
 | `/Users/legion/Downloads/37FFDA054247303859412243_04350004_skipMediaState0_min.bin` | 19168 | `10c7d53447ee024e3bc92c8e12c57f7bbaf9e92197babd921162a67534f458f8` | Temporary one-byte patch: `0x08005956: 05 -> 11`. It suppressed `Музыка USB`, but also killed normal media/navigation display in testing. Use only as temporary "music off" experiment. |
 | `/Users/legion/Downloads/37FFDA054247303859412243_04350004_skipMediaState3_min.bin` | 19168 | `e3296f6a7a32a60ce054cee976799420327d56b56841a70868ed9047080ceb29` | One-byte patch: `0x08005959: 3A -> 11`. It did not remove the spam in car test. |
 | `/Users/legion/Downloads/gs_2can35.bin` | 11264 | `44ec1b79f7dc49a12beae622c33ac8cefb1f9b211419ee5e41451b208bad5609` | GS USB / budgetcan-style logger reference. Mac sees this class as VID/PID `1d50:606f` when the logger slot boots correctly. |

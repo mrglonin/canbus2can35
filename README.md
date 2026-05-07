@@ -35,6 +35,7 @@
 ```text
 docs/
   REVERSE_SPORTAGE_2CAN35.md      подробный reverse APK/update/firmware
+  FIRMWARE_V05_COMPARISON.md      сравнение нашего v04 и чужого v05: media fix, reverse, speed
   HYUNDAI_KIA_MCAN_MEDIA_RESEARCH.md  публичные DBC-кандидаты для media/source на приборку
   CAN_FUNCTION_MATRIX.md          рабочая матрица функций: кузов, media, климат, безопасность
   RECOVERY_STLINK_SEQUENCE.md     порядок восстановления через ST-Link

@@ -19,3 +19,6 @@ firmware/local/
 logs/*.tmp
 logs/live_*.txt
 logs/live_*.log
+
+# Local reverse-engineering decode/disassembly outputs.
+re/
