@@ -20,23 +20,34 @@ firmware.
 | `2can35_04350004_canlog_v4_no_auto_media_usb.bin` | 32176 | `339a35e3c46ce7b906bb05046b2a97cc27ebe41edb98a74e46518d8d780864f0` | Historical diagnostic package. It keeps UART and explicit APK/USB display commands, but disables internal mode1 media/source fallback schedulers, which removes useful source/compass behavior. |
 | `2can35_04350004_canlog_v4_mode3_original_tbb_no_fallback_usb.bin` | 32176 | `6fc42aa40c26e7009bd327aff1637d56c5707616a6a51de7483e43bf125fcea8` | Historical diagnostic package. It restores source/compass scheduler states and disables selected fallback branches. |
 | `2can35_04350006_canlog_v4_mode3_preserve_beeps_usb.bin` | 32176 | `a1caf625e9070be6c9da520336751982238c314b9ac3c90140839c370f4867e6` | Programmer v06 mode1, plus preserved software mode2/mode3 switching and GS USB logger slot. |
+| `2can35_04350008_canlog_v4_mode3_preserve_beeps_usb.bin` | 32176 | `846d761cd1e7c26673c40bd9e8193e142b744f9ad2d7ab2a5a152b4d42b6c053` | Current package: programmer v08 mode1, preserved software mode2/mode3 switching and GS USB logger slot. |
 
 ## Current Three-Mode Package
 
-Use `2can35_04350006_canlog_v4_mode3_preserve_beeps_usb.bin` for current v06
+Use `2can35_04350008_canlog_v4_mode3_preserve_beeps_usb.bin` for current v08
 car tests:
 
-- mode1: normal programmer v06 canbox behavior, CDC `/dev/cu.usbmodemKIA1`.
+- mode1: normal programmer v08 canbox behavior, CDC `/dev/cu.usbmodemKIA1`.
 - mode2: stock USB update loader.
 - mode3: GS USB CAN logger, VID/PID `1d50:606f`.
 - mode1 -> mode3: USB command `0x55` value `0x03`.
 - mode3 -> mode1: patched GS USB exit request from the dashboard.
 - mode1 -> reset/normal: USB command `0x55` value `0x04`.
-- media/BL/parking logic: programmer v06 behavior, without the old v04 media
-  NOP patch.
+- media/BL/parking/TPMS logic: programmer v08 behavior, without the old v04
+  media NOP patch.
 - direct commands still enabled: FM `0x20`, media/source `0x21`, track `0x22`,
   navigation maneuver `0x45`, ETA/distance `0x47`, nav on/off `0x48`, update
   `0x55`, UID/version `0x56`, settings `0x60`, amp `0x30`.
+
+Rebuild the v08 package from the programmer update and preserved wrapper:
+
+```bash
+python3 tools/build_04350008_mode3_package.py
+```
+
+The builder validates the v08 hook bytes before patching. For v08 the two
+software-mode hook points are `0x08005478` and `0x08005486`; do not reuse the
+older v06 addresses blindly.
 
 The broader `no_auto_media` build is a diagnostic only. It removed too much
 useful source switching and default compass behavior in car testing. Current

@@ -36,11 +36,16 @@ The working practical firmware path is still the binary/update-package workflow:
 Current practical package documented in `firmware/canlog/README.md`:
 
 ```text
-firmware/canlog/2can35_04350006_canlog_v4_mode3_preserve_beeps_usb.bin
+firmware/canlog/2can35_04350008_canlog_v4_mode3_preserve_beeps_usb.bin
 ```
 
-It keeps programmer v06 mode1 behavior and adds our mode switching / logger
+It keeps programmer v08 mode1 behavior and adds our mode switching / logger
 wrapper.
+
+The v08 port is documented in
+`docs/SPORTAGE_0805_APK_04350008_ANALYSIS.md`. The update-specific hook points
+were moved to `0x08005478` and `0x08005486`; the previous v06 hook addresses
+must not be reused for v08.
 
 ### 2. Clean C Firmware Source
 

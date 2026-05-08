@@ -73,7 +73,7 @@ analog controls.
 | Area | Status |
 |---|---|
 | Stock USB update protocol | Works. `0x55` update flow, 16-byte blocks, UID check. |
-| Three-mode practical packages | Works as experimental binary workflow: mode1 canbox, mode2 update, mode3 logger. |
+| Three-mode practical packages | Works as experimental binary workflow: current package uses programmer `04.35.00.08` mode1, mode2 update, mode3 logger. |
 | GS USB logger mode | Works when mode3 enumerates as `1d50:606f`; used for two-bus logging. |
 | Mac CDC port | Works as `/dev/cu.usbmodemKIA1` for stock/update CDC mode. |
 | CAN speeds | Confirmed working setup: `M-CAN=100000`, `C-CAN=500000`. |
@@ -125,6 +125,7 @@ docs/
   REVERSE_SPORTAGE_2CAN35.md        APK/update/firmware reverse notes.
   FIRMWARE_V05_COMPARISON.md        Comparison of related programmer builds.
   SPORTAGE_0705_APK_04100007_ANALYSIS.md APK 07.05 / update 04100007 notes.
+  SPORTAGE_0805_APK_04350008_ANALYSIS.md APK 08.05 / update 04350008 notes.
   RECOVERY_STLINK_SEQUENCE.md       ST-Link recovery notes.
 firmware/
   MANIFEST.md                       Local firmware file hashes and status.
@@ -143,6 +144,7 @@ tools/
   send_usb_display_demo.py          USB media/nav/FM test sender.
   analyze_can_log.py                CAN log summary tool.
   decode_2can35_update.py           Update package decoder/encoder helper.
+  build_04350008_mode3_package.py   Rebuild v08 mode1 + preserved mode3 package.
 ```
 
 Ignored local data:
