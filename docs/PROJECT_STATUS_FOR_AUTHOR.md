@@ -19,6 +19,10 @@ The public repository intentionally does not publish third-party APK/update
 binaries. It keeps hashes, decoded observations, tools, clean source and
 capture data.
 
+Hardware wiring and rework notes are summarized in
+`docs/HARDWARE_WIRING_MOD_GUIDE.md`, adapted from
+https://www.drive2.ru/l/717368666034802531/.
+
 ## What We Have Now
 
 ### 1. Existing Binary Workflow

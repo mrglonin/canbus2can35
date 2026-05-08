@@ -25,6 +25,7 @@
 
 Board notes:
 
+- wiring/rework guide: `docs/HARDWARE_WIRING_MOD_GUIDE.md`;
 - photo/pin map: `firmware/custom_c/docs/BOARD_PHOTO_PINMAP.md`;
 - board I/O map: `firmware/custom_c/docs/BOARD_IO_MAP.md`;
 - TEYES/Raise UART notes: `firmware/custom_c/docs/TEYES_RAISE_COMPAT.md`;
@@ -117,6 +118,7 @@ analog controls.
 dashboard/                  Local browser dashboard for replay, live logging and TX tests.
 data/can_function_matrix.csv Working CAN/feature matrix.
 docs/
+  HARDWARE_WIRING_MOD_GUIDE.md      Wiring/rework guide adapted from Drive2.
   PROJECT_STATUS_FOR_AUTHOR.md      Short status file to send to the firmware author.
   CAN_FUNCTION_MATRIX.md            Human-readable feature matrix.
   HYUNDAI_KIA_MCAN_MEDIA_RESEARCH.md M-CAN media/navigation DBC candidates.
