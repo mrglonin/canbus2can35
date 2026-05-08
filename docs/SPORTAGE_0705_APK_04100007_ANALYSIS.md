@@ -83,8 +83,9 @@ Decoded behavior:
   - if the same media string repeats within 500 ms, it suppresses the duplicate;
   - if `MediaMetadataRetriever` cannot extract title metadata, it falls back to the stored string.
 
-Practical meaning: the new APK is mostly a BL/FYT media anti-spam/fallback fix.
-It does not add a new CAN protocol, a new update protocol, or new USB transport.
+Practical meaning: the new APK mostly improves BL/FYT media duplicate
+suppression and fallback-title handling. It does not add a new CAN protocol, a
+new update protocol, or new USB transport.
 
 ## Firmware 04100007 Decode
 
@@ -158,22 +159,21 @@ update inside CAN/media handling, not a transport/interface change.
 1. For our adapter, keep UID `37 FF DA 05 42 47 30 38 59 41 22 43`.
 2. Do not flash `30FFD...04100007.bin` directly as our firmware; it is a
    reference profile.
-3. For the USB music bug, port logic style from v05/v07:
+3. For full media/source support, port logic style from v05/v07:
    - cache previous source/track state;
    - clear stale media only when source changes;
    - debounce duplicate track events;
    - preserve normal `0x20/0x21/0x22` text paths.
-4. Do not remove media scheduler entries as the final fix. We tested that class
-   of patch already: it can remove `Музыка USB`, but also breaks normal media
-   and navigation display.
+4. Do not remove media scheduler entries as a feature strategy. We tested that
+   class of patch already: it removes useful source/compass/media behavior.
 5. Keep logger mode independent from normal mode. The logger should observe
    `ch0=100000` and `ch1=500000` as before; v07 does not change the GS USB
    logger protocol.
 
 ## What Changed In Plain Terms
 
-- APK 07.05: real fix is BL/FYT media duplicate suppression and fallback title
-  handling.
+- APK 07.05: BL/FYT media duplicate suppression and fallback title handling are
+  useful for complete source/track behavior.
 - Firmware 04100007: close successor of 04100005, `+216` bytes, same USB
   protocol, changed CAN/media handling regions.
 - Our CAN logger table is still valid. The main confirmed overlap is speed

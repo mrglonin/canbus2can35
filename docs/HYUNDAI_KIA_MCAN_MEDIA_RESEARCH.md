@@ -46,7 +46,7 @@ cluster:
 |---:|---:|---|---|---|
 | `0x4E8` | 1256 | `TP_HU_FM_CLU` | `H_U` | FM radio transport payload to cluster. |
 | `0x4E6` | 1254 | `TP_HU_MLT_CLU` | `H_U` | Multimedia / media list transport payload. |
-| `0x490` | 1168 | `TP_HU_USB_CLU` | `H_U` | USB source transport payload. Strong candidate for `Музыка USB` spam. |
+| `0x490` | 1168 | `TP_HU_USB_CLU` | `H_U` | USB source transport payload. Candidate for normal USB title/source display. |
 | `0x4EA` | 1258 | `TP_HU_MP_CLU` | `H_U` | Media player transport payload. |
 | `0x4EE` | 1262 | `TP_HU_IBOX_CLU` | `H_U` | iBox / Bluetooth-like connected media path candidate. |
 | `0x4EC` | 1260 | `TP_HU_DLNA_CLU` | `H_U` | DLNA source. |
@@ -188,20 +188,21 @@ From `logs/car_can_cleanjump_20260506_220618.txt`:
 | `ch1` | `0x4F4` | `TP_HU_ANDAUTO_CLU` | 600 | `00 00 C0 00 00 00 00 01` |
 
 This is important: the public DBC says `0x490` is USB transport to cluster, and
-our car log contains `0x490` at high rate. That is the first candidate for the
-`Музыка USB` spam.
+our car log contains `0x490` at high rate. Treat it as the first candidate for
+normal USB source/title rendering.
 
-## Practical Test Plan For Media Source Bug
+## Practical Test Plan For Media Source Coverage
 
-Tomorrow we should capture short logs while changing only source state:
+Capture short logs while changing only source state:
 
 1. `source_none_idle`: no media app, no USB source selected.
 2. `source_usb_selected`: select USB mode in the head unit.
 3. `source_radio_fm`: select FM.
 4. `source_bt_music`: select Bluetooth music.
 5. `source_android_auto_or_navi`: start navigation/media from Android side.
-6. `spam_visible`: when cluster shows `Музыка USB`.
-7. `spam_hidden`: immediately after it disappears.
+6. `source_carplay`: CarPlay source if available.
+7. `source_android_auto_or_projection`: Android Auto/projection source if available.
+8. `source_compass_default`: no route/no media default state.
 
 For each log, compare these IDs first:
 

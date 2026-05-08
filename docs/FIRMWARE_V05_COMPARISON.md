@@ -60,9 +60,9 @@ v04 scheduler: 0x08005948
 v04 table:     0x08005956 = 05 1A 2D 3A 3D 49 4D 51 61 63
 ```
 
-That suppressed the fallback "Музыка USB" state but also broke normal
-music/navigation because it removed a scheduler state, not the actual spam
-cause.
+That old experiment removed a visible fallback media state but also broke normal
+music/navigation because it removed a scheduler state instead of preserving the
+source-change logic.
 
 In v05 the same scheduler still exists, shifted:
 
@@ -136,7 +136,7 @@ This matches the changelog line:
 ```
 
 Practical conclusion: for our firmware, port the source-change cleanup and
-cache/debounce logic. Do not patch the scheduler table as a spam fix.
+cache/debounce logic. Do not patch the scheduler table as a feature strategy.
 
 ## Reverse Gear Addition
 
@@ -237,7 +237,7 @@ candidate.
    - optional reverse parser after a real Sportage log confirms the source.
 4. Test in car in this order:
    - normal buttons/Simple Soft/UART still work;
-   - no repeated "Музыка USB" fallback while another source is selected;
+   - source changes FM/USB/BT/CarPlay/Android Auto/default compass correctly;
    - APK navigation still appears;
    - track name appears when APK sends real media;
    - speed appears on the head unit;

@@ -202,8 +202,8 @@ Most useful hints from the original firmware author would be:
 1. Exact TEYES/Raise UART identity/startup exchange for `HYK-RZ-10-0001-VK`.
 2. Whether USART1 is used, and which board pins/connectors route it.
 3. Physical reverse input MCU pin, if used separately from CAN reverse.
-4. Exact meaning of the media/source scheduler that caused spontaneous
-   `Музыка USB` display.
+4. Exact meaning of the media/source scheduler and how it chooses source,
+   compass/default state, track/title updates and navigation overlay state.
 5. Confirmed M-CAN frames for:
    - FM/AM source,
    - USB music,
@@ -213,7 +213,8 @@ Most useful hints from the original firmware author would be:
    - compass/default no-navigation state.
 6. Parking sensor/SPAS packet mapping.
 7. Climate display packet mapping.
-8. Whether the two missing resistor footprints near the bottom-side wire are
+8. Steering wheel button mapping through C-CAN and TEYES/Raise UART.
+9. Whether the two missing resistor footprints near the bottom-side wire are
    UART2 TX/RX series resistors and what nominal should be used.
 
 ## Safety Notes

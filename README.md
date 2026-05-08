@@ -2,7 +2,10 @@
 
 Рабочая лаборатория по 2CAN35/Sigma10 canbox для Kia/Hyundai Sportage/Sorento-подобной логики.
 
-Цель: получить воспроизводимую схему работы адаптера, снять чистые логи с двух CAN-шин, разложить сообщения по событиям машины, убрать спам `Музыка USB`, сохранить штатное обновление через USB/APK и довести прошивку до нормального режима canbox + logger.
+Цель: получить воспроизводимую схему работы адаптера, снять и разобрать чистые
+логи с двух CAN-шин, понять максимум функций, которые поддерживает машина по
+C-CAN и M-CAN, и перенести подтвержденные функции в свою прошивку canbox +
+logger без слепых бинарных патчей.
 
 ## Текущее Состояние На 2026-05-08
 
@@ -51,11 +54,15 @@
 - В машине был снят реальный двухканальный GS USB лог: `logs/car_can_cleanjump_20260506_220618.txt`.
 - В этом логе канал `ch0` был запущен на `100000`, канал `ch1` на `500000`.
 - Наш экспериментальный CAN-log комплект добавлен в `firmware/canlog/`.
-- В normal mode прошивка программиста работает, но есть баг: адаптер сам отдает в CAN fallback-событие `Музыка USB`.
-- Патч `skipMediaState0` гасит этот спам, но ломает музыку/навигацию. Значит это не финальный фикс, а только временная отсечка источника.
-- Патч `skipMediaState3` спам не убрал.
+- В normal mode актуальная прошивка программиста работает штатно по media/source;
+  старые media-патчи оставлены только как история экспериментов.
+- Основной фокус теперь не удаление отдельных событий, а расширение
+  функционала: двери/кузов, reverse, парковка/SPAS, климат, кнопки руля,
+  media/source, навигация, температура, скорость и другие доступные состояния.
 
-Главный вывод: завтра не продолжаем слепо резать таблицу состояний. Сначала снимаем чистые парные логи `до/во время/после` и доказываем, какой именно CAN-пакет отвечает за `Музыка USB`, навигацию, треки и источники.
+Главный вывод: не режем таблицы состояний вслепую. Сначала снимаем чистые
+парные логи `до/во время/после`, доказываем CAN-пакет и только потом переносим
+функцию в прошивку или dashboard-тест.
 
 ## Структура Репозитория
 
@@ -303,7 +310,8 @@ if text.length() > 16:
 - Time to finish.
 - Climate display.
 - Stock amplifier control.
-- Возможно source state, который сейчас вызывает `Музыка USB` spam.
+- Source/media state: FM/AM/USB/BT/CarPlay/Android Auto/navigation/default
+  compass state.
 
 ### C-CAN, 500 kbit/s
 
@@ -506,30 +514,29 @@ event, channel, bitrate, can_id, dlc, byte, bit/mask, off_value, on_value, confi
 python3 tools/analyze_can_log.py logs/live_YYYYMMDD_HHMM_baseline_engine_idle.txt --top 80
 ```
 
-## Что Ищем По Багу `Музыка USB`
+## Что Ищем Для Максимального Функционала
 
-Надо доказать не "строку", а CAN-событие.
+Надо доказать не "текст на приборке", а конкретное CAN-событие или пакет.
+Каждая функция должна пройти путь:
 
-Вероятные варианты:
+1. Зафиксировать действие в логе с marker `START/END`.
+2. Найти ID/байт/бит, который меняется синхронно.
+3. Повторить 3-5 раз и проверить, что нет ложного совпадения.
+4. Проверить направление: машина -> adapter, adapter -> TEYES, adapter -> M-CAN.
+5. Добавить в таблицу `data/can_function_matrix.csv`.
+6. Сделать dashboard/raw-CAN тест, если это безопасная отправка.
+7. Только после подтверждения переносить как named feature в `firmware/custom_c`.
 
-1. Firmware видит пустой/нулевой media state и сама отправляет fallback `Музыка USB`.
-2. Firmware получает source state по UART/FYT и транслирует его, но user test показал, что при физически отключенном UART spam оставался.
-3. Firmware держит internal scheduler, который периодически обновляет media source даже без APK.
-4. Один из M-CAN source frames заставляет приборку показывать USB.
+Приоритетные блоки:
 
-Завтра снимаем:
-
-- normal programmer firmware, Android disconnected from adapter USB.
-- normal programmer firmware, Android connected.
-- physical UART disconnected.
-- physical UART connected.
-- source на магнитоле: USB выбран.
-- source на магнитоле: не USB выбран.
-- сразу после пропадания spam и сразу после возврата spam.
-
-Для каждого состояния нужен лог 60 секунд.
-
-Потом ищем CAN ID, который меняет только source/media display, а не всю навигацию.
+- кузов: все двери, багажник, капот, люк, замки, зажигание;
+- reverse: CAN reverse, физический reverse, +12 V output, dynamic lines;
+- парковка/SPAS: передние/задние датчики, side warning/cross traffic;
+- климат: температуры, fan, AC, auto, defrost, recirculation, seat heat/vent;
+- руль/кнопки: volume, seek, mode, phone, voice, mute;
+- media/source: FM, AM, USB, BL/BT, CarPlay, Android Auto, fallback/compass;
+- навигация: street text, TBT, distance, ETA, speed limit if supported;
+- диагностика/настройки: engine temp, outside temp, speed, RPM, errors if visible.
 
 ## Безопасность
 

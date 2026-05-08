@@ -17,8 +17,8 @@ firmware.
 | `2can35_canlog_v1_usb_update.bin` | 19616 | `81245cc636644c86128b8d0f7d4c17fd4b3c1a44b127f2de7bf55709be8b61dd` | Flash through the normal USB update loader. |
 | `2can35_canlog_v1_stlink_full.bin` | 65536 | `d8cbec300e75c264babbc98488e4c75a452ab2b3b37bb2af0d25b8deaa202813` | Full image for ST-Link recovery/programming. |
 | `2can35_04350004_canlog_v4_final_mode3_mediafix_usb.bin` | 32176 | `93e197f3e9c1839daa52925cacbe70267552288e5fba2f908941b455946b84c0` | Previous working v04 + mode3 package. It skips selected media fallback states but may still allow spontaneous source/media display paths. |
-| `2can35_04350004_canlog_v4_no_auto_media_usb.bin` | 32176 | `339a35e3c46ce7b906bb05046b2a97cc27ebe41edb98a74e46518d8d780864f0` | Current car-test package. It keeps UART and explicit APK/USB display commands, but disables internal mode1 media/source fallback schedulers so media should not appear unless sent. |
-| `2can35_04350004_canlog_v4_mode3_original_tbb_no_fallback_usb.bin` | 32176 | `6fc42aa40c26e7009bd327aff1637d56c5707616a6a51de7483e43bf125fcea8` | Current candidate. It restores source/compass scheduler states and disables only fallback branches to static text senders. |
+| `2can35_04350004_canlog_v4_no_auto_media_usb.bin` | 32176 | `339a35e3c46ce7b906bb05046b2a97cc27ebe41edb98a74e46518d8d780864f0` | Historical diagnostic package. It keeps UART and explicit APK/USB display commands, but disables internal mode1 media/source fallback schedulers, which removes useful source/compass behavior. |
+| `2can35_04350004_canlog_v4_mode3_original_tbb_no_fallback_usb.bin` | 32176 | `6fc42aa40c26e7009bd327aff1637d56c5707616a6a51de7483e43bf125fcea8` | Historical diagnostic package. It restores source/compass scheduler states and disables selected fallback branches. |
 | `2can35_04350006_canlog_v4_mode3_preserve_beeps_usb.bin` | 32176 | `a1caf625e9070be6c9da520336751982238c314b9ac3c90140839c370f4867e6` | Programmer v06 mode1, plus preserved software mode2/mode3 switching and GS USB logger slot. |
 
 ## Current Three-Mode Package
@@ -38,9 +38,10 @@ car tests:
   navigation maneuver `0x45`, ETA/distance `0x47`, nav on/off `0x48`, update
   `0x55`, UID/version `0x56`, settings `0x60`, amp `0x30`.
 
-The broader `no_auto_media` build is a diagnostic only. It removed spontaneous
-USB music, but also removed source switching and the default compass display
-path in car testing.
+The broader `no_auto_media` build is a diagnostic only. It removed too much
+useful source switching and default compass behavior in car testing. Current
+work should preserve media/source behavior and expand the supported C-CAN/M-CAN
+function set.
 
 ## Expected USB Logger Protocol
 

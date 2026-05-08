@@ -107,10 +107,10 @@
 
 | Функция | Направление | Приоритетные кандидаты | Что проверять в логе | Статус |
 |---|---|---|---|---|
-| Общий HU state / source | adapter/HU -> cluster | M-CAN `0x114 HU_CLU_PE_01`: `HU_OpState`, `HU_Navi_On_Off`, `HU_Track_Number`, `HU_Frequency`; M-CAN `0x197 HU_CLU_PE_05`: `HU_MuteStatus`, `HU_VolumeStatus`, `HU_NaviStatus`, `HU_Navigation_On_Off` | source none/FM/USB/BT/nav; искать причину `Музыка USB` | `seen_in_log` |
+| Общий HU state / source | adapter/HU -> cluster | M-CAN `0x114 HU_CLU_PE_01`: `HU_OpState`, `HU_Navi_On_Off`, `HU_Track_Number`, `HU_Frequency`; M-CAN `0x197 HU_CLU_PE_05`: `HU_MuteStatus`, `HU_VolumeStatus`, `HU_NaviStatus`, `HU_Navigation_On_Off` | source none/FM/AM/USB/BT/CarPlay/Android Auto/nav/default compass | `seen_in_log` |
 | FM название станции | adapter/HU -> cluster | M-CAN `0x4E8 TP_HU_FM_CLU`; reverse `0x4E9 TP_CLU_FM_HU`; status `0x114` frequency/preset | отправлять 16 символов, потом >16 | `dbc_candidate` |
 | AM | adapter/HU -> cluster | M-CAN source/status likely `0x114`; отдельного AM TP в DBC нет, надо ловить в логах | включить AM и сравнить с FM | `dbc_candidate` |
-| USB media text | adapter/HU -> cluster | M-CAN `0x490 TP_HU_USB_CLU`; reverse `0x497 TP_CLU_USB_HU`; status `0x114` | главный кандидат спама `Музыка USB` | `seen_in_log` |
+| USB media text | adapter/HU -> cluster | M-CAN `0x490 TP_HU_USB_CLU`; reverse `0x497 TP_CLU_USB_HU`; status `0x114` | USB source/title/artist/track state; проверить нормальную смену источников | `seen_in_log` |
 | Multimedia list / generic media | adapter/HU -> cluster | M-CAN `0x4E6 TP_HU_MLT_CLU`; reverse `0x4E7 TP_CLU_MLT_HU` | музыка, список, неизвестный source | `seen_in_log` |
 | Media player | adapter/HU -> cluster | M-CAN `0x4EA TP_HU_MP_CLU`; reverse `0x4EB TP_CLU_MP_HU` | трек из APK/Android, повтор 5 секунд | `dbc_candidate` |
 | Bluetooth/iBox music | adapter/HU -> cluster | M-CAN `0x4EE TP_HU_IBOX_CLU`; reverse `0x4EF`; M-CAN `0x485 TP_HU_CLU_HF` для phone/HF | BT музыка и звонок отдельно | `dbc_candidate` |
@@ -252,20 +252,22 @@ Web dashboard at localhost
 Приоритет на ближайший день:
 
 1. `baseline_engine_idle_120s`.
-2. `source_spam_usb_visible_60s`.
-3. `source_usb_selected_60s`.
-4. `source_fm_60s`.
-5. `nav_test_repeated_60s`.
-6. `climate_main_blower_steps`.
-7. `climate_ac_auto_intake_defog`.
-8. `door_driver/passenger/rear/trunk`.
-9. `sunroof_open_close`.
-10. `heated_steering_button`.
-11. `rear_defog_button`.
-12. `cluster_settings_one_by_one`.
-13. `reverse_gear_no_obstacle`.
-14. `parking_rear_obstacle`.
-15. `rcta_left/right`, только если безопасно.
+2. `source_usb_selected_60s`.
+3. `source_fm_60s`.
+4. `source_bt_music_60s`.
+5. `source_carplay_or_android_auto_60s`.
+6. `source_compass_default_60s`.
+7. `nav_test_repeated_60s`.
+8. `climate_main_blower_steps`.
+9. `climate_ac_auto_intake_defog`.
+10. `door_driver/passenger/rear/trunk`.
+11. `sunroof_open_close`.
+12. `heated_steering_button`.
+13. `rear_defog_button`.
+14. `cluster_settings_one_by_one`.
+15. `reverse_gear_no_obstacle`.
+16. `parking_rear_obstacle`.
+17. `rcta_left/right`, только если безопасно.
 
 ## Поле Для Реализации
 
