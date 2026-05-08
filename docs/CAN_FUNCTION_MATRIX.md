@@ -91,17 +91,13 @@
 | Задний обогрев стекла | car -> adapter / climate | C-CAN `0x541 CGW1`: `CF_Gway_DefoggerRly`; M-CAN `0x034 HU_DATC_E_02`: `HU_DATC_RearDefog`; M-CAN `0x134 DATC_PE_05`: `DATC_RrDefLed` | rear defog button | `dbc_candidate` |
 | Дворники | car -> adapter | C-CAN `0x541 CGW1`: `CF_Gway_WiperIntSw`, `WiperLowSw`, `WiperHighSw`, `WiperAutoSw`, `WiperMistSw`, `WiperIntT`; C-CAN `0x553 CGW2`: rear wiper low/high | each position separately | `dbc_candidate` |
 
-## Руль, Кнопки, UART/Магнитола
+## Аналоговые Кнопки, Raise UART/Магнитола
 
 | Функция | Направление | Приоритетные кандидаты | Что проверять в логе | Статус |
 |---|---|---|---|---|
-| Mode/source | car -> adapter -> HU/UART/USB | C-CAN `0x523 GW_SWRC_PE`: `C_ModeSW`; UART SimpleSoft path separately | нажать коротко/долго если есть | `dbc_candidate` |
-| Mute | car -> adapter -> HU | C-CAN `0x523`: `C_MuteSW` | press/release | `dbc_candidate` |
-| Seek prev/next | car -> adapter -> HU | C-CAN `0x523`: `C_SeekDnSW`, `C_SeekUpSW` | press/release | `dbc_candidate` |
-| Volume down/up | car -> adapter -> HU | C-CAN `0x523`: `C_VolDnSW`, `C_VolUpSW` | single press and hold | `dbc_candidate` |
-| Phone answer/hangup | car -> adapter -> HU | C-CAN `0x523`: `C_BTPhoneCallSW`, `C_BTPhoneHangUpSW` | press/release | `dbc_candidate` |
-| Voice/SDS | car -> adapter -> HU | C-CAN `0x523`: `C_SdsSW` | press/release | `dbc_candidate` |
-| MTS/DISC | car -> adapter -> HU | C-CAN `0x523`: `C_MTSSW`, `C_DISCDownSW`, `C_DISCUpSW` | if buttons exist | `dbc_candidate` |
+| Кнопки руля | analog buttons -> stock Raise canbox -> UART2 -> our adapter -> TEYES HU | Transparent Raise UART bridge; no CAN conversion required for base operation | лог UART2 до/после нашего адаптера; проверить volume/seek/mode/phone/voice/mute | `confirmed_architecture_pending_bridge` |
+| Кнопки пианино над климатом | analog panel -> stock Raise canbox -> UART2 -> our adapter -> TEYES HU | Same transparent Raise UART bridge | лог UART2 и реакцию магнитолы | `confirmed_architecture_pending_bridge` |
+| C-CAN `0x523 GW_SWRC_PE` | secondary research only | Public DBC has SWRC fields, but this car/button path is treated as analog through Raise | не использовать как основной путь кнопок; держать как reference for other trims | `not_primary_for_this_setup` |
 
 ## Мультимедиа, Приборка, Навигация
 
@@ -257,17 +253,19 @@ Web dashboard at localhost
 4. `source_bt_music_60s`.
 5. `source_carplay_or_android_auto_60s`.
 6. `source_compass_default_60s`.
-7. `nav_test_repeated_60s`.
-8. `climate_main_blower_steps`.
-9. `climate_ac_auto_intake_defog`.
-10. `door_driver/passenger/rear/trunk`.
-11. `sunroof_open_close`.
-12. `heated_steering_button`.
-13. `rear_defog_button`.
-14. `cluster_settings_one_by_one`.
-15. `reverse_gear_no_obstacle`.
-16. `parking_rear_obstacle`.
-17. `rcta_left/right`, только если безопасно.
+7. `raise_uart_buttons_steering_60s`.
+8. `raise_uart_buttons_piano_panel_60s`.
+9. `nav_test_repeated_60s`.
+10. `climate_main_blower_steps`.
+11. `climate_ac_auto_intake_defog`.
+12. `door_driver/passenger/rear/trunk`.
+13. `sunroof_open_close`.
+14. `heated_steering_button`.
+15. `rear_defog_button`.
+16. `cluster_settings_one_by_one`.
+17. `reverse_gear_no_obstacle`.
+18. `parking_rear_obstacle`.
+19. `rcta_left/right`, только если безопасно.
 
 ## Поле Для Реализации
 

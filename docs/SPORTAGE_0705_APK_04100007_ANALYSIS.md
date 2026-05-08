@@ -152,7 +152,7 @@ update inside CAN/media handling, not a transport/interface change.
 | Steering angle / dynamic lines | Our matrix: `0x2B0` (`SAS11`) and `0x381` (`MDPS11`). | v07 body/parser region references steering-related constants and keeps parking logic family. | Use our logger ids for dynamic-line validation; do not infer final byte mapping from v07 alone. |
 | Parking sensors/SPAS/RCTA | Matrix candidates: `0x436`, `0x390`, `0x4F4`, `0x58B`. Captured parking walk did not produce a clean obstacle/RCTA event. | v07 does not expose new APK-side commands for this. | Need a better in-car segment with reverse active and real obstacle events if we want exact zone bytes. |
 | Climate display | Matrix candidates: M-CAN `0x131/0x132/0x134`, C-CAN `0x042/0x043`; many states were seen in our log. | APK 07.05 does not change climate logic. | Climate should be handled by firmware/CAN profile, not by the APK update. |
-| Steering wheel buttons | Matrix candidate `0x523`, but our captured CAN did not confidently identify button presses. | APK 07.05 does not change SWRC logic. | Buttons likely go through UART/SimpleSoft/analog bridge on this setup, or need a cleaner isolated CAN segment. |
+| Steering wheel / piano buttons | This setup treats these controls as analog buttons handled by the stock Raise canbox, then forwarded over Raise UART. | APK 07.05 does not change SWRC logic. | Main implementation path is transparent Raise UART bridge: buttons -> stock Raise canbox -> our UART2 -> TEYES HU. |
 
 ## Practical Porting Rules
 

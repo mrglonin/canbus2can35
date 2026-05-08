@@ -1,558 +1,309 @@
 # canbus2can35
 
-Рабочая лаборатория по 2CAN35/Sigma10 canbox для Kia/Hyundai Sportage/Sorento-подобной логики.
+Лаборатория и исходники для кастомного 2CAN35/Sigma10 canbox на базе
+`STM32F105RBT6` под Kia/Hyundai Sportage-family setup.
 
-Цель: получить воспроизводимую схему работы адаптера, снять и разобрать чистые
-логи с двух CAN-шин, понять максимум функций, которые поддерживает машина по
-C-CAN и M-CAN, и перенести подтвержденные функции в свою прошивку canbox +
-logger без слепых бинарных патчей.
+Цель проекта - максимально раскрыть функции автомобиля по двум CAN-шинам
+`C-CAN` и `M-CAN`, собрать воспроизводимую карту сигналов и постепенно
+перенести подтвержденную логику в свою прошивку. Репозиторий не является
+публичной раздачей чужих APK/прошивок: сторонние бинарники описаны через имена,
+версии и SHA256, а исходная разработка ведется в `firmware/custom_c/`.
 
-## Текущее Состояние На 2026-05-08
+## Hardware
 
-У нас теперь две параллельные ветки работы:
+| Item | Current knowledge |
+|---|---|
+| Board | StarLine / 2CAN35-like board, PCB `StarLine 200-00002 REV.A` |
+| MCU | `STM32F105RBT6`, LQFP64 |
+| Adapter UID | `37 FF DA 05 42 47 30 38 59 41 22 43` |
+| USB CDC | `0483:5740`, usually `/dev/cu.usbmodemKIA1` |
+| C-CAN | `PB8/PB9`, 500 kbit/s |
+| M-CAN | `PB12/PB13`, 100 kbit/s |
+| TEYES/Raise UART2 | `PA2/PA3`, 19200 8N1 |
+| Reverse output control | `PC14`, active high logic output to external driver |
+| Profile string seen in firmware | `HYK-RZ-10-0001-VK` |
 
-1. `firmware/canlog/` - практические бинарные пакеты/обертки для текущих
-   тестов на машине: штатная логика программиста в mode1 плюс наш mode3 logger.
-2. `firmware/custom_c/` - первый чистый исходник прошивки на C под
-   STM32F105RBT6. Это не заявляется как полная копия прошивки программиста:
-   это воспроизводимая база, собранная по реверсу протокола, логам и карте
-   платы, чтобы дальше переносить только подтвержденные функции.
+Board notes:
 
-Ключевые подтвержденные вещи по чистой C-прошивке:
+- photo/pin map: `firmware/custom_c/docs/BOARD_PHOTO_PINMAP.md`;
+- board I/O map: `firmware/custom_c/docs/BOARD_IO_MAP.md`;
+- TEYES/Raise UART notes: `firmware/custom_c/docs/TEYES_RAISE_COMPAT.md`;
+- ST-Link recovery sequence: `docs/RECOVERY_STLINK_SEQUENCE.md`.
 
-- MCU: `STM32F105RBT6`, приложение с адреса `0x08004000`.
-- USB CDC ACM: VID/PID `0483:5740`, имя сборки `KIA CANBOX 2CAN35`.
-- UID: `37 FF DA 05 42 47 30 38 59 41 22 43`.
-- Версия clean C сборки: `04 35 10 02`.
-- C-CAN: `PB8/PB9`, 500 kbit/s.
-- M-CAN: `PB12/PB13`, 100 kbit/s.
-- TEYES/Raise UART2: `PA2/PA3`, 19200 8N1.
-- Reverse output: `PC14`, active high, через внешний драйвер/транзистор.
-- Mode/lab protocol: USB raw CAN TX/RX, raw UART TX, базовые binary-команды
-  `0x55`, `0x56`, `0x70`.
+## Architecture
 
-Главное ограничение: `firmware/custom_c/` пока не полная daily-driver
-прошивка. В ней есть транспорт, CAN, UART, reverse, базовая карта состояний и
-безопасный lab-протокол, но еще не перенесены все media/nav/climate/parking
-генераторы штатной прошивки.
+The project separates four layers:
 
-Адаптер:
+| Layer | Purpose |
+|---|---|
+| Car CAN parser | Read body, reverse, parking, climate, speed, temperatures and other states from `C-CAN` / `M-CAN`. |
+| TEYES/Raise UART bridge | Talk to the Android head unit through the selected Raise Hyundai/Kia canbox protocol. |
+| M-CAN sender | Send confirmed media/navigation/cluster frames to the factory cluster. |
+| Lab tooling | Log both buses, replay captures, send controlled raw CAN/USB/UART tests, and update firmware. |
 
-- UID: `37 FF DA 05 42 47 30 38 59 41 22 43`.
-- Штатный USB CDC: обычно `/dev/cu.usbmodemKIA1`.
-- Штатный VID/PID: `0483:5740`.
-- APK/USB serial: `19200 8N1`.
-- Профиль в прошивке: `HYK-RZ-10-0001-VK`.
-- Скорости по подсказке программиста и дизассемблеру:
-  - `C-CAN = 500 kbit/s`.
-  - `M-CAN = 100 kbit/s`.
+### Analog Buttons / External Raise Bridge
 
-Что уже доказано:
+Steering wheel buttons and the piano buttons above the climate panel are treated
+as analog button hardware, not as a primary CAN-decoding target.
 
-- APK-compatible update по USB работает: команда `0x55`, блоки по 16 байт, после финиша адаптер сам перезапускается.
-- Версия программиста `04 35 00 04` рассчитана именно на наш UID.
-- В машине был снят реальный двухканальный GS USB лог: `logs/car_can_cleanjump_20260506_220618.txt`.
-- В этом логе канал `ch0` был запущен на `100000`, канал `ch1` на `500000`.
-- Наш экспериментальный CAN-log комплект добавлен в `firmware/canlog/`.
-- В normal mode актуальная прошивка программиста работает штатно по media/source;
-  старые media-патчи оставлены только как история экспериментов.
-- Основной фокус теперь не удаление отдельных событий, а расширение
-  функционала: двери/кузов, reverse, парковка/SPAS, климат, кнопки руля,
-  media/source, навигация, температура, скорость и другие доступные состояния.
-
-Главный вывод: не режем таблицы состояний вслепую. Сначала снимаем чистые
-парные логи `до/во время/после`, доказываем CAN-пакет и только потом переносим
-функцию в прошивку или dashboard-тест.
-
-## Структура Репозитория
+Planned practical wiring:
 
 ```text
+analog buttons -> stock Raise canbox -> UART2 -> our 2CAN35 adapter -> TEYES HU
+```
+
+Meaning:
+
+- the stock Raise box can keep reading analog buttons exactly as intended;
+- its UART output goes into our adapter UART2;
+- our adapter can transparently bridge, log, filter or later extend that stream;
+- because the head unit already expects the Raise protocol, no button protocol
+  conversion is needed for the basic path.
+
+Firmware implication: the clean firmware needs a reliable transparent
+Raise-UART bridge before it tries to replace button handling. CAN-side button
+candidates are kept only as secondary research, not as the main plan for these
+analog controls.
+
+## Current Status
+
+### Works / Confirmed
+
+| Area | Status |
+|---|---|
+| Stock USB update protocol | Works. `0x55` update flow, 16-byte blocks, UID check. |
+| Three-mode practical packages | Works as experimental binary workflow: mode1 canbox, mode2 update, mode3 logger. |
+| GS USB logger mode | Works when mode3 enumerates as `1d50:606f`; used for two-bus logging. |
+| Mac CDC port | Works as `/dev/cu.usbmodemKIA1` for stock/update CDC mode. |
+| CAN speeds | Confirmed working setup: `M-CAN=100000`, `C-CAN=500000`. |
+| Dashboard | Local web dashboard for replay, live logger, matrix view and controlled TX. |
+| Clean C firmware build | Builds and packages from source in `firmware/custom_c/`. |
+| Clean C USB CDC | Implemented as `KIA CANBOX 2CAN35`, VID/PID `0483:5740`. |
+| Clean C raw CAN TX/RX | Implemented for lab use. |
+| Clean C basic TEYES UART TX | Implemented behind `ENABLE_TEYES_UART=1`. |
+| Clean C reverse output | Implemented on `PC14` behind `ENABLE_REVERSE_OUT=1`. |
+| Logs and candidate tables | Labelled capture data and function matrix are in `logs/session_20260507/` and `data/can_function_matrix.csv`. |
+
+### Experimental
+
+| Area | Current state |
+|---|---|
+| `firmware/canlog/` packages | Useful for car testing, but still binary-wrapper workflow. |
+| `firmware/custom_c/` daily firmware | Real C source exists, but not yet a full replacement for the programmer firmware. |
+| TEYES/Raise semantic parser | Frame format and basic body/reverse packets are decoded; full identity/startup and all commands are not complete. |
+| M-CAN media/navigation | Public DBC candidates and APK commands are mapped; named generators are not finalized. |
+| Parking/SPAS/RCTA | Candidate IDs exist, exact byte/zone mapping still needs stronger captures. |
+| Climate display/control | Candidate IDs exist, exact mapping is incomplete. |
+| Raw CAN TX from dashboard | Available for controlled discovery; must be used carefully. |
+| UART2 board passives | PA2/PA3 are known, but the bottom-side wire and missing resistor footprints still need continuity checks. |
+
+### Not Implemented Yet
+
+| Area | Missing work |
+|---|---|
+| Full clean-room canbox replacement | Need to promote verified CAN/UART/media/climate/parking functions into `firmware/custom_c`. |
+| Full mode2 handoff from clean C | Clean C currently replies to mode commands but does not fully hand off to the stock loader. |
+| Transparent Raise UART bridge | Needed for the external Raise button-chain plan. |
+| TEYES/Raise identity exchange | Need exact startup/profile exchange for `HYK-RZ-10-0001-VK`. |
+| Named M-CAN media/nav senders | Need confirmed frames for FM/AM/USB/BT/CarPlay/Android Auto/navigation/default compass. |
+| Exact parking sensor/RCTA mapping | Need safer, isolated obstacle captures. |
+| Exact climate mapping | Need isolated captures for each climate control state. |
+| Second UART route | USART1 is referenced in reverse work, but board routing/purpose is not confirmed. |
+| Physical reverse input pin | Reverse output is mapped; separate physical reverse input still needs pin confirmation. |
+
+## Repository Layout
+
+```text
+dashboard/                  Local browser dashboard for replay, live logging and TX tests.
+data/can_function_matrix.csv Working CAN/feature matrix.
 docs/
-  PROJECT_STATUS_FOR_AUTHOR.md    короткий статус для автора/прогера: что готово, что надо подсказать
-  REVERSE_SPORTAGE_2CAN35.md      подробный reverse APK/update/firmware
-  FIRMWARE_V05_COMPARISON.md      сравнение нашего v04 и чужого v05: media fix, reverse, speed
-  SPORTAGE_0705_APK_04100007_ANALYSIS.md  новое APK 07.05 + прошивка 04100007: отличия и связь с логами
-  HYUNDAI_KIA_MCAN_MEDIA_RESEARCH.md  публичные DBC-кандидаты для media/source на приборку
-  CAN_FUNCTION_MATRIX.md          рабочая матрица функций: кузов, media, климат, безопасность
-  RECOVERY_STLINK_SEQUENCE.md     порядок восстановления через ST-Link
-data/
-  can_function_matrix.csv         CSV-шаблон для заполнения по реальным логам
-dashboard/
-  server.py                       локальный web-интерфейс CAN Lab
-  static/                         UI: live state, transmit tests, matrix, frames
+  PROJECT_STATUS_FOR_AUTHOR.md      Short status file to send to the firmware author.
+  CAN_FUNCTION_MATRIX.md            Human-readable feature matrix.
+  HYUNDAI_KIA_MCAN_MEDIA_RESEARCH.md M-CAN media/navigation DBC candidates.
+  REVERSE_SPORTAGE_2CAN35.md        APK/update/firmware reverse notes.
+  FIRMWARE_V05_COMPARISON.md        Comparison of related programmer builds.
+  SPORTAGE_0705_APK_04100007_ANALYSIS.md APK 07.05 / update 04100007 notes.
+  RECOVERY_STLINK_SEQUENCE.md       ST-Link recovery notes.
 firmware/
-  MANIFEST.md                     хэши и статусы локальных прошивок
-  canlog/                         наш экспериментальный CAN-log firmware комплект
-  custom_c/                       чистый C-исходник прошивки STM32F105RBT6
+  MANIFEST.md                       Local firmware file hashes and status.
+  canlog/                           Practical experimental binary packages.
+  custom_c/                         Clean C firmware source.
 logs/
-  car_can_cleanjump_20260506_220618.txt  пример реального двухшинного лога
+  car_can_cleanjump_20260506_220618.txt   Small example capture.
+  session_20260507/                 Curated capture summaries/tables.
 samples/
-  stations.txt                    таблица FM-станций из APK
+  stations.txt                      FM station mapping extracted from APK work.
 tools/
-  usb_update_2can35.py            штатная USB-прошивка как APK
-  usb_mode_2can35.py              программный переход normal/update/logger
-  stockusb_canlog_2can35.py       CDC CAN logger протокол `0x70`
-  gsusb_2can35_logger.py          GS USB logger для VID/PID `1d50:606f`
-  send_usb_display_demo.py        повторный тест FM/music/track/nav по USB
-  analyze_can_log.py              быстрый summary ID/rate/changing bytes
-  verify_2can35_modes.py          эмуляция выбора режимов
-  decode_2can35_update.py         декодер/энкодер update package
-  patch_mode1_skip_selected_media_states.py
-  apk_scan_sportage.py
+  usb_update_2can35.py              Stock USB update flow.
+  usb_mode_2can35.py                Mode switching helper.
+  gsusb_2can35_logger.py            GS USB logger.
+  stockusb_canlog_2can35.py         CDC logger protocol.
+  send_usb_display_demo.py          USB media/nav/FM test sender.
+  analyze_can_log.py                CAN log summary tool.
+  decode_2can35_update.py           Update package decoder/encoder helper.
 ```
 
-## Режимы Адаптера
+Ignored local data:
 
-Целевая схема:
+- `firmware/local/`;
+- raw APK/bin files without explicit publishing rights;
+- `firmware/custom_c/build/`;
+- `firmware/custom_c/dist/`;
+- large raw full logs such as `logs/session_*/full_*.txt`.
 
-| Режим | Звук | Назначение | USB | Комментарий |
-|---|---:|---|---|---|
-| Mode 1 | 1 писк | Normal canbox | CDC `0483:5740` | Штатная прошивка программиста: читает CAN, физический reverse, UART/USB, отдает данные в машину. |
-| Mode 2 | 2 писка | Update loader | CDC `0483:5740` | APK-compatible загрузчик. Принимает `.bin` update package блоками по 16 байт. |
-| Mode 3 | 3 писка | CAN logger | CDC logger или GS USB | Нужен для снятия двух шин. Самый надежный вариант для Mac был GS USB `1d50:606f`; CDC logger нужен как запасной путь. |
+## Build Clean C Firmware
 
-Программные команды переключения через штатный CDC:
+Default build keeps CAN hardware disabled:
+
+```sh
+cd firmware/custom_c
+make clean package
+make sim
+```
+
+Full experimental build used for current source validation:
+
+```sh
+cd firmware/custom_c
+make clean package \
+  ENABLE_CAN_HW=1 \
+  USE_STOCK_BEEP=1 \
+  ENABLE_REVERSE_OUT=1 \
+  ENABLE_TEYES_UART=1 \
+  TEYES_UART_BAUD=19200 \
+  VERSION_HEX=04351002
+make sim
+```
+
+Expected generated package:
 
 ```text
-BB 41 A1 07 55 01 CS  -> update mode
-BB 41 A1 07 55 03 CS  -> logger mode
-BB 41 A1 07 55 04 CS  -> normal/reset
+build/2can35_custom_04351002_update.bin
 ```
 
-`CS = sum(all previous bytes) & 0xff`.
+The locally generated package hash from the last validation:
 
-Команды:
+```text
+a4662920bdd7de908bb4c31c1c0c612c99433daacc91f0f128a034e02489e743
+```
 
-```bash
+## Use The Dashboard
+
+```sh
+python3 dashboard/server.py --port 8765
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765
+```
+
+Dashboard roles:
+
+- replay curated logs;
+- start live GS USB capture;
+- inspect function matrix;
+- queue controlled raw CAN TX tests;
+- send USB display/navigation/media experiments;
+- switch modes where the current firmware supports it.
+
+## USB Update / Mode Tools
+
+Mode switch:
+
+```sh
 python3 tools/usb_mode_2can35.py /dev/cu.usbmodemKIA1 update
 python3 tools/usb_mode_2can35.py /dev/cu.usbmodemKIA1 canlog
 python3 tools/usb_mode_2can35.py /dev/cu.usbmodemKIA1 normal
 ```
 
-## Как Работает Штатное USB Обновление
+Flash an update package:
 
-Кадр:
-
-```text
-BB dst src len cmd payload... checksum
+```sh
+python3 tools/usb_update_2can35.py /dev/cu.usbmodemKIA1 firmware/local/<update>.bin
 ```
 
-Направление Android/Mac -> adapter:
+Two-bus GS USB capture:
 
-```text
-BB 41 A1 ...
-```
-
-Направление adapter -> Android/Mac:
-
-```text
-BB A1 41 ...
-```
-
-Старт:
-
-```text
-BB 41 A1 07 55 01 CS
-```
-
-Блок:
-
-```text
-BB 41 A1 19 55 off_hi off_mid off_lo 16_bytes CS
-```
-
-Финиш:
-
-```text
-BB 41 A1 07 55 00 CS
-```
-
-Ответы:
-
-```text
-BB A1 41 07 55 01 CS  update mode entered
-BB A1 41 07 55 02 CS  block accepted
-BB A1 41 07 55 00 CS  finish
-```
-
-Прошить update package:
-
-```bash
-python3 tools/usb_update_2can35.py /dev/cu.usbmodemKIA1 firmware/local/37FFDA054247303859412243_04350004.bin
-```
-
-Скрипт проверяет UID из файла и UID адаптера. `--force` использовать только если точно понятно, почему UID не совпадает.
-
-## Как Работает Logger
-
-Есть два рабочих направления.
-
-### GS USB / budgetcan
-
-Когда режим 3 поднимается как GS USB:
-
-- VID/PID: `1d50:606f`.
-- Интерфейс не serial CDC, а USB bulk/control.
-- На Mac читаем через `pyusb` + `libusb`.
-- Каналы в нашем реальном логе:
-  - `ch0 = 100000` предположительно M-CAN.
-  - `ch1 = 500000` предположительно C-CAN.
-- Лог пишется в listen-only, чтобы не вмешиваться в машину.
-
-Команда:
-
-```bash
+```sh
 python3 tools/gsusb_2can35_logger.py \
   --bitrate0 100000 \
   --bitrate1 500000 \
   --seconds 120 \
-  --outfile logs/live_baseline_ign_on.txt
+  --outfile logs/live_test.txt
 ```
 
-С выходом обратно в normal mode после таймера:
+CDC logger fallback:
 
-```bash
-python3 tools/gsusb_2can35_logger.py \
-  --bitrate0 100000 \
-  --bitrate1 500000 \
-  --seconds 120 \
-  --outfile logs/live_test.txt \
-  --exit-on-complete
+```sh
+python3 tools/stockusb_canlog_2can35.py /dev/cu.usbmodemKIA1 --seconds 120
 ```
 
-### CDC Logger
-
-Если режим 3 остается на штатном CDC:
-
-- VID/PID: `0483:5740`.
-- Порт: `/dev/cu.usbmodemKIA1`.
-- Старт логирования: команда `0x70 0x01`.
-- Стоп: команда `0x70 0x00`.
-- Формат одного CAN frame от адаптера:
-
-```text
-BB A1 41 16 70 02 bus flags can_id_le[4] dlc data[8] CS
-```
-
-Команда:
-
-```bash
-python3 tools/stockusb_canlog_2can35.py /dev/cu.usbmodemKIA1 --seconds 120 > logs/live_cdc_test.txt
-```
-
-## Что Поддерживает Sportage.apk / Прошивка V04
-
-Источник: reverse `Sportage.apk` (`com.sorento.navi`, version `2.1`) и decoded update `04 35 00 04`.
-
-### USB команды APK <-> adapter
-
-| Cmd | Направление | Длина/формат | Назначение |
-|---:|---|---|---|
-| `0x20` | adapter -> APK, APK -> adapter | adapter шлет частоту, APK возвращает UTF-16LE текст | FM station. APK читает `stations.txt`, режет имя станции до 16 символов. |
-| `0x21` | APK -> adapter | UTF-16LE, максимум 16 символов по APK | Media/radio/music text. |
-| `0x22` | adapter -> APK, APK -> adapter | adapter может слать номер трека; APK может вернуть UTF-16LE | Track text / track number. Если нет metadata, APK строит `Track № N`. |
-| `0x30` | both | request/apply/report | Штатный усилитель: volume, balance, fader, bass, mid, treble, mode. |
-| `0x44` | APK -> adapter | `01 speed` | Speed limit. В v03 программист писал, что speed-limit убран из постоянной отправки из-за возможных ошибок на комплектациях без этой функции. |
-| `0x45` | APK -> adapter | 8 байт payload | Navigation maneuver / TBT. |
-| `0x47` | APK -> adapter | 6 байт payload | Distance/ETA до финиша. |
-| `0x48` | APK -> adapter | `00/01` | Navigation on/off. |
-| `0x51` | both | frame bytes | TPMS request/report. |
-| `0x55` | both | update flow | Firmware update / mode switching. |
-| `0x56` | both | UID/version | UID и версия прошивки. |
-| `0x60` | both | settings | Настройки: speed/TBT mode, SAS delay, engine temp enable. |
-
-### Android источники данных
-
-| Источник | Где найдено | Что дает |
-|---|---|---|
-| `NaviReceiver` | `com.sorento.navi.NaviReceiver` | Принимает broadcast actions: maneuver, exceeded, speed, ETA, navi_on. |
-| SMOD/Yandex navigation bridge | action names `com.sorento.navi.ACTION_*` | Маневр, дистанция, единицы, улица, ограничение скорости, признак навигации. |
-| FYT/SYU media service | bind к `com.syu.ms.toolkit`, package `com.syu.ms` | Metadata музыки/радио/Bluetooth на FYT/TEYES-платформе. |
-| `stations.txt` | asset APK, копируется в `Android/data/com.sorento.navi/files` | Сопоставление FM частоты с названием станции. Можно редактировать. |
-| `AmpActivity` | UI activity APK | Управление штатным усилителем. |
-| `SettingsActivity` | UI activity APK | TBT/speed mode, SAS delay 10..50, engine temp enable, firmware update. |
-
-### Ограничения текста
-
-В APK явно стоит обрезка:
-
-```text
-if text.length() > 16:
-    text = text.substring(0, 16)
-```
-
-Это найдено для FM station, media text и track text. Кодирует строки как UTF-16LE.
-
-Практически завтра проверяем так:
-
-- ASCII 16 символов: `ABCDEFGHIJKLMNOP`.
-- ASCII 17+ символов: должно обрезаться до 16.
-- Кириллица 16 символов: проверить, не режется ли плохо на приборке.
-- Смешанная строка: `USB TEST 123456`.
-- Пустая строка: проверить, скрывает ли поле или оставляет старое.
-
-## Данные, Которые Надо Проверить По M-CAN И C-CAN
-
-Из описания программиста и reverse:
-
-### M-CAN, 100 kbit/s
-
-Проверить:
-
-- FM station name.
-- AM station.
-- Music text.
-- Music over Bluetooth.
-- Bluetooth call.
-- Navigation street names.
-- Navigation TBT maneuver.
-- Distance to finish.
-- Time to finish.
-- Climate display.
-- Stock amplifier control.
-- Source/media state: FM/AM/USB/BT/CarPlay/Android Auto/navigation/default
-  compass state.
-
-### C-CAN, 500 kbit/s
-
-Проверить:
-
-- Driver door.
-- Passenger door.
-- Rear left door.
-- Rear right door.
-- Trunk.
-- Hood.
-- Reverse gear / physical reverse input correlation.
-- Dynamic reverse lines.
-- Parking sensors / SPAS.
-- Outside temperature.
-- Engine temperature.
-- Left/right turn indicators.
-- Hazard.
-- Brake pedal.
-- Parking brake.
-- ACC/IGN/engine running.
-- Gear selector P/R/N/D.
-- Vehicle speed.
-- RPM.
-- Steering angle.
-- Steering wheel buttons.
-- Lights: low beam, high beam, fog, DRL.
-- Wipers if visible.
-- Lock/unlock.
-
-## Завтрашний План Снятия Логов
-
-Главное правило: одно действие - один лог или один четкий marker. Не смешивать двери, поворотники, климат и музыку в одном хаосе.
-
-### 0. Подготовка
-
-1. Поставить адаптер в known-good normal mode.
-2. Проверить, что машина не ругается ошибками.
-3. Подключить USB напрямую к Mac, без нестабильного хаба.
-4. Подключить обе шины:
-   - M-CAN 100 kbit/s.
-   - C-CAN 500 kbit/s.
-5. Проверить, что логер видит оба канала.
-6. В начале каждого теста вслух/в чат писать marker: `START door_driver_open`.
-7. После теста писать marker: `END door_driver_open`.
-
-### 1. Baseline
-
-Снимаем четыре базовых состояния:
-
-| Лог | Длительность | Машина |
-|---|---:|---|
-| `baseline_power_off` | 60 сек | Машина закрыта/спокойна, адаптер запитан как получится от схемы. |
-| `baseline_acc` | 60 сек | ACC on, двигатель не запущен. |
-| `baseline_ign_on` | 60 сек | Зажигание on, двигатель не запущен. |
-| `baseline_engine_idle` | 120 сек | Двигатель заведен, стоим. |
-
-Команда:
-
-```bash
-python3 tools/gsusb_2can35_logger.py --bitrate0 100000 --bitrate1 500000 --seconds 120 --outfile logs/live_YYYYMMDD_HHMM_baseline_engine_idle.txt
-```
-
-### 2. Двери/Кузов
-
-Для каждого события:
-
-1. 10 секунд покой.
-2. Сделать действие.
-3. Держать состояние 10 секунд.
-4. Вернуть обратно.
-5. Подождать 10 секунд.
-6. Повторить 3 раза.
-
-События:
-
-- `door_driver_open_close`
-- `door_passenger_open_close`
-- `door_rear_left_open_close`
-- `door_rear_right_open_close`
-- `trunk_open_close`
-- `hood_open_close`
-- `lock_unlock_key`
-- `lock_unlock_button`
-
-### 3. Свет/Поворотники
-
-События:
-
-- `turn_left`
-- `turn_right`
-- `hazard`
-- `low_beam_on_off`
-- `high_beam_on_off`
-- `fog_front_on_off`
-- `fog_rear_on_off`
-- `drl_state`
-- `brake_pedal_press_release`
-- `parking_brake_on_off`
-
-Каждое действие держать минимум 5 секунд, повторить 3 раза.
-
-### 4. Reverse / Камера / Парктроники
-
-Сначала без движения, на тормозе:
-
-- `gear_r_on_off`
-- `reverse_physical_input_vs_can`
-- `steering_reverse_left_center_right`
-- `parking_sensor_near_far` если можно безопасно поставить препятствие.
-- `spas_state` если есть.
-
-Важно: для dynamic lines обязательно логировать steering angle при включенном R.
-
-### 5. Климат
-
-Каждый пункт менять по одному:
-
-- fan speed 0 -> max -> 0.
-- driver temp min -> 22 -> max.
-- passenger temp min -> 22 -> max.
-- mode face/feet/windshield.
-- AC on/off.
-- auto on/off.
-- front defrost.
-- rear defrost.
-- recirculation.
-
-### 6. Руль/Кнопки/Магнитола
-
-Проверить отдельно:
-
-- volume up/down.
-- next/prev track.
-- mode/source.
-- phone answer/hangup.
-- voice.
-- mute.
-- seek.
-
-### 7. Двигатель/Движение
-
-Только безопасно:
-
-- idle 2 минуты.
-- RPM 1000/1500/2000 на месте, если безопасно.
-- скорость 0/5/20/40 км/ч на закрытой безопасной дороге.
-- плавное торможение.
-
-### 8. Android -> Adapter -> CAN Тесты
-
-После чистых CAN-логов проверяем, что можно отправить в машину через USB:
-
-- FM station: 16 chars.
-- FM station: long >16 chars.
-- media text: 16 chars.
-- track text: 16 chars.
-- nav on.
-- maneuver icon 0/1/2/3/finish.
-- distance 80 m, 150 m, 1.2 km, 12.3 km.
-- ETA/distance to finish.
-- speed limit 40/60/90 только если машина не ругается.
-- amp request/apply только если штатный усилитель есть и это безопасно.
-
-Пакеты надо слать повтором 5 секунд, не одиночным кадром.
-
-Готовый тестовый скрипт:
-
-```bash
-python3 tools/send_usb_display_demo.py /dev/cu.usbmodemKIA1 --seconds 5
-```
-
-## Как Разбирать Логи
-
-Для каждого события делаем три окна:
-
-- `before`: 10 секунд до действия.
-- `during`: время действия.
-- `after`: 10 секунд после возврата.
-
-Алгоритм:
-
-1. Разделить по channel: `ch0` и `ch1`.
-2. Посчитать частоты ID и DLC.
-3. Найти ID, которые появились только during.
-4. Для постоянных ID найти байты, которые менялись синхронно с действием.
-5. Проверить повторяемость на 3 циклах.
-6. Записать кандидата в таблицу:
-
-```text
-event, channel, bitrate, can_id, dlc, byte, bit/mask, off_value, on_value, confidence, notes
-```
-
-7. Сравнить с поведением прошивки программиста: если firmware уже реагирует, найти такой же ID в дизассемблере.
-8. Только после этого писать патч/код.
-
-Быстрый summary по логу:
-
-```bash
-python3 tools/analyze_can_log.py logs/live_YYYYMMDD_HHMM_baseline_engine_idle.txt --top 80
-```
-
-## Что Ищем Для Максимального Функционала
-
-Надо доказать не "текст на приборке", а конкретное CAN-событие или пакет.
-Каждая функция должна пройти путь:
-
-1. Зафиксировать действие в логе с marker `START/END`.
-2. Найти ID/байт/бит, который меняется синхронно.
-3. Повторить 3-5 раз и проверить, что нет ложного совпадения.
-4. Проверить направление: машина -> adapter, adapter -> TEYES, adapter -> M-CAN.
-5. Добавить в таблицу `data/can_function_matrix.csv`.
-6. Сделать dashboard/raw-CAN тест, если это безопасная отправка.
-7. Только после подтверждения переносить как named feature в `firmware/custom_c`.
-
-Приоритетные блоки:
-
-- кузов: все двери, багажник, капот, люк, замки, зажигание;
-- reverse: CAN reverse, физический reverse, +12 V output, dynamic lines;
-- парковка/SPAS: передние/задние датчики, side warning/cross traffic;
-- климат: температуры, fan, AC, auto, defrost, recirculation, seat heat/vent;
-- руль/кнопки: volume, seek, mode, phone, voice, mute;
-- media/source: FM, AM, USB, BL/BT, CarPlay, Android Auto, fallback/compass;
-- навигация: street text, TBT, distance, ETA, speed limit if supported;
-- диагностика/настройки: engine temp, outside temp, speed, RPM, errors if visible.
-
-## Безопасность
-
-- До завершения разбора логер держим listen-only.
-- Не включать active injection в C-CAN без отдельного решения.
-- Не шить экспериментальные full ST-Link images в машине.
-- Если USB update завис, сначала power cycle 3-5 секунд, потом проверка порта, потом только повтор.
-- ST-Link recovery использовать только по `docs/RECOVERY_STLINK_SEQUENCE.md`.
-
-## Внешние Источники Для Дальнейшей Работы
-
-- CAN basics / подборки: `github.com/iDoka/awesome-canbus`.
-- GS USB firmware reference: `github.com/candle-usb/candleLight_fw`.
-- Lawicel/SLCAN parser: `github.com/tixiv/lib-slcan`.
-- Cangaroo: `github.com/normaldotcom/cangaroo`.
-- SavvyCAN: `github.com/collin80/SavvyCAN`.
-- STM32F1 analysis / H3 method references: `github.com/JohannesObermaier/f103-analysis`, `github.com/CTXz/stm32f1-picopwner`.
-
-Практически для нашего адаптера важнее всего не общий CAN софт, а точная карта двух шин Kia/Hyundai и совместимость с протоколом APK `com.sorento.navi`.
+## CAN Mapping Workflow
+
+Every new function should be promoted only after evidence:
+
+1. Capture baseline.
+2. Mark `START <event>` and `END <event>`.
+3. Repeat the same action 3-5 times.
+4. Compare `before / during / after`.
+5. Identify channel, ID, byte, mask, off value and on value.
+6. Add it to `data/can_function_matrix.csv`.
+7. Test controlled TX only if the frame is safe.
+8. Promote to a named firmware feature only after repeatable behavior.
+
+Priority function groups:
+
+- body: doors, trunk, hood, sunroof, locks, ignition;
+- reverse: CAN reverse, physical input, +12 V output, dynamic lines;
+- parking: front/rear sensors, SPAS, side warning, rear cross-traffic alert;
+- climate: fan, driver/passenger temperature, AC, auto, defrost, recirculation,
+  seat heat/ventilation;
+- analog controls through Raise UART: steering wheel and piano buttons;
+- media/source: FM, AM, USB, Bluetooth, CarPlay, Android Auto, default compass;
+- navigation: street text, TBT, distance, ETA, speed limit if supported;
+- diagnostics/status: outside temp, engine temp, speed, RPM, errors if visible.
+
+## Safety Rules
+
+- Keep logger sessions listen-only unless a test explicitly needs TX.
+- Do not sweep active-control C-CAN frames blindly.
+- Repeat display/media/navigation test frames with short bounded intervals, not
+  unbounded loops.
+- Do not flash third-party profile binaries to this UID unless the UID/header and
+  target are understood.
+- For ST-Link recovery, use `docs/RECOVERY_STLINK_SEQUENCE.md`.
+- Treat `firmware/custom_c/` as experimental until daily-driver functions are
+  confirmed on the car.
+
+## External Sources
+
+CAN and tooling:
+
+- https://github.com/iDoka/awesome-canbus
+- https://github.com/candle-usb/candleLight_fw
+- https://www.can232.com/docs/can232_v3.pdf
+- https://github.com/tixiv/lib-slcan
+- https://github.com/homewsn/candleLight_fw-SavvyCAN-Windows-plugin
+- https://github.com/normaldotcom/cangaroo
+- https://github.com/collin80/SavvyCAN
+- https://github.com/TOSUN-Shanghai/TSMaster
+
+STM32 / firmware research:
+
+- https://www.st.com/resource/en/datasheet/stm32f105rb.pdf
+- https://github.com/CTXz/stm32f1-picopwner
+- https://github.com/JohannesObermaier/f103-analysis/tree/master/h3
+
+2CAN35 practical references:
+
+- https://www.drive2.ru/l/717368666034802531/
+- https://www.drive2.ru/l/717580596901055496/
+
+Local project docs:
+
+- `docs/PROJECT_STATUS_FOR_AUTHOR.md`
+- `docs/REVERSE_SPORTAGE_2CAN35.md`
+- `docs/CAN_FUNCTION_MATRIX.md`
+- `firmware/custom_c/README.md`

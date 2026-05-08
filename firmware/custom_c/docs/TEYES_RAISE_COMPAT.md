@@ -16,9 +16,10 @@ So the firmware has three separate layers:
 
 | Layer | Direction | Purpose |
 |---|---|---|
-| Car CAN parser | car C-CAN/M-CAN -> adapter | Decode doors, reverse, climate, parking, steering wheel buttons, speed. |
+| Car CAN parser | car C-CAN/M-CAN -> adapter | Decode doors, reverse, climate, parking, speed and other vehicle states. |
 | TEYES/Raise UART protocol | adapter <-> head unit UART | Report decoded car state to Android and accept head-unit commands. |
 | M-CAN cluster/media sender | adapter/USB/app -> car M-CAN | Show FM/music/navigation/cluster text in the factory cluster. |
+| External Raise button bridge | analog buttons -> stock Raise canbox -> adapter UART2 -> head unit | Preserve steering wheel and piano-panel buttons without reimplementing analog decoding. |
 
 ## Known Evidence
 
@@ -107,7 +108,7 @@ Responsibilities:
    - outside temperature
    - climate display state
    - parking sensor state
-   - steering wheel buttons
+   - bridged Raise UART button frames from the external stock Raise canbox
 4. Parse commands coming from the head unit:
    - source/media mode if the protocol sends it
    - climate control requests
@@ -141,10 +142,11 @@ expect the canbox UART protocol instead.
 ## Next Reverse-Engineering Steps
 
 1. Find whether `HYK-RZ-10-0001-VK` is sent through UART, USB, or only embedded as profile metadata.
-2. Decode command IDs for steering wheel keys, parking sensors, climate display and outside temperature.
-3. Add UART RX semantic parser once we know which commands TEYES sends back.
-4. Add a transparent SimpleSoft/HU bridge mode only after confirming the second UART route.
-5. Promote verified M-CAN media/nav packets into named senders.
+2. Add a transparent Raise UART bridge for analog steering wheel and piano-panel buttons.
+3. Decode command IDs for parking sensors, climate display and outside temperature.
+4. Add UART RX semantic parser once we know which commands TEYES sends back.
+5. Confirm whether a second UART route is needed for any other in-line device.
+6. Promote verified M-CAN media/nav packets into named senders.
 
 Only after this layer exists will selecting `Raise -> Hyundai/Kia -> Sportage`
 in TEYES make the head unit show the basic canbox functions from our clean

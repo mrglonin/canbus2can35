@@ -165,6 +165,7 @@ Known/candidate CAN functions:
 | outside temperature | C-CAN `0x383` candidate |
 | heated steering wheel status | C-CAN `0x559` candidate |
 | parking/SPAS | C-CAN `0x436`, `0x390`, `0x4F4`, `0x58B` candidates |
+| steering wheel and piano buttons | analog buttons -> stock Raise canbox -> UART2 -> our adapter -> TEYES HU |
 
 ## USB / APK Protocol Findings
 
@@ -213,7 +214,8 @@ Most useful hints from the original firmware author would be:
    - compass/default no-navigation state.
 6. Parking sensor/SPAS packet mapping.
 7. Climate display packet mapping.
-8. Steering wheel button mapping through C-CAN and TEYES/Raise UART.
+8. Exact Raise UART button packets from the external stock Raise canbox for
+   steering wheel and piano-panel analog buttons.
 9. Whether the two missing resistor footprints near the bottom-side wire are
    UART2 TX/RX series resistors and what nominal should be used.
 

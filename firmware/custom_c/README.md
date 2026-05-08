@@ -98,5 +98,6 @@ verified frames from labelled captures and only then enable automatic CAN output
 
 Reverse +12 V output and basic TEYES/Raise UART TX are now implemented behind
 compile-time flags. The firmware still is not a full replacement for the
-programmer's logic: steering keys, climate, parking sensors, media/nav named
-generators and TEYES command parsing still need verified packet mappings.
+programmer's logic: transparent Raise UART bridging for analog steering/piano
+buttons, climate, parking sensors, media/nav named generators and TEYES command
+parsing still need verified packet mappings.
