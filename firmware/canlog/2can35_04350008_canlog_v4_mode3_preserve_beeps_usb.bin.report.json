@@ -33,6 +33,13 @@
       "new": "00 4B 18 47 51 8C 00 08 00 BF 00 BF 00 BF"
     },
     {
+      "name": "mode3_direct_branch",
+      "address": "0x08008c8c",
+      "old": "37 E0",
+      "new": "37 E0",
+      "target": "0x08008cfe"
+    },
+    {
       "name": "mode1_reset_vector",
       "address": "0x08004004",
       "old": "0x08006e3d",
@@ -59,9 +66,9 @@
   },
   "software_modes": {
     "mode1": "programmer 04.35.00.08 canbox application",
-    "mode2": "stock update path, value 0x01 through CMD 0x51/0x55",
-    "mode3": "preserved gs_usb/budgetcan CAN logger at 0x08009000, value 0x03 through CMD 0x51/0x55",
-    "reset": "value 0x04 through CMD 0x51/0x55"
+    "mode2": "stock update path, value 0x01 through CMD 0x55",
+    "mode3": "preserved gs_usb/budgetcan CAN logger at 0x08009000, value 0x03 through CMD 0x51; entry=direct",
+    "reset": "value 0x04 through CMD 0x55"
   },
   "roundtrip_ok": true
 }

@@ -36,7 +36,16 @@ CAN_EFF_FLAG = 0x80000000
 CAN_RTR_FLAG = 0x40000000
 CAN_ERR_FLAG = 0x20000000
 
-DEFAULT_LIBUSB = Path("/Users/legion/Downloads/canbox-fw-lab/local-libusb/libusb-1.0.dylib")
+def bundled_libusb_path() -> Path:
+    try:
+        import libusb_package
+
+        return Path(libusb_package.get_library_path())
+    except Exception:
+        return Path("/Users/legion/Downloads/canbox-fw-lab/local-libusb/libusb-1.0.dylib")
+
+
+DEFAULT_LIBUSB = bundled_libusb_path()
 
 
 def gsusb_bittiming(fclk_hz: int, bitrate: int) -> tuple[int, int, int, int, int]:

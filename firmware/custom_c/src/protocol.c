@@ -183,6 +183,14 @@ static void handle_binary_payload(const uint8_t *payload, uint8_t len)
 			send_ack(0x55, 0xff);
 		}
 		break;
+	case 0x51:
+		if (len >= 2U && payload[1] == 3U) {
+			board_set_mode(BOARD_MODE_LAB);
+			send_ack(0x51, 0x03);
+		} else {
+			send_ack(0x51, 0xff);
+		}
+		break;
 	case 0x70:
 		if (len >= 12U) {
 			can_frame_t frame;

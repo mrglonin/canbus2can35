@@ -56,7 +56,7 @@ CAN logger in mode3:
 
 - mode1/normal: CDC `/dev/cu.usbmodemKIA1`, VID/PID `0483:5740`
 - mode3/CAN log: `gs_usb` / budgetcan, VID/PID `1d50:606f`
-- mode1 -> mode3: send USB command `0x55` value `0x03`
+- mode1 -> mode3: send USB command `0x51` value `0x03`
 - mode3 -> mode1: send patched `gs_usb` exit request
 
 The v08 package does not carry the old v04 media NOP patch. Media/BL/parking

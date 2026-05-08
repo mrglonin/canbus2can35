@@ -46,6 +46,24 @@ V08_DEFAULT_RETURN = 0x080053B1
 V08_UPDATE_A = 0x08005DA1
 V08_UPDATE_B = 0x08005DA5
 
+MODE3_BRANCH_ADDR = 0x08008C8C
+MODE3_RESET_STUB_ADDR = 0x08008DB0
+EXPECTED_MODE3_DIRECT_BRANCH = bytes.fromhex("37 E0")
+
+# Runs backup_enable, writes 0x4C33 to BKP_DR2, then requests a system reset.
+# The normal reset hook at 0x08008CE0 sees that magic value and enters the
+# gs_usb logger from a cleaner reset context instead of jumping directly from
+# the USB command handler.
+MODE3_RESET_STUB = bytes.fromhex(
+    "05 4B 98 47"
+    "05 4B 44 F6 33 42 1A 80"
+    "04 4B 05 4A 1A 60 BF F3 4F 8F FE E7"
+    "AB 8C 00 08"
+    "04 6C 00 40"
+    "0C ED 00 E0"
+    "04 00 FA 05"
+)
+
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -115,6 +133,12 @@ def main() -> int:
     parser.add_argument("--report", type=Path)
     parser.add_argument("--key-a", type=lambda s: int(s, 0), default=0x04)
     parser.add_argument("--key-b", type=lambda s: int(s, 0), default=0x5B)
+    parser.add_argument(
+        "--mode3-entry",
+        choices=("direct", "reset-reboot"),
+        default="direct",
+        help="mode3 command path: direct logger jump or BKP magic plus SYSRESETREQ",
+    )
     args = parser.parse_args()
 
     programmer_v08 = args.programmer_v08.read_bytes()
@@ -151,6 +175,55 @@ def main() -> int:
             "old": f"0x{old:08x}",
             "new": f"0x{value:08x}",
         }
+
+    mode3_branch_off = addr_to_pkg_off(MODE3_BRANCH_ADDR)
+    old_mode3_branch = bytes(combined[mode3_branch_off : mode3_branch_off + 2])
+    if old_mode3_branch != EXPECTED_MODE3_DIRECT_BRANCH:
+        raise ValueError(
+            f"unexpected mode3 branch at 0x{MODE3_BRANCH_ADDR:08x}: "
+            f"{old_mode3_branch.hex(' ').upper()}"
+        )
+    if args.mode3_entry == "reset-reboot":
+        # Keep reset_request intact by using a 16-bit branch; a 32-bit branch
+        # here would overwrite the first halfword of the reset_request path.
+        combined[mode3_branch_off : mode3_branch_off + 2] = bytes.fromhex("90 E0")
+
+        reset_stub_off = addr_to_pkg_off(MODE3_RESET_STUB_ADDR)
+        old_reset_stub = bytes(combined[reset_stub_off : reset_stub_off + len(MODE3_RESET_STUB)])
+        if old_reset_stub != b"\xFF" * len(MODE3_RESET_STUB):
+            raise ValueError(
+                f"mode3 reset stub area is not empty at 0x{MODE3_RESET_STUB_ADDR:08x}: "
+                f"{old_reset_stub.hex(' ').upper()}"
+            )
+        combined[reset_stub_off : reset_stub_off + len(MODE3_RESET_STUB)] = MODE3_RESET_STUB
+
+        patches.append(
+            {
+                "name": "mode3_reset_reboot_branch",
+                "address": f"0x{MODE3_BRANCH_ADDR:08x}",
+                "old": old_mode3_branch.hex(" ").upper(),
+                "new": "90 E0",
+                "target": f"0x{MODE3_RESET_STUB_ADDR:08x}",
+            }
+        )
+        patches.append(
+            {
+                "name": "mode3_reset_reboot_stub",
+                "address": f"0x{MODE3_RESET_STUB_ADDR:08x}",
+                "size": len(MODE3_RESET_STUB),
+                "behavior": "write BKP mode3 magic and trigger SYSRESETREQ before starting gs_usb",
+            }
+        )
+    else:
+        patches.append(
+            {
+                "name": "mode3_direct_branch",
+                "address": f"0x{MODE3_BRANCH_ADDR:08x}",
+                "old": old_mode3_branch.hex(" ").upper(),
+                "new": old_mode3_branch.hex(" ").upper(),
+                "target": "0x08008cfe",
+            }
+        )
 
     encoded = transform_package(bytes(combined), args.key_a, args.key_b, encode=True)
     roundtrip_ok = transform_package(encoded, args.key_a, args.key_b, encode=False) == bytes(combined)
@@ -198,9 +271,9 @@ def main() -> int:
         "literal_changes": literal_changes,
         "software_modes": {
             "mode1": "programmer 04.35.00.08 canbox application",
-            "mode2": "stock update path, value 0x01 through CMD 0x51/0x55",
-            "mode3": "preserved gs_usb/budgetcan CAN logger at 0x08009000, value 0x03 through CMD 0x51/0x55",
-            "reset": "value 0x04 through CMD 0x51/0x55",
+            "mode2": "stock update path, value 0x01 through CMD 0x55",
+            "mode3": f"preserved gs_usb/budgetcan CAN logger at 0x08009000, value 0x03 through CMD 0x51; entry={args.mode3_entry}",
+            "reset": "value 0x04 through CMD 0x55",
         },
         "roundtrip_ok": roundtrip_ok,
     }

@@ -84,7 +84,8 @@ The length byte counts command plus payload. Checksum is `sum(frame_without_chec
 
 - `0x56` replies with UID, firmware version, current logical mode, and CAN-HW flag.
 - `0x55 01` switches logical mode 1.
-- `0x55 03` switches logical mode 3.
+- `0x51 03` switches logical mode 3, matching the tested v08 binary wrapper.
+- `0x55 03` also switches logical mode 3 as a lab compatibility path.
 - `0x55 02` currently replies `E2`: the clean firmware does not yet know the stock loader's persistent update flag.
 - `0x70` sends a raw standard CAN frame: `bus id_hi id_lo len data...`.
 

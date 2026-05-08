@@ -113,8 +113,8 @@ Behavior:
 | Mode | Behavior |
 |---|---|
 | mode1 | Programmer v08 canbox behavior. |
-| mode2 | Stock update path through existing command `0x51/0x55`, value `0x01`. |
-| mode3 | Preserved `gs_usb` / budgetcan CAN logger at `0x08009000`, value `0x03`. |
+| mode2 | Stock update path through existing command `0x55`, value `0x01`. |
+| mode3 | Preserved `gs_usb` / budgetcan CAN logger at `0x08009000`; hardware-tested entry is command `0x51`, value `0x03`. |
 | reset | Existing software reset request, value `0x04`. |
 
 Porting detail: the v08 command dispatch sequence moved by four bytes compared
@@ -146,7 +146,7 @@ python3 tools/build_04350008_mode3_package.py
    - FM/AM/music/BL music;
    - navigation street/TBT/distance/ETA;
    - dynamic parking lines and SPAS if safe to test.
-3. From mode1, send software mode3 request and verify USB enumerates as
+3. From mode1, send software mode3 request `0x51/0x03` and verify USB enumerates as
    `gs_usb` / budgetcan, VID/PID `1d50:606f`.
 4. Return from mode3 to mode1 and confirm normal canbox behavior comes back.
 5. Use the APK 08.05 update flow only if we need to compare pure programmer

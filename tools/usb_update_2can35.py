@@ -152,7 +152,8 @@ def wait_for_port_cycle(port: str, timeout: float = 8.0) -> str:
     return wait_for_port(port, 2.0)
 
 
-def enter_update_mode(port: str, package_uid: bytes, force: bool) -> str:
+def enter_update_mode(port: str, package_uid: bytes, force: bool, entry_command: int = CMD_UPDATE) -> str:
+    entry_frame = make_short(entry_command, 0x01)
     start_frame = make_short(CMD_UPDATE, 0x01)
 
     with open_adapter_port(port) as ser:
@@ -165,9 +166,9 @@ def enter_update_mode(port: str, package_uid: bytes, force: bool) -> str:
         if uid != package_uid and not force:
             raise RuntimeError("UID mismatch; use --force only if you are certain this package belongs to this adapter")
 
-        print("requesting update mode")
+        print(f"requesting update mode with command 0x{entry_command:02x}")
         try:
-            ack = send_with_retry(ser, start_frame, 0x01, "start", retries=3, timeout=0.8)
+            ack = send_with_retry(ser, entry_frame, 0x01, "start", retries=3, timeout=0.8)
             print(f"start ack before USB reset: {ack.hex(' ')}")
         except (TimeoutError, *USB_IO_ERRORS) as exc:
             print(f"start ack before USB reset not available: {exc}")
@@ -194,7 +195,7 @@ def enter_update_mode(port: str, package_uid: bytes, force: bool) -> str:
     raise TimeoutError("adapter did not enter update mode after USB reconnect")
 
 
-def update(port: str, firmware: Path, force: bool) -> None:
+def update(port: str, firmware: Path, force: bool, entry_command: int = CMD_UPDATE) -> None:
     data = firmware.read_bytes()
     if len(data) < 16:
         raise ValueError("firmware file is too small")
@@ -207,7 +208,7 @@ def update(port: str, firmware: Path, force: bool) -> None:
     print(f"package uid: {package_uid.hex(' ').upper()}")
     print(f"package version: {package_version.hex(' ').upper()}")
 
-    port = enter_update_mode(port, package_uid, force)
+    port = enter_update_mode(port, package_uid, force, entry_command=entry_command)
     with open_adapter_port(port) as ser:
         time.sleep(0.3)
         ser.reset_input_buffer()
@@ -242,9 +243,15 @@ def main() -> int:
     parser.add_argument("port")
     parser.add_argument("firmware", type=Path)
     parser.add_argument("--force", action="store_true", help="skip UID mismatch protection")
+    parser.add_argument(
+        "--entry-command",
+        type=lambda value: int(value, 0),
+        default=CMD_UPDATE,
+        help="normal-mode command used to request loader entry; loader handshake remains command 0x55",
+    )
     args = parser.parse_args()
 
-    update(args.port, args.firmware, args.force)
+    update(args.port, args.firmware, args.force, args.entry_command)
     return 0
 
 

@@ -23,10 +23,10 @@ def parse_resp(frame: bytes) -> tuple[int, bytes]:
 
 def main() -> int:
     version_req = req(0x56)
-    mode3_req = req(0x55, b"\x03")
+    mode3_req = req(0x51, b"\x03")
     raw_tx_req = req(0x70, bytes([1, 0x05, 0xF0, 8, 1, 2, 3, 4, 5, 6, 7, 8]))
     assert version_req.hex(" ").upper() == "BB 41 A1 01 56 F4"
-    assert mode3_req.hex(" ").upper() == "BB 41 A1 02 55 03 F7"
+    assert mode3_req.hex(" ").upper() == "BB 41 A1 02 51 03 F3"
     assert raw_tx_req[0:5] == bytes([0xBB, 0x41, 0xA1, 0x0D, 0x70])
 
     sample_resp = bytes.fromhex(

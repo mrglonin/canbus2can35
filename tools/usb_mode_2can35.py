@@ -8,20 +8,20 @@ from usb_update_2can35 import CMD_UPDATE, make_short, open_adapter_port, read_fr
 
 
 MODES = {
-    "update": 0x01,
-    "loader": 0x01,
-    "log": 0x03,
-    "logger": 0x03,
-    "canlog": 0x03,
-    "reset": 0x04,
-    "normal": 0x04,
+    "update": (CMD_UPDATE, 0x01),
+    "loader": (CMD_UPDATE, 0x01),
+    "log": (0x51, 0x03),
+    "logger": (0x51, 0x03),
+    "canlog": (0x51, 0x03),
+    "reset": (CMD_UPDATE, 0x04),
+    "normal": (CMD_UPDATE, 0x04),
 }
 
 
 def switch_mode(port: str, mode: str, wait: bool) -> None:
-    value = MODES[mode]
-    frame = make_short(CMD_UPDATE, value)
-    print(f"sending CMD 0x55 value 0x{value:02x} to {port}")
+    command, value = MODES[mode]
+    frame = make_short(command, value)
+    print(f"sending CMD 0x{command:02x} value 0x{value:02x} to {port}")
     with open_adapter_port(port) as ser:
         time.sleep(0.15)
         ser.reset_input_buffer()
@@ -36,9 +36,11 @@ def switch_mode(port: str, mode: str, wait: bool) -> None:
                 print("no ack before USB reset; this is normal for direct mode switch")
         except (serial.SerialException, OSError) as exc:
             print(f"USB reset while switching mode: {exc}")
-    if wait:
+    if wait and command == CMD_UPDATE:
         wait_for_port_cycle(port, timeout=8.0)
         print(f"port cycled: {port}")
+    elif wait:
+        print("mode switch command sent; mode3 enumerates as USB device 1d50:606f, not as the same CDC port")
 
 
 def main() -> int:

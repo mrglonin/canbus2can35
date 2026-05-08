@@ -30,7 +30,7 @@ car tests:
 - mode1: normal programmer v08 canbox behavior, CDC `/dev/cu.usbmodemKIA1`.
 - mode2: stock USB update loader.
 - mode3: GS USB CAN logger, VID/PID `1d50:606f`.
-- mode1 -> mode3: USB command `0x55` value `0x03`.
+- mode1 -> mode3: USB command `0x51` value `0x03`.
 - mode3 -> mode1: patched GS USB exit request from the dashboard.
 - mode1 -> reset/normal: USB command `0x55` value `0x04`.
 - media/BL/parking/TPMS logic: programmer v08 behavior, without the old v04
