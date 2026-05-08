@@ -1,0 +1,26 @@
+{
+  "source_update": "/Users/legion/Downloads/2CAN35_04350006_CanLog_v4_Mode3_PreserveBeeps_USB.bin",
+  "source_update_sha256": "a1caf625e9070be6c9da520336751982238c314b9ac3c90140839c370f4867e6",
+  "output_update": "/Users/legion/Downloads/2CAN35_04350006_CanLog_v4_Mode3_NoCmd51Patch_USB.bin",
+  "output_update_size": 32176,
+  "output_update_sha256": "501f96d2037ebb8ddcfac07b4a30cb42826b8f32bd1e2a6b7d7e1458e11e9e5a",
+  "output_stlink64k": "/Users/legion/Downloads/2CAN35_04350006_CanLog_v4_Mode3_NoCmd51Patch_STLINK64K.bin",
+  "output_stlink64k_sha256": "8241b2edbad800b8e51dc2ffc4195a65060a221b147c3a9b52ddc50e42b50cda",
+  "repo_copy": "/Users/legion/Downloads/canbus2can35_repo/firmware/canlog/2can35_04350006_canlog_v4_mode3_no_cmd51_patch_usb.bin",
+  "uid": "37 FF DA 05 42 47 30 38 59 41 22 43",
+  "version": "04 35 00 06",
+  "fix": "Restored programmer v06 command 0x51 handler at 0x08005474; mode switch remains on 0x55 only.",
+  "restored": {
+    "address": "0x08005474",
+    "old": "00 4b 18 47 21 8c 00 08 00 bf 00 bf 00 bf",
+    "new_original_v06": "43 79 01 2b 9a d1 bd e8 10 40 00 f0 87 bc"
+  },
+  "mode1_vector": {
+    "sp": "0x20010000",
+    "reset": "0x08008ce1"
+  },
+  "mode3_vector": {
+    "sp": "0x20010000",
+    "reset": "0x0800a26d"
+  }
+}

@@ -30,6 +30,13 @@ input {
   font: inherit;
 }
 
+input[type="checkbox"] {
+  min-height: auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
 button {
   border: 1px solid var(--border);
   background: #22272e;
@@ -324,6 +331,17 @@ input:focus {
   gap: 6px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.tx-grid {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+}
+
+.check-row {
+  align-content: end;
+  grid-template-columns: 18px auto;
+  align-items: center;
+  min-height: 58px;
 }
 
 .transmit-panel .control-group,

@@ -162,8 +162,8 @@ function setupActions() {
     logAction("sample replay started");
   });
   $("startGsusb").addEventListener("click", async () => {
-    await post("/api/log/start", { mode: "gsusb", bitrate0: 100000, bitrate1: 500000 });
-    logAction("live gs_usb logger started");
+    const result = await post("/api/log/start", { mode: "gsusb", bitrate0: 100000, bitrate1: 500000 });
+    logAction(`live gs_usb logger started; TX control ${result.tx_control || "off"}`);
   });
   $("startCdc").addEventListener("click", async () => {
     await post("/api/log/start", { mode: "cdc", port: $("portInput").value });
@@ -194,6 +194,35 @@ function setupActions() {
       const result = await post("/api/mode", { port: $("portInput").value, mode: button.dataset.mode });
       logAction(`mode ${button.dataset.mode}: ${result.stdout || result.stderr || "sent"}`);
     });
+  });
+  $("sendCanFrame").addEventListener("click", async () => {
+    const payload = {
+      channel: Number($("txChannel").value),
+      id: $("txCanId").value,
+      data: $("txData").value,
+      count: Number($("txCount").value),
+      interval: Number($("txInterval").value),
+      extended: $("txExtended").checked,
+      confirm: $("txConfirm").checked,
+    };
+    const result = await post("/api/can/send", payload);
+    logAction(`CAN TX queued: ${result.frames} frames`);
+  });
+  $("sweepCanByte").addEventListener("click", async () => {
+    const payload = {
+      channel: Number($("txChannel").value),
+      id: $("txCanId").value,
+      data: $("txData").value,
+      interval: Number($("txInterval").value),
+      extended: $("txExtended").checked,
+      confirm: $("txConfirm").checked,
+      byte_index: Number($("sweepByte").value),
+      start: $("sweepFrom").value,
+      end: $("sweepTo").value,
+      count_each: Number($("sweepCountEach").value),
+    };
+    const result = await post("/api/can/sweep", payload);
+    logAction(`CAN sweep queued: ${result.queued} values / ${result.frames} frames`);
   });
   $("addMarker").addEventListener("click", async () => {
     const name = $("markerText").value || "marker";

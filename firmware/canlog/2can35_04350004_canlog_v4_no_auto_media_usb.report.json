@@ -1,0 +1,45 @@
+{
+  "source_image": "/tmp/2can35_v4_final_stlink64k.bin",
+  "source_sha256": "3fc66704e44071d8ce3d5c83823480a170908ff41e60820fdddd6a12d9cd72ca",
+  "output_image": "/Users/legion/Downloads/canbox-fw-lab/final_v4_no_auto_media_scheduler_SIMULATED.bin",
+  "output_image_sha256": "8fce6f22cd7344c105a80690d358b346ef4f9b092fb43dcbbfd6dd07e25d82af",
+  "output_update": "/Users/legion/Downloads/2CAN35_04350004_CanLog_v4_NoAutoMedia_USB.bin",
+  "output_update_size": 32176,
+  "output_update_sha256": "339a35e3c46ce7b906bb05046b2a97cc27ebe41edb98a74e46518d8d780864f0",
+  "uid": "37 FF DA 05 42 47 30 38 59 41 22 43",
+  "version": "04 35 00 04",
+  "payload_end": "0x0800bda0",
+  "patches": [
+    {
+      "address": "0x08005948",
+      "original_or_current": "70 b5",
+      "new": "70 47",
+      "action": "patched_to_bx_lr"
+    },
+    {
+      "address": "0x08005a40",
+      "original_or_current": "38 b5",
+      "new": "70 47",
+      "action": "patched_to_bx_lr"
+    },
+    {
+      "address": "0x08005a9c",
+      "original_or_current": "38 b5",
+      "new": "70 47",
+      "action": "patched_to_bx_lr"
+    },
+    {
+      "address": "0x08005af8",
+      "original_or_current": "38 b5",
+      "new": "70 47",
+      "action": "patched_to_bx_lr"
+    },
+    {
+      "address": "0x08005b74",
+      "original_or_current": "0a 4b",
+      "new": "70 47",
+      "action": "patched_to_bx_lr"
+    }
+  ],
+  "behavior": "Disables firmware-generated media/source fallback schedulers. UART remains enabled. Direct USB/APK media and navigation commands continue through the normal command parser."
+}

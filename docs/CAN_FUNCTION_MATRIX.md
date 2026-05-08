@@ -175,9 +175,9 @@
 
 | Функция | Направление | Приоритетные кандидаты | Что проверять в логе | Статус |
 |---|---|---|---|---|
-| Парктроники PAS | car -> adapter/HU | C-CAN `0x436 PAS11`: `CF_Gway_PASDisplayFLH/FRH/FCTR/RCTR/RLH/RRH`, `PASRsound`, `PASFsound`, `PASSystemOn` | препятствие перед/сзади/лево/право отдельно | `seen_in_log` |
-| SPAS статус/команда руля | car -> adapter/HU | C-CAN `0x390 SPAS11`: `CF_Spas_Stat`, `CR_Spas_StrAngCmd`, `CF_Spas_BeepAlarm`, `CF_Spas_PasVol` | R + руль + препятствие | `seen_in_log` |
-| SPAS display zones | car -> adapter/HU | C-CAN `0x4F4 SPAS12`: `CF_Spas_*_Ind`, `CF_Spas_*_Alarm`, `CF_Spas_BEEP_Alarm`; не путать с M-CAN `0x4F4 Android Auto` | все зоны парктроника | `seen_in_log` |
+| Парктроники PAS | car -> adapter/HU | C-CAN `0x436 PAS11`: `CF_Gway_PASDisplayFLH/FRH/FCTR/RCTR/RLH/RRH`, `PASRsound`, `PASFsound`, `PASSystemOn` | препятствие перед/сзади/лево/право отдельно | `seen_constant_zero_in_log`: в parking/reverse сегментах `00 00 00 00`, реальное препятствие не поймано |
+| SPAS статус/команда руля | car -> adapter/HU | C-CAN `0x390 SPAS11`: `CF_Spas_Stat`, `CR_Spas_StrAngCmd`, `CF_Spas_BeepAlarm`, `CF_Spas_PasVol` | R + руль + препятствие | `seen_in_log`: частые изменения, смешано с рулём/статусом SPAS |
+| SPAS display zones | car -> adapter/HU | C-CAN `0x4F4 SPAS12`: `CF_Spas_*_Ind`, `CF_Spas_*_Alarm`, `CF_Spas_BEEP_Alarm`; не путать с M-CAN `0x4F4 Android Auto` | все зоны парктроника | `best_current_candidate`: кнопка парктроника toggles `...00/01`, reverse даёт `00 01 C0 ... 30 01`, parking assist даёт `24/25/26/27 02/03 C0 ...` |
 | Dynamic reverse lines | car -> adapter/HU | C-CAN `0x2B0 SAS11`, `0x381 MDPS11`, `0x390 SPAS11`, reverse gear candidates | R + руль left/center/right | `dbc_candidate` |
 | RCTA/RCCW left/right | car -> adapter/HU | C-CAN `0x58B LCA11`: `CF_Rcta_Stat`, `CF_RCTA_IndLeft`, `CF_RCTA_IndRight`, `CF_RCTA_IndBriLeft/Right` | reverse + safe left/right cross traffic | `seen_in_log` |
 | Blind spot / LCA | car -> adapter/HU | C-CAN `0x58B LCA11`: `CF_Lca_Stat`, `CF_Lca_IndLeft`, `CF_Lca_IndRight`, brightness fields | left/right side warning | `seen_in_log` |

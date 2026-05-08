@@ -1,0 +1,60 @@
+{
+  "source_package": "/Users/legion/Downloads/2CAN35_04350004_CanLog_v4_FINAL_Mode3_MediaFix_USB.bin",
+  "source_package_sha256": "93e197f3e9c1839daa52925cacbe70267552288e5fba2f908941b455946b84c0",
+  "output_image": "/Users/legion/Downloads/canbox-fw-lab/final_v4_mode3_original_tbb_no_fallback_SIMULATED.bin",
+  "output_image_sha256": "214c1b4c6f4e4241e1490bb0ffc33273628029d04456d42337eb4ac7802f6af7",
+  "output_update": "/Users/legion/Downloads/2CAN35_04350004_CanLog_v4_Mode3_OriginalTBB_NoFallback_USB.bin",
+  "output_update_size": 32176,
+  "output_update_sha256": "6fc42aa40c26e7009bd327aff1637d56c5707616a6a51de7483e43bf125fcea8",
+  "uid": "37 FF DA 05 42 47 30 38 59 41 22 43",
+  "version": "04 35 00 04",
+  "payload_end": "0x0800bda0",
+  "mode1_vector": {
+    "sp": "0x20010000",
+    "reset": "0x08008c21"
+  },
+  "mode3_vector": {
+    "sp": "0x20010000",
+    "reset": "0x0800a26d"
+  },
+  "cmd55_hook": "00 4b 18 47 81 8b 00 08 00 bf",
+  "patches": [
+    {
+      "address": "0x0800595a",
+      "original_or_current": "0x11",
+      "new": "0x3d",
+      "action": "restored_original_tbb"
+    },
+    {
+      "address": "0x0800595b",
+      "original_or_current": "0x11",
+      "new": "0x49",
+      "action": "restored_original_tbb"
+    },
+    {
+      "address": "0x0800595c",
+      "original_or_current": "0x11",
+      "new": "0x4d",
+      "action": "restored_original_tbb"
+    },
+    {
+      "address": "0x08005b7a",
+      "original_or_current": "ff f7 bd bf",
+      "new": "00 bf 00 bf",
+      "action": "patched_to_nop_nop"
+    },
+    {
+      "address": "0x08005b90",
+      "original_or_current": "ff f7 56 bf",
+      "new": "00 bf 00 bf",
+      "action": "patched_to_nop_nop"
+    },
+    {
+      "address": "0x08005b9a",
+      "original_or_current": "ff f7 7f bf",
+      "new": "00 bf 00 bf",
+      "action": "patched_to_nop_nop"
+    }
+  ],
+  "behavior": "Keeps v4-final mode3 reset hook/software mode switching. Restores original media scheduler states 4/5/6 for source/compass, while NOPing fallback dispatcher calls to static media text senders. Direct USB/APK display commands remain enabled."
+}

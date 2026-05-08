@@ -71,6 +71,34 @@
               </div>
               <div id="topIds" class="id-grid"></div>
             </section>
+
+            <section class="panel transmit-panel">
+              <div class="panel-head">
+                <h2>Raw CAN TX</h2>
+                <span>mode3 gs_usb, direct frame tests</span>
+              </div>
+              <div class="form-grid tx-grid">
+                <label>Channel<input id="txChannel" value="0" type="number" min="0" max="1" /></label>
+                <label>CAN ID<input id="txCanId" value="0x114" /></label>
+                <label>Data<input id="txData" value="00 00 00 00 00 00 00 00" maxlength="32" /></label>
+                <label>Repeat count<input id="txCount" value="5" type="number" min="1" max="200" /></label>
+                <label>Interval sec<input id="txInterval" value="0.05" type="number" min="0" max="2" step="0.01" /></label>
+                <label class="check-row"><input id="txExtended" type="checkbox" /> Extended ID</label>
+                <label class="check-row"><input id="txConfirm" type="checkbox" /> TX enabled</label>
+              </div>
+              <div class="control-group">
+                <button id="sendCanFrame">Send CAN frame</button>
+              </div>
+              <div class="form-grid tx-grid">
+                <label>Byte index<input id="sweepByte" value="0" type="number" min="0" max="7" /></label>
+                <label>From<input id="sweepFrom" value="0x00" /></label>
+                <label>To<input id="sweepTo" value="0x03" /></label>
+                <label>Count each<input id="sweepCountEach" value="3" type="number" min="1" max="50" /></label>
+              </div>
+              <div class="control-group">
+                <button id="sweepCanByte">Sweep byte</button>
+              </div>
+            </section>
           </section>
 
           <section id="tab-transmit" class="tab">
@@ -90,8 +118,13 @@
               <div class="control-group">
                 <button data-send="full">Full demo</button>
                 <button data-send="music">Music only</button>
+                <button data-send="source">Source only</button>
+                <button data-send="track">Track only</button>
                 <button data-send="fm">FM only</button>
                 <button data-send="nav">Navigation only</button>
+                <button data-send="nav-on">Nav on</button>
+                <button data-send="nav-off">Nav off</button>
+                <button data-send="clear">Clear display</button>
               </div>
               <div class="mode-row">
                 <button data-mode="normal">Mode 1</button>

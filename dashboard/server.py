@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = Path(__file__).resolve().parent / "static"
 MATRIX = ROOT / "data" / "can_function_matrix.csv"
 DEFAULT_LOG = ROOT / "logs" / "car_can_cleanjump_20260506_220618.txt"
+LIVE_LOG_DIR = ROOT / "logs" / "live"
 TOOLS = ROOT / "tools"
 GSUSB_LOGGER = TOOLS / "gsusb_2can35_logger.py"
 CDC_LOGGER = TOOLS / "stockusb_canlog_2can35.py"
@@ -95,6 +96,28 @@ def eta_distance(tenths_km: int) -> bytes:
     whole = tenths_km // 10
     dec = tenths_km % 10
     return bytes([0x00, (whole >> 8) & 0xFF, whole & 0xFF, dec & 0xFF, 0x01])
+
+
+def display_frames(scenario: str, fm: str, media: str, track: str, meters: int, eta: int, icon: int) -> list[bytes]:
+    nav_on = make_frame(0x48, b"\x01")
+    nav_off = make_frame(0x48, b"\x00")
+    nav_payload = [nav_on, make_frame(0x45, nav_maneuver(meters, icon)), make_frame(0x47, eta_distance(eta))]
+    media_payload = [text_frame(0x21, media), text_frame(0x22, track)]
+
+    scenarios: dict[str, list[bytes]] = {
+        "full": nav_payload + [text_frame(0x20, fm)] + media_payload,
+        "music": media_payload,
+        "source": [text_frame(0x21, media)],
+        "track": [text_frame(0x22, track)],
+        "fm": [text_frame(0x20, fm)],
+        "nav": nav_payload,
+        "nav-on": [nav_on],
+        "nav-off": [nav_off],
+        "clear": [nav_off, text_frame(0x20, ""), text_frame(0x21, ""), text_frame(0x22, "")],
+    }
+    if scenario not in scenarios:
+        raise ValueError(f"unknown display scenario: {scenario}")
+    return scenarios[scenario]
 
 
 def auto_cdc_port() -> str | None:
@@ -338,6 +361,9 @@ class LogRunner:
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
         self.proc: subprocess.Popen | None = None
+        self.raw_log_path: Path | None = None
+        self.tx_control_path: Path | None = None
+        self.raw_log_fh = None
 
     def stop(self) -> None:
         with self.lock:
@@ -349,7 +375,20 @@ class LogRunner:
                 except subprocess.TimeoutExpired:
                     self.proc.kill()
             self.proc = None
+            self.tx_control_path = None
+            if self.raw_log_fh:
+                self.raw_log_fh.flush()
+                self.raw_log_fh.close()
+                self.raw_log_fh = None
         STATE.set_stopped("stopped")
+
+    def write_raw_marker(self, name: str) -> None:
+        with self.lock:
+            if not self.raw_log_fh:
+                return
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S %z")
+            self.raw_log_fh.write(f"# MARK {stamp} {name.strip()[:80] or 'marker'}\n")
+            self.raw_log_fh.flush()
 
     def start_sample(self, path: Path, speed: float) -> None:
         self.stop()
@@ -378,10 +417,12 @@ class LogRunner:
         self.thread = threading.Thread(target=run, name="sample-log", daemon=True)
         self.thread.start()
 
-    def start_process(self, mode: str, command: list[str]) -> None:
+    def start_process(self, mode: str, command: list[str], *, tx_control_path: Path | None = None) -> None:
         self.stop()
         self.stop_event.clear()
-        STATE.reset_runtime(mode, " ".join(command))
+        LIVE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        raw_log_path = LIVE_LOG_DIR / f"{mode}_{time.strftime('%Y%m%d_%H%M%S')}.txt"
+        STATE.reset_runtime(mode, f"{' '.join(command)} | raw={raw_log_path}")
 
         def run() -> None:
             try:
@@ -395,18 +436,36 @@ class LogRunner:
                         bufsize=1,
                     )
                     proc = self.proc
+                    self.raw_log_path = raw_log_path
+                    self.tx_control_path = tx_control_path
+                    if self.tx_control_path is not None:
+                        self.tx_control_path.parent.mkdir(parents=True, exist_ok=True)
+                        self.tx_control_path.write_text("", encoding="utf-8")
+                    self.raw_log_fh = raw_log_path.open("w", encoding="utf-8")
+                    self.raw_log_fh.write(f"# COMMAND {' '.join(command)}\n")
+                    if self.tx_control_path is not None:
+                        self.raw_log_fh.write(f"# TX_CONTROL {self.tx_control_path}\n")
+                    self.raw_log_fh.flush()
                 assert proc.stdout is not None
                 for line in proc.stdout:
                     if self.stop_event.is_set():
                         break
+                    with self.lock:
+                        if self.raw_log_fh:
+                            self.raw_log_fh.write(line)
                     frame = parse_frame_line(line)
                     if frame:
                         STATE.observe(frame)
                     else:
                         STATE.marker(line.strip())
                 code = proc.wait()
+                with self.lock:
+                    if self.raw_log_fh:
+                        self.raw_log_fh.flush()
+                        self.raw_log_fh.close()
+                        self.raw_log_fh = None
                 if not self.stop_event.is_set():
-                    STATE.set_stopped(f"process exited: {code}")
+                    STATE.set_stopped(f"process exited: {code}; raw={raw_log_path}")
             except Exception as exc:
                 STATE.set_stopped(f"process error: {exc}")
 
@@ -415,6 +474,97 @@ class LogRunner:
 
 
 RUNNER = LogRunner()
+
+
+def clean_hex(value: str) -> str:
+    text = str(value or "").replace(" ", "").replace(":", "").replace("-", "").strip()
+    if len(text) % 2:
+        raise ValueError("hex data must contain full bytes")
+    if text and not re.fullmatch(r"[0-9A-Fa-f]+", text):
+        raise ValueError("hex data contains non-hex characters")
+    if len(text) > 16:
+        raise ValueError("classic CAN data is limited to 8 bytes")
+    return text.upper()
+
+
+def parse_can_id(value) -> int:
+    can_id = int(str(value or "0"), 0)
+    if not 0 <= can_id <= 0x1FFFFFFF:
+        raise ValueError("CAN id is out of range")
+    return can_id
+
+
+def append_tx_request(request: dict) -> Path:
+    with RUNNER.lock:
+        path = RUNNER.tx_control_path
+        running = RUNNER.proc is not None and RUNNER.proc.poll() is None
+    if path is None or not running:
+        raise RuntimeError("start Live GS USB first; TX is sent through the active mode3 gs_usb session")
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")
+        fh.flush()
+    return path
+
+
+def build_tx_frame(payload: dict) -> dict:
+    channel = int(payload.get("channel", 0))
+    if channel not in {0, 1}:
+        raise ValueError("channel must be 0 or 1")
+    can_id = parse_can_id(payload.get("id", payload.get("can_id", "0")))
+    extended = bool(payload.get("extended", False))
+    if not extended and can_id > 0x7FF:
+        raise ValueError("standard CAN id must be <= 0x7FF; enable extended for 29-bit ids")
+    data = clean_hex(payload.get("data", ""))
+    count = max(1, min(int(payload.get("count", 1)), 200))
+    interval = max(0.0, min(float(payload.get("interval", 0.05)), 2.0))
+    return {
+        "channel": channel,
+        "id": f"0x{can_id:X}",
+        "data": data,
+        "count": count,
+        "interval": interval,
+        "extended": extended,
+        "rtr": bool(payload.get("rtr", False)),
+    }
+
+
+def run_send_can(payload: dict) -> dict:
+    if payload.get("confirm") is not True:
+        raise RuntimeError("TX confirm flag is required")
+    frame = build_tx_frame(payload)
+    path = append_tx_request(frame)
+    STATE.marker(f"tx ch{frame['channel']} {frame['id']} {frame['data']} x{frame['count']}")
+    return {"ok": True, "queued": 1, "frames": frame["count"], "tx_control": str(path)}
+
+
+def run_sweep_can(payload: dict) -> dict:
+    if payload.get("confirm") is not True:
+        raise RuntimeError("TX confirm flag is required")
+    base = build_tx_frame(payload)
+    data = bytearray.fromhex(base["data"])
+    data.extend(b"\x00" * (8 - len(data)))
+    byte_index = int(payload.get("byte_index", 0))
+    if not 0 <= byte_index <= 7:
+        raise ValueError("byte index must be 0..7")
+    start = int(str(payload.get("start", "0")), 0)
+    end = int(str(payload.get("end", "0")), 0)
+    if not 0 <= start <= 255 or not 0 <= end <= 255:
+        raise ValueError("sweep values must be 0..255")
+    step = 1 if end >= start else -1
+    values = list(range(start, end + step, step))
+    if len(values) > 64:
+        raise ValueError("sweep is limited to 64 values per request")
+    count_each = max(1, min(int(payload.get("count_each", 3)), 50))
+    frames = []
+    for value in values:
+        item = dict(base)
+        data[byte_index] = value
+        item["data"] = data.hex().upper()
+        item["count"] = count_each
+        frames.append(item)
+    path = append_tx_request({"frames": frames})
+    STATE.marker(f"sweep ch{base['channel']} {base['id']} byte{byte_index} {start}->{end} frames={len(frames) * count_each}")
+    return {"ok": True, "queued": len(frames), "frames": len(frames) * count_each, "tx_control": str(path)}
 
 
 def read_json(handler: SimpleHTTPRequestHandler) -> dict:
@@ -474,8 +624,9 @@ def run_send_display(payload: dict) -> dict:
     if not port:
         raise RuntimeError("no CDC port found")
     seconds = max(0.2, min(float(payload.get("seconds", 5.0)), 30.0))
-    gap = max(0.02, min(float(payload.get("gap", 0.04)), 0.5))
     scenario = payload.get("scenario", "full")
+    default_gap = 0.08 if str(scenario).startswith("nav") else 0.04
+    gap = max(0.02, min(float(payload.get("gap", default_gap)), 0.5))
     fm = payload.get("fm", "FM TEST 101.7")
     media = payload.get("media", "MUSIC TEST")
     track = payload.get("track", "TRACK TEST")
@@ -483,22 +634,7 @@ def run_send_display(payload: dict) -> dict:
     eta = int(payload.get("eta", 12))
     icon = int(payload.get("icon", 1))
 
-    frames: list[bytes]
-    if scenario == "music":
-        frames = [text_frame(0x21, media), text_frame(0x22, track)]
-    elif scenario == "fm":
-        frames = [text_frame(0x20, fm)]
-    elif scenario == "nav":
-        frames = [make_frame(0x48, b"\x01"), make_frame(0x45, nav_maneuver(meters, icon)), make_frame(0x47, eta_distance(eta))]
-    else:
-        frames = [
-            make_frame(0x48, b"\x01"),
-            make_frame(0x45, nav_maneuver(meters, icon)),
-            make_frame(0x47, eta_distance(eta)),
-            text_frame(0x20, fm),
-            text_frame(0x21, media),
-            text_frame(0x22, track),
-        ]
+    frames = display_frames(scenario, fm, media, track, meters, eta, icon)
 
     sent = 0
     with serial.Serial(port, 19200, timeout=0.05, write_timeout=1) as ser:
@@ -561,11 +697,22 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 elif mode == "gsusb":
                     bitrate0 = str(int(payload.get("bitrate0", 100000)))
                     bitrate1 = str(int(payload.get("bitrate1", 500000)))
+                    tx_control = LIVE_LOG_DIR / f"gsusb_tx_{time.strftime('%Y%m%d_%H%M%S')}.jsonl"
                     RUNNER.start_process(
                         "gsusb",
-                        [sys.executable, str(GSUSB_LOGGER), "--bitrate0", bitrate0, "--bitrate1", bitrate1],
+                        [
+                            sys.executable,
+                            str(GSUSB_LOGGER),
+                            "--bitrate0",
+                            bitrate0,
+                            "--bitrate1",
+                            bitrate1,
+                            "--tx-control",
+                            str(tx_control),
+                        ],
+                        tx_control_path=tx_control,
                     )
-                    json_response(self, {"ok": True, "mode": mode})
+                    json_response(self, {"ok": True, "mode": mode, "tx_control": str(tx_control)})
                 elif mode == "cdc":
                     port = payload.get("port") or auto_cdc_port()
                     if not port:
@@ -580,11 +727,21 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 json_response(self, {"ok": True})
                 return
             if parsed.path == "/api/marker":
-                STATE.marker(payload.get("name", "marker"))
+                name = payload.get("name", "marker")
+                STATE.marker(name)
+                RUNNER.write_raw_marker(name)
                 json_response(self, {"ok": True})
                 return
             if parsed.path == "/api/send/display":
                 result = run_send_display(payload)
+                json_response(self, result)
+                return
+            if parsed.path == "/api/can/send":
+                result = run_send_can(payload)
+                json_response(self, result)
+                return
+            if parsed.path == "/api/can/sweep":
+                result = run_sweep_can(payload)
                 json_response(self, result)
                 return
             if parsed.path == "/api/mode":

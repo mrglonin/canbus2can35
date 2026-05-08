@@ -47,7 +47,32 @@ def eta_distance(tenths_km: int) -> bytes:
     return bytes([0x00, (whole >> 8) & 0xFF, whole & 0xFF, dec & 0xFF, 0x01])
 
 
-def send_repeated(port: str, baud: int, seconds: float, gap: float) -> None:
+def frames_for_scenario(scenario: str, item: dict) -> list[bytes]:
+    nav_on = frame(0x48, b"\x01")
+    nav_off = frame(0x48, b"\x00")
+    nav_frames = [
+        nav_on,
+        frame(0x45, nav_maneuver(item["meters"], item["icon"])),
+        frame(0x47, eta_distance(item["eta"])),
+    ]
+    media_frames = [text_frame(0x21, item["media"]), text_frame(0x22, item["track"])]
+    scenarios = {
+        "full": nav_frames + [text_frame(0x20, item["fm"])] + media_frames,
+        "music": media_frames,
+        "source": [text_frame(0x21, item["media"])],
+        "track": [text_frame(0x22, item["track"])],
+        "fm": [text_frame(0x20, item["fm"])],
+        "nav": nav_frames,
+        "nav-on": [nav_on],
+        "nav-off": [nav_off],
+        "clear": [nav_off, text_frame(0x20, ""), text_frame(0x21, ""), text_frame(0x22, "")],
+    }
+    if scenario not in scenarios:
+        raise ValueError(f"unknown scenario: {scenario}")
+    return scenarios[scenario]
+
+
+def send_repeated(port: str, baud: int, seconds: float, gap: float, scenario: str) -> None:
     test_sets = [
         {
             "name": "text16",
@@ -83,15 +108,8 @@ def send_repeated(port: str, baud: int, seconds: float, gap: float) -> None:
         ser.reset_input_buffer()
         ser.reset_output_buffer()
         for item in test_sets:
-            frames = [
-                frame(0x48, b"\x01"),
-                frame(0x45, nav_maneuver(item["meters"], item["icon"])),
-                frame(0x47, eta_distance(item["eta"])),
-                text_frame(0x20, item["fm"]),
-                text_frame(0x21, item["media"]),
-                text_frame(0x22, item["track"]),
-            ]
-            print(f"START {item['name']} repeat={seconds}s")
+            frames = frames_for_scenario(scenario, item)
+            print(f"START {item['name']} scenario={scenario} repeat={seconds}s")
             deadline = time.monotonic() + seconds
             loops = 0
             while time.monotonic() < deadline:
@@ -108,9 +126,14 @@ def main() -> int:
     parser.add_argument("port", nargs="?", default="/dev/cu.usbmodemKIA1")
     parser.add_argument("--baud", type=int, default=19200)
     parser.add_argument("--seconds", type=float, default=5.0)
-    parser.add_argument("--gap", type=float, default=0.035)
+    parser.add_argument("--gap", type=float, default=0.08)
+    parser.add_argument(
+        "--scenario",
+        choices=["full", "music", "source", "track", "fm", "nav", "nav-on", "nav-off", "clear"],
+        default="full",
+    )
     args = parser.parse_args()
-    send_repeated(args.port, args.baud, args.seconds, args.gap)
+    send_repeated(args.port, args.baud, args.seconds, args.gap, args.scenario)
     return 0
 
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import signal
 import struct
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -74,7 +76,7 @@ def open_device(libusb_path: Path):
     return dev
 
 
-def init_gsusb(dev, bitrate0: int, bitrate1: int):
+def init_gsusb(dev, bitrate0: int, bitrate1: int, *, listen_only: bool = True):
     ctrl_out(dev, GS_USB_BREQ_HOST_FORMAT, 1, struct.pack("<I", 0x0000BEEF))
 
     raw_config = ctrl_in(dev, GS_USB_BREQ_DEVICE_CONFIG, 1, 12)
@@ -92,7 +94,9 @@ def init_gsusb(dev, bitrate0: int, bitrate1: int):
         ctrl_out(dev, GS_USB_BREQ_MODE, channel, struct.pack("<II", GS_CAN_MODE_RESET, 0))
         timing = gsusb_bittiming(fclk, bitrate)
         ctrl_out(dev, GS_USB_BREQ_BITTIMING, channel, struct.pack("<IIIII", *timing))
-        mode_features = GS_CAN_FEATURE_LISTEN_ONLY | GS_CAN_FEATURE_HW_TIMESTAMP
+        mode_features = GS_CAN_FEATURE_HW_TIMESTAMP
+        if listen_only:
+            mode_features |= GS_CAN_FEATURE_LISTEN_ONLY
         ctrl_out(dev, GS_USB_BREQ_MODE, channel, struct.pack("<II", GS_CAN_MODE_START, mode_features))
 
     return {
@@ -102,6 +106,7 @@ def init_gsusb(dev, bitrate0: int, bitrate1: int):
         "feature": feature,
         "fclk": fclk,
         "speeds": speeds,
+        "listen_only": listen_only,
     }
 
 
@@ -133,6 +138,130 @@ def format_frame(packet: bytes, monotonic_start: float) -> Optional[str]:
     return f"{ts} ch{channel} {frame_type} {clean_id:08X} dlc={dlc} {payload}"
 
 
+def parse_hex_data(value: str) -> bytes:
+    clean = value.replace(" ", "").replace(":", "").replace("-", "").strip()
+    if len(clean) % 2:
+        raise ValueError("CAN data hex must contain full bytes")
+    data = bytes.fromhex(clean) if clean else b""
+    if len(data) > 8:
+        raise ValueError("classic CAN data cannot be longer than 8 bytes")
+    return data
+
+
+def pack_host_frame(
+    channel: int,
+    can_id: int,
+    data: bytes,
+    *,
+    echo_id: int,
+    extended: bool = False,
+    rtr: bool = False,
+) -> bytes:
+    if not 0 <= channel <= 1:
+        raise ValueError("channel must be 0 or 1")
+    if extended:
+        if not 0 <= can_id <= 0x1FFFFFFF:
+            raise ValueError("extended CAN id must fit 29 bits")
+        wire_id = can_id | CAN_EFF_FLAG
+    else:
+        if not 0 <= can_id <= 0x7FF:
+            raise ValueError("standard CAN id must fit 11 bits")
+        wire_id = can_id
+    if rtr:
+        wire_id |= CAN_RTR_FLAG
+    payload = data[:8].ljust(8, b"\x00")
+    return struct.pack("<IIBBBB8sI", echo_id & 0xFFFFFFFF, wire_id, len(data), channel, 0, 0, payload, 0)
+
+
+def send_can_frame(
+    dev,
+    write_lock: threading.Lock,
+    *,
+    channel: int,
+    can_id: int,
+    data: bytes,
+    count: int = 1,
+    interval: float = 0.02,
+    extended: bool = False,
+    rtr: bool = False,
+    echo_seed: int = 1,
+) -> int:
+    count = max(1, min(int(count), 1000))
+    interval = max(0.0, min(float(interval), 2.0))
+    sent = 0
+    for idx in range(count):
+        packet = pack_host_frame(channel, can_id, data, echo_id=echo_seed + idx, extended=extended, rtr=rtr)
+        with write_lock:
+            dev.write(EP_OUT, packet, timeout=1000)
+        sent += 1
+        if interval and idx + 1 < count:
+            time.sleep(interval)
+    return sent
+
+
+def send_tx_request(dev, write_lock: threading.Lock, request: dict, echo_seed: int) -> int:
+    frames = request.get("frames")
+    if frames is None:
+        frames = [request]
+    total = 0
+    for offset, item in enumerate(frames):
+        channel = int(item.get("channel", request.get("channel", 0)))
+        can_id_raw = item.get("id", item.get("can_id", request.get("id", "0")))
+        can_id = int(str(can_id_raw), 0)
+        data = parse_hex_data(str(item.get("data", request.get("data", ""))))
+        count = int(item.get("count", request.get("count", 1)))
+        interval = float(item.get("interval", request.get("interval", 0.02)))
+        extended = bool(item.get("extended", request.get("extended", False)))
+        rtr = bool(item.get("rtr", request.get("rtr", False)))
+        total += send_can_frame(
+            dev,
+            write_lock,
+            channel=channel,
+            can_id=can_id,
+            data=data,
+            count=count,
+            interval=interval,
+            extended=extended,
+            rtr=rtr,
+            echo_seed=echo_seed + offset * 0x1000,
+        )
+    return total
+
+
+def start_tx_control_thread(
+    dev,
+    control_path: Path,
+    write_lock: threading.Lock,
+    should_stop,
+) -> threading.Thread:
+    control_path.parent.mkdir(parents=True, exist_ok=True)
+    control_path.touch(exist_ok=True)
+
+    def run() -> None:
+        echo_seed = 1
+        with control_path.open("r", encoding="utf-8") as fh:
+            fh.seek(0, 2)
+            while not should_stop():
+                line = fh.readline()
+                if not line:
+                    time.sleep(0.05)
+                    continue
+                try:
+                    request = json.loads(line)
+                    sent = send_tx_request(dev, write_lock, request, echo_seed)
+                    echo_seed = (echo_seed + sent + 1) & 0xFFFFFFFF
+                    print(
+                        f"TX sent={sent} request={json.dumps(request, ensure_ascii=False, separators=(',', ':'))}",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(f"TX error: {exc}", flush=True)
+
+    thread = threading.Thread(target=run, name="gsusb-tx-control", daemon=True)
+    thread.start()
+    return thread
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read CAN logs from 2CAN35 gs_usb scanner firmware")
     parser.add_argument("--libusb", type=Path, default=DEFAULT_LIBUSB)
@@ -142,6 +271,16 @@ def main() -> int:
     parser.add_argument("--outfile", type=Path)
     parser.add_argument("--exit-to-mode1", action="store_true", help="send the patched logger exit request and stop")
     parser.add_argument("--exit-on-complete", action="store_true", help="return to mode 1 after timed logging or Ctrl-C")
+    parser.add_argument("--tx-enable", action="store_true", help="start CAN channels without listen-only")
+    parser.add_argument("--tx-control", type=Path, help="tail JSONL control file and transmit requested CAN frames")
+    parser.add_argument("--send-frame", action="store_true", help="send one frame request and exit")
+    parser.add_argument("--send-channel", type=int, default=0)
+    parser.add_argument("--send-id", default="0x000")
+    parser.add_argument("--send-data", default="")
+    parser.add_argument("--send-count", type=int, default=1)
+    parser.add_argument("--send-interval", type=float, default=0.02)
+    parser.add_argument("--send-extended", action="store_true")
+    parser.add_argument("--send-rtr", action="store_true")
     args = parser.parse_args()
 
     stop = False
@@ -155,6 +294,7 @@ def main() -> int:
 
     out = args.outfile.open("a", encoding="utf-8") if args.outfile else None
     dev = None
+    write_lock = threading.Lock()
     try:
         dev = open_device(args.libusb)
         if args.exit_to_mode1:
@@ -162,11 +302,31 @@ def main() -> int:
             print("mode1 exit requested", flush=True)
             return 0
 
-        info = init_gsusb(dev, args.bitrate0, args.bitrate1)
+        tx_mode = args.tx_enable or args.tx_control is not None or args.send_frame
+        info = init_gsusb(dev, args.bitrate0, args.bitrate1, listen_only=not tx_mode)
+        if args.send_frame:
+            sent = send_can_frame(
+                dev,
+                write_lock,
+                channel=args.send_channel,
+                can_id=int(str(args.send_id), 0),
+                data=parse_hex_data(args.send_data),
+                count=args.send_count,
+                interval=args.send_interval,
+                extended=args.send_extended,
+                rtr=args.send_rtr,
+            )
+            print(f"TX sent={sent}", flush=True)
+            return 0
+
+        if args.tx_control is not None:
+            start_tx_control_thread(dev, args.tx_control, write_lock, lambda: stop)
+
         header = (
             f"gs_usb ready channels={info['channels']} fclk={info['fclk']} "
             f"speeds=ch0:{info['speeds'][0]} ch1:{info['speeds'][1]} "
-            f"feature=0x{info['feature']:X} sw={info['sw_version']} hw={info['hw_version']}"
+            f"listen_only={info['listen_only']} feature=0x{info['feature']:X} "
+            f"sw={info['sw_version']} hw={info['hw_version']}"
         )
         print(header, flush=True)
         if out:

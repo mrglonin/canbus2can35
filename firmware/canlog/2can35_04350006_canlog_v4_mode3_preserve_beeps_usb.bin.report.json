@@ -1,0 +1,52 @@
+{
+  "source_programmer_v06": "/Users/legion/Downloads/37FFDA054247303859412243_04350006.bin",
+  "source_programmer_v06_sha256": "c38db9b6e9f8dfdee0bc0a93e69f52b62cfee8e15b9a4a98e1b8e1e964fd6d05",
+  "base_preserved_lower_loader_selector_logger_from": "/Users/legion/Downloads/canbox-fw-lab/final_v4_mode3_original_tbb_no_fallback_SIMULATED.bin",
+  "output_update": "/Users/legion/Downloads/2CAN35_04350006_CanLog_v4_Mode3_PreserveBeeps_USB.bin",
+  "output_update_size": 32176,
+  "output_update_sha256": "a1caf625e9070be6c9da520336751982238c314b9ac3c90140839c370f4867e6",
+  "output_stlink64k": "/Users/legion/Downloads/2CAN35_04350006_CanLog_v4_Mode3_PreserveBeeps_STLINK64K.bin",
+  "output_stlink64k_sha256": "19db945e6d69259f683d08c2fb7f878a672bd836d9cf9e3b975f8a26512df942",
+  "repo_copy": "/Users/legion/Downloads/canbus2can35_repo/firmware/canlog/2can35_04350006_canlog_v4_mode3_preserve_beeps_usb.bin",
+  "uid": "37 FF DA 05 42 47 30 38 59 41 22 43",
+  "version": "04 35 00 06",
+  "v06_payload_end": "0x08008c14",
+  "stub_base": "0x08008c20",
+  "stub_end": "0x08008dac",
+  "logger_slot": "0x08009000",
+  "logger_end": "0x0800bd94",
+  "combined_payload_end": "0x0800bda0",
+  "mode1_vector": {
+    "sp": "0x20010000",
+    "reset": "0x08008ce1"
+  },
+  "mode3_vector": {
+    "sp": "0x20010000",
+    "reset": "0x0800a26d"
+  },
+  "patches": [
+    {
+      "name": "cmd51",
+      "address": "0x08005474",
+      "old": "43 79 01 2b 9a d1 bd e8 10 40 00 f0 87 bc",
+      "new": "00 4b 18 47 21 8c 00 08 00 bf 00 bf 00 bf",
+      "dispatch": "0x08008c20"
+    },
+    {
+      "name": "cmd55",
+      "address": "0x08005482",
+      "old": "43 79 01 2b 93 d1 bd e8 10 40 00 f0 90 bc",
+      "new": "00 4b 18 47 51 8c 00 08 00 bf 00 bf 00 bf",
+      "dispatch": "0x08008c50"
+    },
+    {
+      "name": "mode1_reset_vector",
+      "address": "0x08004004",
+      "old": "0x08006e49",
+      "new": "0x08008ce1"
+    }
+  ],
+  "behavior": "Programmer 04350006 mode1 preserved, with local CMD55 software switch to update/logger/reset and gs_usb mode3 preserved.",
+  "stlink_lower_loader_selector_from": "/Users/legion/Downloads/canbox-fw-lab/final_base_v3_modes12_gslog_mode3_STLINK.bin",
+  "stlink_note": "Full ST-Link image rebuilt with valid lower bootloader/selector from known-good final_base_v3 image; mode1/logger region is v06 hybrid."
+}
