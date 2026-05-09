@@ -134,7 +134,7 @@ ACTION_PROFILES = {
     "trunk": {"ids": {0x541}, "keys": {"trunk"}},
     "hood": {"ids": {0x541}, "keys": {"hood"}},
     "sunroof": {"ids": {0x541}, "keys": {"sunroof"}},
-    "reverse": {"ids": {0x111}, "keys": {"reverse_111"}},
+    "reverse": {"ids": {0x169}, "keys": {"reverse_169"}},
     "front_defog": {"ids": {0x043, 0x132}, "keys": {"front_defog_up_043", "front_defog_up_132"}},
     "rear_defog": {"ids": {0x541}, "labels": {"Обогрев заднего стекла"}},
     "heated_wheel": {"ids": {0x559}, "keys": {"heated_wheel"}},
@@ -144,7 +144,7 @@ ACTION_PROFILES = {
     "passenger_seat_vent": {"ids": {0x134, 0x5CF}, "keys": {"seat_heat_vent_134"}},
     "rpm_idle_steps": {"ids": {0x316}, "keys": {"rpm_316"}},
     "speed_low": {"ids": {0x316, 0x386}, "keys": {"speed_candidate"}},
-    "outside_temp": {"ids": {0x383}, "keys": {"outside_temp"}},
+    "outside_temp": {"ids": {0x044, 0x383}, "keys": {"outside_temp"}},
     "engine_temp": {"ids": {0x329}, "keys": {"engine_temp"}},
     "front_parking": {"ids": {0x436, 0x390, 0x4F4}, "keys": {"parking_sensors"}},
     "rear_parking": {"ids": {0x436, 0x390, 0x4F4, 0x58B}, "keys": {"parking_sensors"}},
@@ -675,6 +675,16 @@ def temp_c_from_offset(raw: int) -> str:
     return f"{raw - 40} C"
 
 
+def engine_temp_from_ems12(raw: int) -> str:
+    value = (raw - 0x40) * 0.75
+    return f"{value:.1f} C"
+
+
+def outside_temp_from_datc11(raw: int) -> str:
+    value = (raw - 0x52) / 2
+    return f"{value:.1f} C"
+
+
 def rpm_from_ems11(data: bytes) -> str:
     if len(data) < 4:
         return raw_data_text(data)
@@ -688,8 +698,46 @@ SEMANTIC_EVENT_SUPPRESS = {
     "rpm_316",
     "speed_candidate",
     "outside_temp",
+    "outside_temp_044_raw",
     "engine_temp",
     "battery_voltage",
+    "climate_hu_034",
+    "climate_temp_042",
+    "climate_display_043",
+    "climate_temp_131",
+    "climate_display_132",
+    "climate_fatc_383",
+    "media_hu_114",
+    "media_nav_197",
+    "media_usb_490",
+    "media_fm_4e8",
+    "media_nav_text_49b",
+    "media_nav_tbt_4bb",
+    "parking_spas_390",
+    "parking_safety_58b",
+    "gear_111_raw",
+}
+
+
+CONFIRMED_SEMANTIC_KEYS = {
+    "ignition",
+    "door_lf",
+    "door_rf",
+    "door_lr",
+    "door_rr",
+    "trunk",
+    "hood",
+    "sunroof",
+    "reverse_169",
+    "speed_candidate",
+    "rpm_316",
+    "engine_temp",
+    "outside_temp",
+    "battery_voltage",
+    "front_defog_up_043",
+    "front_defog_up_132",
+    "heated_wheel",
+    "parking_sensors",
 }
 
 
@@ -715,18 +763,25 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
         ])
 
     if can_id == 0x111 and len(data) >= 8:
-        reverse = data[4] == 0x64
-        values.append(("reverse_111", "Задний ход", on_off(reverse), "0x111 TCU11"))
+        values.append(("gear_111_raw", "TCU11 raw", raw_data_text(data), "C-CAN ch1 STD 0x111 raw; задний ход у прошивки прогера берется из 0x169"))
+
+    if can_id == 0x169 and len(data) >= 1:
+        reverse = (data[0] & 0x0F) == 0x07
+        values.append(("reverse_169", "Задний ход", on_off(reverse), "C-CAN ch1 STD 0x169 DATA[0]&0x0F == 7, формула прошивки прогера"))
 
     if can_id == 0x316 and len(data) >= 8:
         values.append(("speed_candidate", "Скорость", f"{data[6]} км/ч", "0x316 EMS11 candidate"))
         values.append(("rpm_316", "Обороты двигателя", rpm_from_ems11(data), "C-CAN ch1 STD 0x316 EMS11 DATA[2..3]/4"))
 
-    if can_id == 0x329 and len(data) >= 1:
-        values.append(("engine_temp", "Температура двигателя", temp_c_from_offset(data[0]), "C-CAN ch1 STD 0x329 EMS12 DATA[0]-40"))
+    if can_id == 0x329 and len(data) >= 2:
+        values.append(("engine_temp", "Температура двигателя", engine_temp_from_ems12(data[1]), "C-CAN ch1 STD 0x329 EMS12 DATA[1], формула прошивки прогера"))
 
     if can_id == 0x383 and len(data) >= 3:
-        values.append(("outside_temp", "Наружная температура", temp_c_from_half_offset(data[2]), "C-CAN ch1 STD 0x383 FATC11 DATA[2]*0.5-40 candidate"))
+        values.append(("climate_fatc_383", "Климат FATC11 raw", raw_data_text(data), "C-CAN ch1 STD 0x383 FATC11"))
+
+    if can_id == 0x044 and len(data) >= 4:
+        values.append(("outside_temp", "Наружная температура", outside_temp_from_datc11(data[3]), "C-CAN ch1 STD 0x044 DATC11 DATA[3], формула прошивки прогера"))
+        values.append(("outside_temp_044_raw", "DATC11 наружная raw", raw_data_text(data), "C-CAN ch1 STD 0x044 DATC11"))
 
     if can_id == 0x545 and len(data) >= 4:
         values.append(("battery_voltage", "Напряжение АКБ", f"{data[3] / 10:.1f} V", "C-CAN ch1 STD 0x545 EMS14 DATA[3]/10 candidate"))
@@ -737,6 +792,12 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
     if can_id == 0x134 and len(data) >= 8:
         values.append(("seat_heat_vent_134", "Обогрев/обдув сидений", datc_seat_heat_vent_text(data), "0x134 DATC_PE_05 candidate"))
 
+    if can_id == 0x034 and len(data) >= 1:
+        values.append(("climate_hu_034", "Климат HU_DATC_E_02 raw", raw_data_text(data), "M-CAN ch0 STD 0x034 HU_DATC_E_02"))
+
+    if can_id == 0x042 and len(data) >= 1:
+        values.append(("climate_temp_042", "Климат DATC12 raw", raw_data_text(data), "C-CAN ch1 STD 0x042 DATC12"))
+
     if can_id == 0x043 and len(data) >= 3:
         values.append((
             "front_defog_up_043",
@@ -744,6 +805,10 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
             on_off((data[2] & 0x40) != 0),
             "C-CAN ch1 STD 0x043 DATA[2] bit6",
         ))
+        values.append(("climate_display_043", "Климат DATC13 raw", raw_data_text(data), "C-CAN ch1 STD 0x043 DATC13"))
+
+    if can_id == 0x131 and len(data) >= 1:
+        values.append(("climate_temp_131", "Климат DATC_PE_02 raw", raw_data_text(data), "M-CAN ch0 STD 0x131 DATC_PE_02"))
 
     if can_id == 0x132 and len(data) >= 3:
         values.append((
@@ -752,6 +817,7 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
             on_off((data[2] & 0x01) != 0),
             "M-CAN ch0 STD 0x132 DATA[2] bit0",
         ))
+        values.append(("climate_display_132", "Климат DATC_PE_03 raw", raw_data_text(data), "M-CAN ch0 STD 0x132 DATC_PE_03"))
 
     if can_id == 0x4E5 and len(data) >= 8:
         values.append((
@@ -763,6 +829,26 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
 
     if can_id == 0x436 and len(data) >= 4:
         values.append(("parking_sensors", "Парктроники", "нет препятствий" if data == b"\x00\x00\x00\x00" else data.hex(" ").upper(), "0x436 PAS11"))
+
+    if can_id == 0x390 and len(data) >= 1:
+        values.append(("parking_spas_390", "SPAS / динамические линии raw", raw_data_text(data), "C-CAN ch1 STD 0x390 SPAS11"))
+
+    if can_id == 0x58B and len(data) >= 1:
+        values.append(("parking_safety_58b", "RCTA / слепые зоны raw", raw_data_text(data), "C-CAN ch1 STD 0x58B LCA11"))
+
+    ch = int(frame.get("ch", 0))
+    if ch == 0 and can_id == 0x114 and len(data) >= 1:
+        values.append(("media_hu_114", "HU источник raw", raw_data_text(data), "M-CAN ch0 STD 0x114 HU_CLU_PE_01"))
+    if ch == 0 and can_id == 0x197 and len(data) >= 1:
+        values.append(("media_nav_197", "HU навигация raw", raw_data_text(data), "M-CAN ch0 STD 0x197 HU_CLU_PE_05"))
+    if ch == 0 and can_id == 0x490 and len(data) >= 1:
+        values.append(("media_usb_490", "USB музыка raw", raw_data_text(data), "M-CAN ch0 STD 0x490 TP_HU_USB_CLU"))
+    if ch == 0 and can_id == 0x4E8 and len(data) >= 1:
+        values.append(("media_fm_4e8", "FM/AM текст raw", raw_data_text(data), "M-CAN ch0 STD 0x4E8"))
+    if ch == 0 and can_id == 0x49B and len(data) >= 1:
+        values.append(("media_nav_text_49b", "Навигация текст raw", raw_data_text(data), "M-CAN ch0 STD 0x49B"))
+    if ch == 0 and can_id == 0x4BB and len(data) >= 1:
+        values.append(("media_nav_tbt_4bb", "Навигация TBT raw", raw_data_text(data), "M-CAN ch0 STD 0x4BB"))
 
     return values
 
@@ -826,8 +912,10 @@ def analyze_learning(action_id: str, action_name: str, started_ms, frames: list[
                 semantic_unique.append(item)
         semantic_bonus = 220 if semantic_unique else 0
         first_id = int(first.get("id", 0))
+        semantic_keys_for_row = {str(item.get("key")) for item in semantic_unique}
+        known_confirmed = bool(semantic_keys_for_row & CONFIRMED_SEMANTIC_KEYS)
         known_id_bonus = 40 if first_id in {
-            0x034, 0x043, 0x111, 0x132, 0x134, 0x316, 0x390, 0x436, 0x541, 0x553, 0x559, 0x58B
+            0x034, 0x043, 0x044, 0x132, 0x134, 0x169, 0x316, 0x329, 0x390, 0x436, 0x541, 0x553, 0x559, 0x58B
         } else 0
         high_rate_penalty = max(0, len(rows) - 120) * 0.08
         action_bonus = 0
@@ -873,6 +961,7 @@ def analyze_learning(action_id: str, action_name: str, started_ms, frames: list[
             "semantic": semantic_unique[:6],
             "why": "менялись байты " + (", ".join(str(i) for i in changed) if changed else "не менялись, но кадр был в окне"),
             "profile_match": profile_match,
+            "known_confirmed": known_confirmed,
         })
 
     candidates.sort(key=lambda item: (-item["score"], item["bus"], item["id_hex"] or ""))
@@ -880,6 +969,8 @@ def analyze_learning(action_id: str, action_name: str, started_ms, frames: list[
     if profile:
         matched = [item for item in candidates if item.get("profile_match")]
         candidates = matched if matched else []
+    else:
+        candidates = [item for item in candidates if not item.get("known_confirmed")]
     decoded_uart = []
     for item in uart[-80:]:
         decoded_uart.append({
@@ -1454,6 +1545,12 @@ class DashboardState:
                     "hz": count / elapsed,
                     "changed": changed,
                 })
+            latest = {}
+            for can_id, frame in self.latest_by_id.items():
+                item = dict(frame)
+                item["age"] = (now_ms() - item.get("seen_ms", now_ms())) / 1000
+                latest[f"0x{int(can_id):03X}"] = item
+                latest[f"ch{int(frame.get('ch', 0))}:0x{int(can_id):03X}"] = item
             return {
                 "session": dict(self.session),
                 "frames_total": self.frames_total,
@@ -1469,6 +1566,7 @@ class DashboardState:
                 },
                 "last_frame_age": (now_ms() - self.last_frame_ms) / 1000 if self.last_frame_ms else None,
                 "recent": list(self.recent)[:120],
+                "latest": latest,
                 "top": top,
                 "states": self.derived_states_locked(),
                 "semantic": list(self.semantic_values.values()),

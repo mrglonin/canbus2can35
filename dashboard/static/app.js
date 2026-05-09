@@ -32,17 +32,32 @@ function makeDefaultCar(source = "live") {
     sunroof: false,
     locked: false,
     reverse: false,
+    reverseOutput12v: "-",
     speed: "0",
+    gear: "-",
+    brake: "-",
+    parkBrake: "-",
     steering: "центр",
     turn: "off",
     hazard: false,
     lowBeam: false,
     highBeam: false,
+    autoLight: "-",
     fog: false,
+    frontFog: false,
+    rearFog: false,
+    wiper: "-",
+    rearWiper: "-",
+    seatbeltDriver: "-",
+    seatbeltPassenger: "-",
     climate: "выкл",
     driverTemp: "-",
     passengerTemp: "-",
     fan: "-",
+    climateMode: "-",
+    autoClimate: "-",
+    dual: "-",
+    intake: "-",
     ac: false,
     frontDefog: false,
     rearDefog: false,
@@ -56,9 +71,18 @@ function makeDefaultCar(source = "live") {
     driverSeatVent: "off",
     passengerSeatVent: "off",
     parking: "clear",
+    spas: "-",
+    dynamicLines: "-",
     rcta: "нет",
+    blindSpot: "-",
+    tpms: "-",
     media: "нет данных",
     nav: "нет данных",
+    mediaSource: "-",
+    mediaRaw: "-",
+    navRaw: "-",
+    clusterRaw: "-",
+    raw: {},
     lastLabel: "ожидание",
   };
 }
@@ -122,6 +146,35 @@ function statusText(value, on = "вкл", off = "выкл") {
 
 function openText(value) {
   return value ? "открыто" : "закрыто";
+}
+
+function isRealValue(value) {
+  return value !== undefined && value !== null && value !== "" && value !== "-" && value !== "no data";
+}
+
+function rawFrame(summary, idHex, channel = null) {
+  const latest = summary?.latest || {};
+  const normalized = String(idHex).toUpperCase();
+  if (channel !== null) {
+    return latest[`ch${channel}:${normalized}`] || latest[normalized] || null;
+  }
+  return latest[normalized] || null;
+}
+
+function rawValue(summary, idHex, channel = null) {
+  const frame = rawFrame(summary, idHex, channel);
+  return frame?.data_spaced || "-";
+}
+
+function rawValueWithAge(summary, idHex, channel = null) {
+  const frame = rawFrame(summary, idHex, channel);
+  if (!frame?.data_spaced) return "-";
+  const age = Number(frame.age ?? 0);
+  return `${frame.data_spaced} · ${age.toFixed(1)}s`;
+}
+
+function semanticByKey(summary, key) {
+  return (summary.semantic || []).find((item) => item.key === key);
 }
 
 function switchTab(tab) {
@@ -255,28 +308,127 @@ function semanticToCar(summary) {
     const value = item.value || "";
     const isOpen = value === "открыто";
     const isOn = value === "включено";
-    if (label.includes("Левая передняя дверь")) next.doors.lf = isOpen;
-    if (label.includes("Правая передняя дверь")) next.doors.rf = isOpen;
-    if (label.includes("Левая задняя дверь")) next.doors.lr = isOpen;
-    if (label.includes("Правая задняя дверь")) next.doors.rr = isOpen;
-    if (label.includes("Багажник")) next.trunk = isOpen;
-    if (label.includes("Капот")) next.hood = isOpen;
-    if (label.includes("Люк")) next.sunroof = isOpen;
-    if (label.includes("Зажигание")) next.ignition = isOn;
-    if (label.includes("Задний ход")) next.reverse = isOn;
-    if (label.includes("Скорость")) next.speed = value.replace(" candidate", "").replace(" км/ч", "");
-    if (label.includes("Обороты двигателя")) next.rpm = value;
-    if (label.includes("Температура двигателя")) next.engineTemp = value;
-    if (label.includes("Наружная температура")) next.outsideTemp = value;
-    if (label.includes("Напряжение АКБ")) next.batteryVoltage = value;
-    if (label.includes("Подогрев руля")) next.heatedWheel = isOn;
-    if (label.includes("Обдув вверх") || label.includes("лобовое")) next.frontDefog = isOn;
-    if (label.includes("Парктроники")) next.parking = value === "нет препятствий" ? "clear" : value;
-    if (label.includes("Обогрев/обдув сидений")) {
-      next.driverSeatHeat = "raw";
-      next.passengerSeatHeat = "raw";
+    switch (item.key) {
+      case "door_lf": next.doors.lf = isOpen; break;
+      case "door_rf": next.doors.rf = isOpen; break;
+      case "door_lr": next.doors.lr = isOpen; break;
+      case "door_rr": next.doors.rr = isOpen; break;
+      case "trunk": next.trunk = isOpen; break;
+      case "hood": next.hood = isOpen; break;
+      case "sunroof": next.sunroof = isOpen; break;
+      case "ignition": next.ignition = isOn; break;
+      case "reverse_169":
+        next.reverse = isOn;
+        next.reverseOutput12v = isOn ? "+12V ожидается" : "выкл";
+        break;
+      case "speed_candidate": next.speed = value.replace(" candidate", "").replace(" км/ч", ""); break;
+      case "rpm_316": next.rpm = value; break;
+      case "engine_temp": next.engineTemp = value; break;
+      case "outside_temp": next.outsideTemp = value; break;
+      case "battery_voltage": next.batteryVoltage = value; break;
+      case "heated_wheel": next.heatedWheel = isOn; break;
+      case "front_defog_up_043":
+      case "front_defog_up_132":
+        next.frontDefog = isOn;
+        break;
+      case "parking_sensors":
+        next.parking = value === "нет препятствий" ? "clear" : value;
+        break;
+      case "seat_heat_vent_134":
+        next.driverSeatHeat = value;
+        next.passengerSeatHeat = value;
+        next.driverSeatVent = value;
+        next.passengerSeatVent = value;
+        break;
+      case "driver_seat_heat_4e5":
+        next.driverSeatHeat = value;
+        break;
+      case "parking_spas_390":
+        next.spas = value;
+        next.dynamicLines = value;
+        break;
+      case "parking_safety_58b":
+        next.rcta = value;
+        next.blindSpot = value;
+        break;
+      case "media_hu_114":
+        next.mediaSource = value;
+        break;
+      case "media_usb_490":
+      case "media_fm_4e8":
+        next.mediaRaw = value;
+        break;
+      case "media_nav_197":
+      case "media_nav_text_49b":
+      case "media_nav_tbt_4bb":
+        next.navRaw = value;
+        break;
+      default:
+        if (label.includes("Левая передняя дверь")) next.doors.lf = isOpen;
+        if (label.includes("Правая передняя дверь")) next.doors.rf = isOpen;
+        if (label.includes("Левая задняя дверь")) next.doors.lr = isOpen;
+        if (label.includes("Правая задняя дверь")) next.doors.rr = isOpen;
+        if (label.includes("Багажник")) next.trunk = isOpen;
+        if (label.includes("Капот")) next.hood = isOpen;
+        if (label.includes("Люк")) next.sunroof = isOpen;
+        if (label.includes("Зажигание")) next.ignition = isOn;
+        if (label.includes("Задний ход")) next.reverse = isOn;
+        if (label.includes("Скорость")) next.speed = value.replace(" candidate", "").replace(" км/ч", "");
+        if (label.includes("Обороты двигателя")) next.rpm = value;
+        if (label.includes("Температура двигателя")) next.engineTemp = value;
+        if (label.includes("Наружная температура")) next.outsideTemp = value;
+        if (label.includes("Напряжение АКБ")) next.batteryVoltage = value;
+        if (label.includes("Подогрев руля")) next.heatedWheel = isOn;
+        if (label.includes("Обдув вверх") || label.includes("лобовое")) next.frontDefog = isOn;
+        if (label.includes("Парктроники")) next.parking = value === "нет препятствий" ? "clear" : value;
     }
   }
+
+  next.raw = {
+    body541: rawValueWithAge(summary, "0x541"),
+    body553: rawValueWithAge(summary, "0x553"),
+    body559: rawValueWithAge(summary, "0x559"),
+    buttons523: rawValueWithAge(summary, "0x523"),
+    speed316: rawValueWithAge(summary, "0x316"),
+    wheel386: rawValueWithAge(summary, "0x386"),
+    gear111: rawValueWithAge(summary, "0x111"),
+    gear354: rawValueWithAge(summary, "0x354"),
+    gear169: rawValueWithAge(summary, "0x169"),
+    steering2b0: rawValueWithAge(summary, "0x2B0"),
+    steering381: rawValueWithAge(summary, "0x381"),
+    climate034: rawValueWithAge(summary, "0x034", 0),
+    climate044: rawValueWithAge(summary, "0x044", 1),
+    climate042: rawValueWithAge(summary, "0x042", 1),
+    climate043: rawValueWithAge(summary, "0x043", 1),
+    climate131: rawValueWithAge(summary, "0x131", 0),
+    climate132: rawValueWithAge(summary, "0x132", 0),
+    climate134: rawValueWithAge(summary, "0x134", 0),
+    climate383: rawValueWithAge(summary, "0x383", 1),
+    parking390: rawValueWithAge(summary, "0x390", 1),
+    parking436: rawValueWithAge(summary, "0x436", 1),
+    safety58b: rawValueWithAge(summary, "0x58B", 1),
+    media114: rawValueWithAge(summary, "0x114", 0),
+    media197: rawValueWithAge(summary, "0x197", 0),
+    media490: rawValueWithAge(summary, "0x490", 0),
+    media4e8: rawValueWithAge(summary, "0x4E8", 0),
+    media49b: rawValueWithAge(summary, "0x49B", 0),
+    media4bb: rawValueWithAge(summary, "0x4BB", 0),
+  };
+
+  const climateRaw = [
+    next.raw.climate034,
+    next.raw.climate044,
+    next.raw.climate042,
+    next.raw.climate043,
+    next.raw.climate131,
+    next.raw.climate132,
+    next.raw.climate134,
+    next.raw.climate383,
+  ].filter(isRealValue);
+  if (climateRaw.length) next.climate = "данные есть";
+  if (isRealValue(next.mediaRaw)) next.media = next.mediaRaw;
+  if (isRealValue(next.navRaw)) next.nav = next.navRaw;
+
   for (const item of uart.slice(0, 10)) {
     const text = item.text || "";
     if (text.includes("USB music")) next.media = text;
@@ -407,18 +559,25 @@ function liveGroups() {
   return [
     {
       title: "Движение",
-      hint: "скорость, тахометр, зажигание",
+      hint: "скорость, тахометр, зажигание, коробка",
+      className: "wide",
       items: [
         ["Скорость", `${car.speed} км/ч`, Number(car.speed) > 0],
         ["Обороты / тахометр", car.rpm, car.rpm !== "-"],
         ["Зажигание", statusText(car.ignition, "вкл", "выкл"), car.ignition],
         ["Задний ход", statusText(car.reverse), car.reverse],
+        ["Выход R +12V", car.reverseOutput12v, car.reverseOutput12v !== "-"],
         ["Руль", car.steering, car.steering !== "центр"],
+        ["Скорость raw 0x316", car.raw.speed316, isRealValue(car.raw.speed316)],
+        ["Колеса raw 0x386", car.raw.wheel386, isRealValue(car.raw.wheel386)],
+        ["Передача raw 0x111", car.raw.gear111, isRealValue(car.raw.gear111)],
+        ["Передача raw 0x354/169", `${car.raw.gear354} | ${car.raw.gear169}`, isRealValue(car.raw.gear354) || isRealValue(car.raw.gear169)],
+        ["Угол руля raw", `${car.raw.steering2b0} | ${car.raw.steering381}`, isRealValue(car.raw.steering2b0) || isRealValue(car.raw.steering381)],
       ],
     },
     {
       title: "Кузов",
-      hint: "двери, капот, багажник, люк",
+      hint: "двери, капот, багажник, люк, замки",
       items: [
         ["LF дверь", openText(car.doors.lf), car.doors.lf],
         ["RF дверь", openText(car.doors.rf), car.doors.rf],
@@ -427,37 +586,84 @@ function liveGroups() {
         ["Багажник", openText(car.trunk), car.trunk],
         ["Капот", openText(car.hood), car.hood],
         ["Люк", openText(car.sunroof), car.sunroof],
+        ["Замки", car.locked ? "закрыто" : "-", car.locked],
+        ["Ремень водителя", car.seatbeltDriver, isRealValue(car.seatbeltDriver)],
+        ["Ремень пассажира", car.seatbeltPassenger, isRealValue(car.seatbeltPassenger)],
+        ["Кузов raw 0x541", car.raw.body541, isRealValue(car.raw.body541)],
+        ["Задние двери raw 0x553", car.raw.body553, isRealValue(car.raw.body553)],
+        ["Окна/руль raw 0x559", car.raw.body559, isRealValue(car.raw.body559)],
       ],
     },
     {
-      title: "Климат",
-      hint: "температуры, обдув, подогрев",
+      title: "Климат подробно",
+      hint: "температуры, режимы, обдув, подогревы, raw ID",
+      className: "wide climate-category",
       items: [
+        ["Климат", car.climate, car.climate !== "выкл"],
+        ["Темп. водитель", car.driverTemp, car.driverTemp !== "-"],
+        ["Темп. пассажир", car.passengerTemp, car.passengerTemp !== "-"],
         ["Темп. двигателя", car.engineTemp, car.engineTemp !== "-"],
         ["Темп. улицы", car.outsideTemp, car.outsideTemp !== "-"],
         ["АКБ", car.batteryVoltage, car.batteryVoltage !== "-"],
-        ["Климат", car.climate, car.climate !== "выкл"],
+        ["Вентилятор", car.fan, car.fan !== "-"],
+        ["Режим обдува", car.climateMode, car.climateMode !== "-"],
+        ["AUTO", car.autoClimate, car.autoClimate !== "-"],
+        ["DUAL/SYNC", car.dual, car.dual !== "-"],
+        ["Рециркуляция", car.intake, car.intake !== "-"],
+        ["A/C", statusText(car.ac), car.ac],
         ["Обдув вверх", statusText(car.frontDefog), car.frontDefog],
+        ["Задний обогрев", statusText(car.rearDefog), car.rearDefog],
         ["Подогрев руля", statusText(car.heatedWheel), car.heatedWheel],
+        ["Водитель сиденье heat", car.driverSeatHeat, car.driverSeatHeat !== "off"],
+        ["Пассажир сиденье heat", car.passengerSeatHeat, car.passengerSeatHeat !== "off"],
+        ["Водитель сиденье vent", car.driverSeatVent, car.driverSeatVent !== "off"],
+        ["Пассажир сиденье vent", car.passengerSeatVent, car.passengerSeatVent !== "off"],
+        ["HU климат 0x034", car.raw.climate034, isRealValue(car.raw.climate034)],
+        ["Улица DATC11 0x044", car.raw.climate044, isRealValue(car.raw.climate044)],
+        ["Темп. C-CAN 0x042", car.raw.climate042, isRealValue(car.raw.climate042)],
+        ["Климат C-CAN 0x043", car.raw.climate043, isRealValue(car.raw.climate043)],
+        ["Темп. M-CAN 0x131", car.raw.climate131, isRealValue(car.raw.climate131)],
+        ["Климат M-CAN 0x132", car.raw.climate132, isRealValue(car.raw.climate132)],
+        ["Сиденья 0x134", car.raw.climate134, isRealValue(car.raw.climate134)],
+        ["FATC 0x383", car.raw.climate383, isRealValue(car.raw.climate383)],
       ],
     },
     {
       title: "Свет и безопасность",
-      hint: "свет, парковка, ассистенты",
+      hint: "свет, повороты, парковка, ассистенты",
       items: [
+        ["AUTO свет", car.autoLight, isRealValue(car.autoLight)],
         ["Свет", car.lowBeam ? "ближний" : car.highBeam ? "дальний" : "выкл", car.lowBeam || car.highBeam],
+        ["Противотуманки", car.fog || car.frontFog || car.rearFog ? "вкл" : "выкл", car.fog || car.frontFog || car.rearFog],
+        ["Дворники", car.wiper, isRealValue(car.wiper)],
+        ["Задний дворник", car.rearWiper, isRealValue(car.rearWiper)],
         ["Поворот", car.turn, car.turn !== "off"],
         ["Аварийка", statusText(car.hazard), car.hazard],
         ["Парктроники", car.parking, car.parking !== "clear"],
+        ["SPAS/линии", car.spas, isRealValue(car.spas)],
+        ["Динамические линии", car.dynamicLines, isRealValue(car.dynamicLines)],
         ["RCTA", car.rcta, car.rcta !== "нет"],
+        ["Слепые зоны", car.blindSpot, isRealValue(car.blindSpot)],
+        ["TPMS", car.tpms, isRealValue(car.tpms)],
+        ["SPAS raw 0x390", car.raw.parking390, isRealValue(car.raw.parking390)],
+        ["Парктроники raw 0x436", car.raw.parking436, isRealValue(car.raw.parking436)],
+        ["LCA/RCTA raw 0x58B", car.raw.safety58b, isRealValue(car.raw.safety58b)],
       ],
     },
     {
       title: "Медиа и навигация",
-      hint: "HU, источники, приборка",
+      hint: "HU, источники, приборка, TBT",
       items: [
         ["Медиа", car.media, car.media !== "нет данных"],
         ["Навигация", car.nav, car.nav !== "нет данных"],
+        ["Источник HU", car.mediaSource, car.mediaSource !== "-"],
+        ["HU source 0x114", car.raw.media114, isRealValue(car.raw.media114)],
+        ["HU nav 0x197", car.raw.media197, isRealValue(car.raw.media197)],
+        ["USB текст 0x490", car.raw.media490, isRealValue(car.raw.media490)],
+        ["FM/AM текст 0x4E8", car.raw.media4e8, isRealValue(car.raw.media4e8)],
+        ["Нави текст 0x49B", car.raw.media49b, isRealValue(car.raw.media49b)],
+        ["Нави TBT 0x4BB", car.raw.media4bb, isRealValue(car.raw.media4bb)],
+        ["Кнопки руля raw 0x523", car.raw.buttons523, isRealValue(car.raw.buttons523)],
         ["Источник данных", car.source, car.source === "demo"],
       ],
     },
@@ -468,7 +674,7 @@ function renderLiveCategories() {
   const root = $("liveCategoryGrid");
   if (!root) return;
   root.innerHTML = liveGroups().map((group) => `
-    <section class="live-category">
+    <section class="live-category ${escapeHtml(group.className || "")}">
       <header>
         <strong>${escapeHtml(group.title)}</strong>
         <span>${escapeHtml(group.hint)}</span>
