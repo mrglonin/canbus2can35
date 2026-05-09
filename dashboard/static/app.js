@@ -9,7 +9,7 @@ const state = {
   learnedAssignments: [],
   learnedStates: {},
   lastLearnResult: null,
-  activeTab: "learn",
+  activeTab: "live",
   demo: {
     running: false,
     scenario: "walkaround",
@@ -20,6 +20,7 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+const ACTIVE_TAB_KEY = "2can35.activeTab.v2";
 
 function makeDefaultCar(source = "live") {
   return {
@@ -124,7 +125,7 @@ function openText(value) {
 }
 
 function switchTab(tab) {
-  const next = ["learn", "can", "uart", "cluster", "export"].includes(tab) ? tab : "learn";
+  const next = ["live", "learn", "can", "uart", "cluster", "export"].includes(tab) ? tab : "live";
   state.activeTab = next;
   document.querySelectorAll("[data-view-tab]").forEach((button) => {
     const active = button.dataset.viewTab === next;
@@ -135,7 +136,7 @@ function switchTab(tab) {
     panel.classList.toggle("active", panel.dataset.tabPanel === next);
   });
   try {
-    localStorage.setItem("2can35.activeTab", next);
+    localStorage.setItem(ACTIVE_TAB_KEY, next);
   } catch (_error) {
     // localStorage can be disabled; tabs still work in memory.
   }
@@ -397,36 +398,90 @@ function stateCards() {
 
 function renderCarStatus() {
   $("carSubtitle").textContent = `${state.car.source === "demo" ? "Демо" : "Live"} · ${state.car.lastLabel}`;
-  renderDynamicSummary();
+  renderLiveCategories();
   renderLearnedLive();
-  $("carStatusGrid").innerHTML = stateCards().map(([label, value, on]) => `
-    <div class="status-card ${on ? "on" : ""}">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-    </div>
-  `).join("");
 }
 
-function renderDynamicSummary() {
-  const root = $("dynamicSummary");
-  if (!root) return;
-  const fixed = [
-    ["Обдув вверх/лобовое", statusText(state.car.frontDefog, "включено", "выключено"), state.car.frontDefog],
-    ["Зажигание", statusText(state.car.ignition, "включено", "выключено"), state.car.ignition],
-    ["Темп. двигателя", state.car.engineTemp, state.car.engineTemp !== "-"],
-    ["Наружная температура", state.car.outsideTemp, state.car.outsideTemp !== "-"],
-    ["Обороты", state.car.rpm, state.car.rpm !== "-"],
+function liveGroups() {
+  const car = state.car;
+  return [
+    {
+      title: "Движение",
+      hint: "скорость, тахометр, зажигание",
+      items: [
+        ["Скорость", `${car.speed} км/ч`, Number(car.speed) > 0],
+        ["Обороты / тахометр", car.rpm, car.rpm !== "-"],
+        ["Зажигание", statusText(car.ignition, "вкл", "выкл"), car.ignition],
+        ["Задний ход", statusText(car.reverse), car.reverse],
+        ["Руль", car.steering, car.steering !== "центр"],
+      ],
+    },
+    {
+      title: "Кузов",
+      hint: "двери, капот, багажник, люк",
+      items: [
+        ["LF дверь", openText(car.doors.lf), car.doors.lf],
+        ["RF дверь", openText(car.doors.rf), car.doors.rf],
+        ["LR дверь", openText(car.doors.lr), car.doors.lr],
+        ["RR дверь", openText(car.doors.rr), car.doors.rr],
+        ["Багажник", openText(car.trunk), car.trunk],
+        ["Капот", openText(car.hood), car.hood],
+        ["Люк", openText(car.sunroof), car.sunroof],
+      ],
+    },
+    {
+      title: "Климат",
+      hint: "температуры, обдув, подогрев",
+      items: [
+        ["Темп. двигателя", car.engineTemp, car.engineTemp !== "-"],
+        ["Темп. улицы", car.outsideTemp, car.outsideTemp !== "-"],
+        ["АКБ", car.batteryVoltage, car.batteryVoltage !== "-"],
+        ["Климат", car.climate, car.climate !== "выкл"],
+        ["Обдув вверх", statusText(car.frontDefog), car.frontDefog],
+        ["Подогрев руля", statusText(car.heatedWheel), car.heatedWheel],
+      ],
+    },
+    {
+      title: "Свет и безопасность",
+      hint: "свет, парковка, ассистенты",
+      items: [
+        ["Свет", car.lowBeam ? "ближний" : car.highBeam ? "дальний" : "выкл", car.lowBeam || car.highBeam],
+        ["Поворот", car.turn, car.turn !== "off"],
+        ["Аварийка", statusText(car.hazard), car.hazard],
+        ["Парктроники", car.parking, car.parking !== "clear"],
+        ["RCTA", car.rcta, car.rcta !== "нет"],
+      ],
+    },
+    {
+      title: "Медиа и навигация",
+      hint: "HU, источники, приборка",
+      items: [
+        ["Медиа", car.media, car.media !== "нет данных"],
+        ["Навигация", car.nav, car.nav !== "нет данных"],
+        ["Источник данных", car.source, car.source === "demo"],
+      ],
+    },
   ];
-  const active = stateCards()
-    .filter(([label]) => label !== "Обдув вверх")
-    .filter(([label, value, on]) => on || ["Медиа", "Навигация", "Источник"].includes(label))
-    .filter(([, value]) => !["нет данных", "live", "clear", "выкл", "закрыто", "off"].includes(String(value)));
-  const rows = [...fixed, ...active];
-  root.innerHTML = rows.slice(0, 10).map(([label, value, on]) => `
-    <div class="status-card dynamic-cell ${on ? "on" : ""}">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-    </div>
+}
+
+function renderLiveCategories() {
+  const root = $("liveCategoryGrid");
+  if (!root) return;
+  root.innerHTML = liveGroups().map((group) => `
+    <section class="live-category">
+      <header>
+        <strong>${escapeHtml(group.title)}</strong>
+        <span>${escapeHtml(group.hint)}</span>
+      </header>
+      <div class="live-category-cards">
+        ${group.items.map(([label, value, on]) => `
+          <div class="status-card ${on ? "on" : ""}">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+          </div>
+        `).join("")}
+      </div>
+    </section>
   `).join("");
 }
 
@@ -1264,7 +1319,7 @@ function setupActions() {
     button.addEventListener("click", () => switchTab(button.dataset.viewTab));
   });
   try {
-    switchTab(localStorage.getItem("2can35.activeTab") || state.activeTab);
+    switchTab(localStorage.getItem(ACTIVE_TAB_KEY) || state.activeTab);
   } catch (_error) {
     switchTab(state.activeTab);
   }

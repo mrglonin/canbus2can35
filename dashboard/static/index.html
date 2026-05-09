@@ -57,14 +57,28 @@
         </section>
 
         <section class="view-tabs" role="tablist" aria-label="Рабочие вкладки">
-          <button class="active" data-view-tab="learn" role="tab" aria-selected="true" aria-controls="tabLearn">Обучение CAN↔UART</button>
+          <button class="active" data-view-tab="live" role="tab" aria-selected="true" aria-controls="tabLive">Динамика Live</button>
+          <button data-view-tab="learn" role="tab" aria-selected="false" aria-controls="tabLearn">Обучение CAN↔UART</button>
           <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan">CAN log / TX</button>
           <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart">UART Raise</button>
           <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster">Приборка CAN</button>
           <button data-view-tab="export" role="tab" aria-selected="false" aria-controls="tabExport">Экспорт</button>
         </section>
 
-        <section id="tabLearn" class="tab-panel active" data-tab-panel="learn">
+        <section id="tabLive" class="tab-panel active" data-tab-panel="live">
+          <section class="car-stage panel">
+            <div class="panel-head car-head">
+              <div>
+                <h2>Динамика Live</h2>
+                <p id="carSubtitle">Живые статусы по категориям</p>
+              </div>
+              <div class="bridge-state" id="bridgeState">bridge выкл</div>
+            </div>
+            <div id="liveCategoryGrid" class="live-category-grid"></div>
+          </section>
+        </section>
+
+        <section id="tabLearn" class="tab-panel" data-tab-panel="learn">
           <section class="main-grid learn-grid">
             <aside class="action-rail panel">
               <div class="panel-head">
@@ -78,27 +92,6 @@
             </aside>
 
             <section class="center-stack">
-              <section class="car-stage panel">
-                <div class="panel-head car-head">
-                  <div>
-                    <h2>Динамика</h2>
-                    <p id="carSubtitle">Живые статусы, обучение 5 повторений и CAN→UART bridge</p>
-                  </div>
-                  <div class="bridge-state" id="bridgeState">bridge выкл</div>
-                </div>
-                <div class="dynamic-live">
-                  <section>
-                    <h3>Состояние сейчас</h3>
-                    <div id="dynamicSummary" class="dynamic-summary"></div>
-                  </section>
-                  <section>
-                    <h3>Проверяемая функция</h3>
-                    <div id="learnedLive" class="learned-live"></div>
-                  </section>
-                </div>
-                <div id="carStatusGrid" class="car-status-grid"></div>
-              </section>
-
               <section class="panel teach-panel">
                 <div class="panel-head">
                   <div>
@@ -111,6 +104,10 @@
                   </div>
                 </div>
                 <div id="learnStatus" class="learn-status">Нет активной записи</div>
+                <div class="learn-current">
+                  <h3>Проверяемая функция</h3>
+                  <div id="learnedLive" class="learned-live"></div>
+                </div>
                 <div id="candidateList" class="candidate-list">
                   <div class="empty">После записи здесь появятся только кандидаты по выбранному действию. Фоновый CAN скрывается.</div>
                 </div>
