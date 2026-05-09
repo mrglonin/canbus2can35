@@ -3,175 +3,317 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>2CAN35 CAN Lab</title>
+    <title>2CAN35 Lab Console</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
-        <div>
-          <h1>2CAN35 CAN Lab</h1>
-          <p>Live CAN state, DBC matrix, USB media/nav transmit tests</p>
-        </div>
-        <div class="topbar-actions">
-          <span id="connectionBadge" class="badge neutral">idle</span>
-          <button class="icon-button" id="refreshStatus" title="Refresh status">
-            <span aria-hidden="true">↻</span>
-          </button>
-        </div>
-      </header>
-
       <main class="workspace">
-        <aside class="rail">
-          <button class="rail-item active" data-tab="live">Live</button>
-          <button class="rail-item" data-tab="transmit">Transmit</button>
-          <button class="rail-item" data-tab="matrix">Matrix</button>
-          <button class="rail-item" data-tab="frames">Frames</button>
-        </aside>
+        <section class="control-strip">
+          <div class="control-group primary-controls">
+            <button id="startGsusb">Live CAN</button>
+            <button id="startLab" class="primary">Live CAN+UART</button>
+            <button id="toggleBridge">CAN→UART выкл</button>
+            <button id="resetLive">Сброс</button>
+            <button id="refreshStatus">Обновить</button>
+            <button id="stopLog" class="danger">Стоп</button>
+          </div>
+          <div class="header-right">
+            <div class="control-group mode-controls" aria-label="Режимы адаптера">
+              <span class="mode-label">Режим</span>
+              <button data-mode="normal">1 canbox</button>
+              <button data-mode="update">2 update</button>
+              <button data-mode="canlog">3 lab</button>
+            </div>
+            <span id="connectionBadge" class="status-pill">idle</span>
+          </div>
+          <label class="port-control hidden-control">
+            <span>USB/CDC порт</span>
+            <input id="portInput" placeholder="/dev/cu.usbmodemKIA1" />
+          </label>
+        </section>
 
-        <section class="content">
-          <section class="toolbar">
-            <div class="control-group">
-              <button id="startSample">Sample replay</button>
-              <button id="startGsusb">Live GS USB</button>
-              <button id="startCdc">Live CDC</button>
-              <button id="stopLog" class="danger">Stop</button>
-            </div>
-            <div class="port-control">
-              <label for="portInput">CDC port</label>
-              <input id="portInput" placeholder="/dev/cu.usbmodemKIA1" />
-            </div>
-          </section>
+        <section class="metrics">
+          <div class="metric">
+            <span>M-CAN ch0</span>
+            <strong id="metricMcan">0</strong>
+          </div>
+          <div class="metric">
+            <span>C-CAN ch1</span>
+            <strong id="metricCcan">0</strong>
+          </div>
+          <div class="metric">
+            <span>UART RX</span>
+            <strong id="metricUartRx">0</strong>
+          </div>
+          <div class="metric">
+            <span>UART TX</span>
+            <strong id="metricUartTx">0</strong>
+          </div>
+          <div class="metric">
+            <span>Активный режим</span>
+            <strong id="metricActiveMode">idle</strong>
+          </div>
+        </section>
 
-          <section class="metrics">
-            <div class="metric">
-              <span class="metric-label">Frames</span>
-              <strong id="framesTotal">0</strong>
-            </div>
-            <div class="metric">
-              <span class="metric-label">Rate</span>
-              <strong id="fps">0.0/s</strong>
-            </div>
-            <div class="metric">
-              <span class="metric-label">Last frame</span>
-              <strong id="lastFrameAge">-</strong>
-            </div>
-            <div class="metric">
-              <span class="metric-label">Device</span>
-              <strong id="deviceState">unknown</strong>
-            </div>
-          </section>
+        <section class="view-tabs" role="tablist" aria-label="Рабочие вкладки">
+          <button class="active" data-view-tab="learn" role="tab" aria-selected="true" aria-controls="tabLearn">Обучение CAN↔UART</button>
+          <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan">CAN log / TX</button>
+          <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart">UART Raise</button>
+          <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster">Приборка CAN</button>
+          <button data-view-tab="export" role="tab" aria-selected="false" aria-controls="tabExport">Экспорт</button>
+        </section>
 
-          <section id="tab-live" class="tab active">
-            <div id="stateGroups" class="state-grid"></div>
-            <section class="panel">
+        <section id="tabLearn" class="tab-panel active" data-tab-panel="learn">
+          <section class="main-grid learn-grid">
+            <aside class="action-rail panel">
               <div class="panel-head">
-                <h2>Top IDs</h2>
-                <span>rate and changing bytes</span>
-              </div>
-              <div id="topIds" class="id-grid"></div>
-            </section>
-
-            <section class="panel transmit-panel">
-              <div class="panel-head">
-                <h2>Raw CAN TX</h2>
-                <span>mode3 gs_usb, direct frame tests</span>
-              </div>
-              <div class="form-grid tx-grid">
-                <label>Channel<input id="txChannel" value="0" type="number" min="0" max="1" /></label>
-                <label>CAN ID<input id="txCanId" value="0x114" /></label>
-                <label>Data<input id="txData" value="00 00 00 00 00 00 00 00" maxlength="32" /></label>
-                <label>Repeat count<input id="txCount" value="5" type="number" min="1" max="200" /></label>
-                <label>Interval sec<input id="txInterval" value="0.05" type="number" min="0" max="2" step="0.01" /></label>
-                <label class="check-row"><input id="txExtended" type="checkbox" /> Extended ID</label>
-                <label class="check-row"><input id="txConfirm" type="checkbox" /> TX enabled</label>
-              </div>
-              <div class="control-group">
-                <button id="sendCanFrame">Send CAN frame</button>
-              </div>
-              <div class="form-grid tx-grid">
-                <label>Byte index<input id="sweepByte" value="0" type="number" min="0" max="7" /></label>
-                <label>From<input id="sweepFrom" value="0x00" /></label>
-                <label>To<input id="sweepTo" value="0x03" /></label>
-                <label>Count each<input id="sweepCountEach" value="3" type="number" min="1" max="50" /></label>
-              </div>
-              <div class="control-group">
-                <button id="sweepCanByte">Sweep byte</button>
-              </div>
-            </section>
-          </section>
-
-          <section id="tab-transmit" class="tab">
-            <section class="panel transmit-panel">
-              <div class="panel-head">
-                <h2>USB display tests</h2>
-                <span>frames repeat for the selected duration</span>
-              </div>
-              <div class="form-grid">
-                <label>FM text<input id="fmText" value="FM TEST 101.7" maxlength="32" /></label>
-                <label>Media text<input id="mediaText" value="MUSIC TEST" maxlength="32" /></label>
-                <label>Track text<input id="trackText" value="TRACK TEST" maxlength="32" /></label>
-                <label>Nav meters<input id="navMeters" value="120" type="number" min="0" max="9999" /></label>
-                <label>ETA tenths km<input id="etaDistance" value="12" type="number" min="0" max="9999" /></label>
-                <label>Repeat seconds<input id="repeatSeconds" value="5" type="number" min="1" max="30" /></label>
-              </div>
-              <div class="control-group">
-                <button data-send="full">Full demo</button>
-                <button data-send="music">Music only</button>
-                <button data-send="source">Source only</button>
-                <button data-send="track">Track only</button>
-                <button data-send="fm">FM only</button>
-                <button data-send="nav">Navigation only</button>
-                <button data-send="nav-on">Nav on</button>
-                <button data-send="nav-off">Nav off</button>
-                <button data-send="clear">Clear display</button>
-              </div>
-              <div class="mode-row">
-                <button data-mode="normal">Mode 1</button>
-                <button data-mode="update">Mode 2</button>
-                <button data-mode="canlog">Mode 3</button>
-              </div>
-              <pre id="actionLog" class="action-log"></pre>
-            </section>
-          </section>
-
-          <section id="tab-matrix" class="tab">
-            <section class="panel">
-              <div class="panel-head">
-                <h2>CAN function matrix</h2>
-                <input id="matrixSearch" placeholder="filter: doors, 0x541, media..." />
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th>Function</th>
-                      <th>Bus</th>
-                      <th>ID</th>
-                      <th>DBC</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="matrixBody"></tbody>
-                </table>
-              </div>
-            </section>
-          </section>
-
-          <section id="tab-frames" class="tab">
-            <section class="panel">
-              <div class="panel-head">
-                <h2>Recent frames</h2>
-                <div class="marker-control">
-                  <input id="markerText" placeholder="marker name" />
-                  <button id="addMarker">Mark</button>
+                <div>
+                  <h2>Сет на завтра</h2>
+                  <p>Выбери действие, запиши короткий чистый тест, закрепи найденный ID.</p>
                 </div>
+                <input id="actionSearch" placeholder="поиск" />
               </div>
-              <div id="recentFrames" class="frames-list"></div>
+              <div id="actionList" class="action-list"></div>
+            </aside>
+
+            <section class="center-stack">
+              <section class="car-stage panel">
+                <div class="panel-head car-head">
+                  <div>
+                    <h2>Динамика</h2>
+                    <p id="carSubtitle">Живые статусы, обучение 5 повторений и CAN→UART bridge</p>
+                  </div>
+                  <div class="bridge-state" id="bridgeState">bridge выкл</div>
+                </div>
+                <div class="dynamic-live">
+                  <section>
+                    <h3>Состояние сейчас</h3>
+                    <div id="dynamicSummary" class="dynamic-summary"></div>
+                  </section>
+                  <section>
+                    <h3>Проверяемая функция</h3>
+                    <div id="learnedLive" class="learned-live"></div>
+                  </section>
+                </div>
+                <div id="carStatusGrid" class="car-status-grid"></div>
+              </section>
+
+              <section class="panel teach-panel">
+                <div class="panel-head">
+                  <div>
+                    <h2 id="currentActionTitle">Выбери действие слева</h2>
+                    <p id="currentActionHint">Нажми “Старт записи”, сделай действие ровно 5 раз, потом “Стоп и анализ”.</p>
+                  </div>
+                  <div class="teach-actions">
+                    <button id="startLearn" class="record">Старт записи</button>
+                    <button id="stopLearn">Стоп и анализ</button>
+                  </div>
+                </div>
+                <div id="learnStatus" class="learn-status">Нет активной записи</div>
+                <div id="candidateList" class="candidate-list">
+                  <div class="empty">После записи здесь появятся только кандидаты по выбранному действию. Фоновый CAN скрывается.</div>
+                </div>
+              </section>
+            </section>
+
+            <aside class="right-stack learn-side">
+              <section class="panel">
+                <div class="panel-head compact">
+                  <h2>План сета</h2>
+                  <span id="planProgress">0 / 0</span>
+                </div>
+                <div class="plan-actions">
+                  <button id="exportBundle">Экспорт всего</button>
+                  <button id="exportLearned">Экспорт обученного</button>
+                </div>
+                <div id="planList" class="plan-list"></div>
+              </section>
+            </aside>
+          </section>
+        </section>
+
+        <section id="tabCan" class="tab-panel" data-tab-panel="can">
+          <section class="can-grid">
+            <section class="panel">
+              <div class="panel-head compact">
+                <h2>Понятная консоль</h2>
+                <span id="eventCount">0 событий</span>
+              </div>
+              <div id="semanticEvents" class="event-console"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h2>Состояния CAN</h2>
+                <span>последнее значение</span>
+              </div>
+              <div id="semanticCards" class="state-list"></div>
+            </section>
+
+            <details class="panel raw-panel" open>
+              <summary>Raw CAN TX и последние кадры</summary>
+              <div class="raw-content">
+                <div class="form-grid tx-grid">
+                  <label>Channel<input id="txChannel" value="0" type="number" min="0" max="1" /></label>
+                  <label>CAN ID<input id="txCanId" value="0x114" /></label>
+                  <label>Data<input id="txData" value="00 00 00 00 00 00 00 00" maxlength="32" /></label>
+                  <label>Count<input id="txCount" value="5" type="number" min="1" max="200" /></label>
+                  <label>Interval<input id="txInterval" value="0.05" type="number" min="0" max="2" step="0.01" /></label>
+                  <label class="check-row"><input id="txExtended" type="checkbox" /> Extended</label>
+                  <label class="check-row"><input id="txConfirm" type="checkbox" /> Разрешить TX</label>
+                </div>
+                <div class="control-group inline-pad">
+                  <button id="sendCanFrame">Отправить CAN</button>
+                </div>
+                <div class="sweep-block">
+                  <h3>CAN sweep</h3>
+                  <div class="form-grid tx-grid">
+                    <label>Byte<input id="sweepByte" value="0" type="number" min="0" max="7" /></label>
+                    <label>Start<input id="sweepStart" value="0x00" /></label>
+                    <label>End<input id="sweepEnd" value="0x03" /></label>
+                    <label>Count each<input id="sweepCountEach" value="3" type="number" min="1" max="50" /></label>
+                  </div>
+                  <div class="control-group inline-pad">
+                    <button id="sendCanSweep" class="danger">Sweep CAN</button>
+                  </div>
+                </div>
+                <div id="recentFrames" class="frames-list"></div>
+              </div>
+            </details>
+          </section>
+        </section>
+
+        <section id="tabUart" class="tab-panel" data-tab-panel="uart">
+          <section class="uart-grid">
+            <section class="panel uart-state-panel">
+              <div class="panel-head compact">
+                <h2>Расшифровка от магнитолы</h2>
+                <span>HU → canbox</span>
+              </div>
+              <div id="uartDecoded" class="uart-decoded-grid"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h2>Быстрые команды</h2>
+                <span>mode3 UART</span>
+              </div>
+              <div id="safeCommands" class="quick-command-grid"></div>
+              <div class="manual-row">
+                <input id="labCommand" placeholder="uFD050540004A или ?" />
+                <button id="sendLabCommand">TX</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h2>UART события</h2>
+                <span>последние RX/TX</span>
+              </div>
+              <div id="uartEvents" class="uart-console"></div>
+            </section>
+
+            <section class="panel command-library">
+              <div class="panel-head">
+                <div>
+                  <h2>Команды, которые уже знаем</h2>
+                  <p>Raise/RZC UART, HU → canbox и CAN-функции из нашей таблицы.</p>
+                </div>
+                <input id="commandSearch" placeholder="поиск: 0x09, USB, люк, reverse" />
+              </div>
+              <div id="commandTable" class="command-table"></div>
             </section>
           </section>
         </section>
+
+        <section id="tabCluster" class="tab-panel" data-tab-panel="cluster">
+          <section class="cluster-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Приборка CAN</h2>
+                  <p>Прямой TX в CAN для медиа, источников, FM и навигации. Основной канал для Sportage: M-CAN 100k.</p>
+                </div>
+                <span>mode3 gs_usb TX</span>
+              </div>
+              <div class="display-form">
+                <label>CAN канал
+                  <select id="displayBus">
+                    <option value="mcan">M-CAN 100k / ch0</option>
+                    <option value="ccan">C-CAN 500k / ch1</option>
+                    <option value="both">Оба канала</option>
+                  </select>
+                </label>
+                <label>Сценарий
+                  <select id="displayScenario">
+                    <option value="full">Full nav + FM + music</option>
+                    <option value="music">Music only</option>
+                    <option value="track">Track only</option>
+                    <option value="source">Source only</option>
+                    <option value="fm">FM only</option>
+                    <option value="nav">Navigation TBT</option>
+                    <option value="clear">Clear</option>
+                  </select>
+                </label>
+                <label>Секунд<input id="displaySeconds" value="5" type="number" min="1" max="30" step="1" /></label>
+                <label>FM<input id="displayFm" value="FM TEST 101.7" /></label>
+                <label>Источник<input id="displayMedia" value="USB MUSIC TEST" /></label>
+                <label>Трек<input id="displayTrack" value="TRACK / ARTIST TEST" /></label>
+                <label>Маневр, м<input id="displayMeters" value="120" type="number" min="0" max="9999" /></label>
+                <label>ETA, 0.1 км<input id="displayEta" value="124" type="number" min="0" max="9999" /></label>
+                <button id="sendDisplay" class="primary">Отправить в CAN</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h2>Что отправляется</h2>
+                <span>M-CAN кандидаты</span>
+              </div>
+              <div class="cluster-help">
+                <div><strong>Статус</strong><span>0x114, 0x197</span></div>
+                <div><strong>USB/медиа</strong><span>0x490, 0x4E6</span></div>
+                <div><strong>FM</strong><span>0x4E8</span></div>
+                <div><strong>Навигация</strong><span>0x115, 0x4BB, 0x49B, 0x1E6, 0x1E7</span></div>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="tabExport" class="tab-panel" data-tab-panel="export">
+          <section class="export-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Экспорт логов</h2>
+                  <p>Раздельные файлы: M-CAN, C-CAN, UART и полный пакет.</p>
+                </div>
+              </div>
+              <div class="export-actions">
+                <button data-export-path="/api/export/can/m" data-export-name="mcan_log">M-CAN JSON</button>
+                <button data-export-path="/api/export/can/c" data-export-name="ccan_log">C-CAN JSON</button>
+                <button data-export-path="/api/export/uart" data-export-name="uart_log">UART JSON</button>
+                <button data-export-path="/api/export" data-export-name="full_bundle">Весь пакет JSON</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Таблица для прошивки</h2>
+                  <p>Связки действия: CAN ID/байты/значения + UART-команда, если она уже известна.</p>
+                </div>
+              </div>
+              <div class="export-actions">
+                <button data-export-path="/api/export/learned-table" data-export-name="learned_can_uart_table">CAN↔UART table JSON</button>
+                <button data-export-path="/api/learned" data-export-name="learned_assignments">Только закреплённые JSON</button>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <pre id="actionLog" class="action-log"></pre>
       </main>
     </div>
     <script src="/app.js"></script>
