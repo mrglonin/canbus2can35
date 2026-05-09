@@ -1558,7 +1558,7 @@ class LogRunner:
             self.raw_log_fh.write(f"# MARK {stamp} {name.strip()[:80] or 'marker'}\n")
             self.raw_log_fh.flush()
 
-    def start_sample(self, path: Path, speed: float) -> None:
+    def start_sample(self, path: Path, speed: float, loop: bool = False) -> None:
         self.stop()
         self.stop_event.clear()
         with self.lock:
@@ -1569,19 +1569,23 @@ class LogRunner:
         def run() -> None:
             previous_ts = None
             try:
-                with path.open("r", encoding="utf-8", errors="ignore") as fh:
-                    for line in fh:
-                        if self.stop_event.is_set():
-                            break
-                        frame = parse_frame_line(line)
-                        if not frame:
-                            continue
-                        if previous_ts is not None and speed > 0:
-                            delay = max(0.0, min(0.25, (frame["ts"] - previous_ts) / speed))
-                            time.sleep(delay)
-                        previous_ts = frame["ts"]
-                        STATE.observe(frame)
-                self._set_stopped_if_current(run_id, "sample complete")
+                while not self.stop_event.is_set():
+                    with path.open("r", encoding="utf-8", errors="ignore") as fh:
+                        for line in fh:
+                            if self.stop_event.is_set():
+                                break
+                            frame = parse_frame_line(line)
+                            if not frame:
+                                continue
+                            if previous_ts is not None and speed > 0:
+                                delay = max(0.0, min(0.25, (frame["ts"] - previous_ts) / speed))
+                                time.sleep(delay)
+                            previous_ts = frame["ts"]
+                            STATE.observe(frame)
+                    if not loop:
+                        break
+                    previous_ts = None
+                self._set_stopped_if_current(run_id, "sample stopped" if loop else "sample complete")
             except Exception as exc:
                 self._set_stopped_if_current(run_id, f"sample error: {exc}")
 
@@ -2220,8 +2224,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 if mode == "sample":
                     path = Path(payload.get("path") or DEFAULT_LOG)
                     speed = float(payload.get("speed", 12.0))
-                    RUNNER.start_sample(path, speed)
-                    json_response(self, {"ok": True, "mode": mode, "path": str(path)})
+                    loop = bool(payload.get("loop", False))
+                    RUNNER.start_sample(path, speed, loop=loop)
+                    json_response(self, {"ok": True, "mode": mode, "path": str(path), "loop": loop})
                 elif mode == "gsusb":
                     bitrate0 = str(int(payload.get("bitrate0", 100000)))
                     bitrate1 = str(int(payload.get("bitrate1", 500000)))
