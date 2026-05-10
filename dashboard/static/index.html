@@ -58,11 +58,12 @@
 
         <section class="view-tabs" role="tablist" aria-label="Рабочие вкладки">
           <button class="active" data-view-tab="live" role="tab" aria-selected="true" aria-controls="tabLive">Динамика</button>
-          <button data-view-tab="learn" role="tab" aria-selected="false" aria-controls="tabLearn">Обучение CAN↔UART</button>
-          <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan">CAN log / TX</button>
-          <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart">UART Raise</button>
-          <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster">Приборка CAN</button>
+          <button data-view-tab="learn" role="tab" aria-selected="false" aria-controls="tabLearn">Обучение</button>
+          <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan">CAN</button>
+          <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart">UART</button>
+          <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster">Приборка</button>
           <button data-view-tab="export" role="tab" aria-selected="false" aria-controls="tabExport">Экспорт</button>
+          <button data-view-tab="settings" role="tab" aria-selected="false" aria-controls="tabSettings">Настройка</button>
         </section>
 
         <section id="tabLive" class="tab-panel active" data-tab-panel="live">
@@ -314,6 +315,37 @@
                 <button data-export-path="/api/export/learned-table" data-export-name="learned_can_uart_table">CAN↔UART table JSON</button>
                 <button data-export-path="/api/learned" data-export-name="learned_assignments">Только закреплённые JSON</button>
               </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="tabSettings" class="tab-panel" data-tab-panel="settings">
+          <section class="settings-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Android источники</h2>
+                  <p>Музыка, навигация, источник, компас/TBT и уведомления. Эти данные потом идут в CAN/UART.</p>
+                </div>
+                <span id="androidPermissionBadge">offline</span>
+              </div>
+              <div id="androidSourceCards" class="settings-card-grid"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h2>Разрешения</h2>
+                <span>что доступно приложению</span>
+              </div>
+              <div id="androidPermissionCards" class="settings-card-grid compact-grid"></div>
+            </section>
+
+            <section class="panel settings-wide">
+              <div class="panel-head compact">
+                <h2>Последние уведомления</h2>
+                <span>сырьё для музыки/навигации</span>
+              </div>
+              <div id="androidNotificationList" class="notification-list"></div>
             </section>
           </section>
         </section>

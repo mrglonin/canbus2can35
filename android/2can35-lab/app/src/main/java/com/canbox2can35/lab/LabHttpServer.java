@@ -1,7 +1,11 @@
 package com.canbox2can35.lab;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.os.Build;
+import android.provider.Settings;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -323,6 +327,7 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             out.put("uart_command_counts", new JSONArray());
             out.put("uart_events", new JSONArray(uartEvents));
             out.put("android_notifications", NotificationStore.snapshot());
+            out.put("android_permissions", androidPermissions());
             out.put("recent", new JSONArray(canEvents));
             JSONObject learn = new JSONObject();
             learn.put("active", false);
@@ -393,6 +398,37 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             }
         }
         return state;
+    }
+
+    private JSONObject androidPermissions() throws Exception {
+        JSONObject out = new JSONObject();
+        out.put("location", hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) ||
+                hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION));
+        out.put("post_notifications", Build.VERSION.SDK_INT < 33 ||
+                hasPermission(Manifest.permission.POST_NOTIFICATIONS));
+        out.put("read_media_audio", Build.VERSION.SDK_INT < 33 ||
+                hasPermission(Manifest.permission.READ_MEDIA_AUDIO));
+        out.put("notification_listener", notificationListenerEnabled());
+        out.put("package", context.getPackageName());
+        return out;
+    }
+
+    private boolean hasPermission(String permission) {
+        if (Build.VERSION.SDK_INT < 23) return true;
+        return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean notificationListenerEnabled() {
+        try {
+            String enabled = Settings.Secure.getString(
+                    context.getContentResolver(),
+                    "enabled_notification_listeners"
+            );
+            return enabled != null && enabled.toLowerCase(Locale.ROOT)
+                    .contains(context.getPackageName().toLowerCase(Locale.ROOT));
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private JSONObject commands() throws Exception {

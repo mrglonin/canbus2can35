@@ -201,7 +201,7 @@ function semanticByKey(summary, key) {
 }
 
 function switchTab(tab) {
-  const next = ["live", "learn", "can", "uart", "cluster", "export"].includes(tab) ? tab : "live";
+  const next = ["live", "learn", "can", "uart", "cluster", "export", "settings"].includes(tab) ? tab : "live";
   state.activeTab = next;
   document.querySelectorAll("[data-view-tab]").forEach((button) => {
     const active = button.dataset.viewTab === next;
@@ -520,6 +520,7 @@ function renderSummary(summary) {
   renderSemantic(summary.semantic || [], summary.semantic_events || []);
   renderUartDecoded(summary.uart_state || {}, summary.uart_command_counts || []);
   renderUart(summary.uart_events || []);
+  renderSettings(summary);
   renderRecent(summary.recent || []);
   const result = summary.learn?.result;
   if (result) renderCandidates(result);
@@ -1046,6 +1047,87 @@ function renderUartDecoded(uartState, commandCounts) {
       <span>valid ${Number(uartState.valid_count || 0)} / bad ${Number(uartState.invalid_count || 0)}</span>
     </div>
   `;
+}
+
+function shortPackageName(pkg) {
+  if (!pkg) return "-";
+  const parts = String(pkg).split(".");
+  return parts.length > 1 ? parts.slice(-2).join(".") : String(pkg);
+}
+
+function permissionCard(label, value, hint = "") {
+  const ok = value === true || value === "granted" || value === "вкл" || value === "ok";
+  const text = value === true ? "разрешено" : value === false ? "нет доступа" : String(value || "-");
+  return `
+    <div class="settings-card ${ok ? "ok" : "warn"}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(text)}</strong>
+      ${hint ? `<small>${escapeHtml(hint)}</small>` : ""}
+    </div>
+  `;
+}
+
+function renderSettings(summary) {
+  const sourceRoot = $("androidSourceCards");
+  const permRoot = $("androidPermissionCards");
+  const noteRoot = $("androidNotificationList");
+  if (!sourceRoot || !permRoot || !noteRoot) return;
+
+  const uart = summary?.uart_state || {};
+  const notifications = Array.isArray(summary?.android_notifications)
+    ? summary.android_notifications
+    : Array.isArray(uart.android_notifications)
+      ? uart.android_notifications
+      : [];
+  const permissions = summary?.android_permissions || {};
+  const listener = permissions.notification_listener;
+  const badge = $("androidPermissionBadge");
+  if (badge) {
+    badge.textContent = listener === true ? "уведомления доступны" : notifications.length ? "уведомления читаются" : "нужен доступ";
+  }
+
+  const navText = uart.nav && uart.nav !== "-" ? uart.nav : "нет данных";
+  const trackText = uart.track && uart.track !== "-" ? uart.track : "нет данных";
+  const sourceText = uart.source && uart.source !== "нет данных" ? shortPackageName(uart.source) : "нет данных";
+  const radioText = uart.radio && uart.radio !== "-" ? uart.radio : "нет данных";
+  const btText = uart.bt && uart.bt !== "-" ? uart.bt : "нет данных";
+
+  sourceRoot.innerHTML = [
+    ["Источник", sourceText, "музыка/плеер/радио"],
+    ["Трек", trackText, "title из уведомления или UART"],
+    ["Навигация", navText, "маневр, улица, TBT"],
+    ["Радио", radioText, "FM/AM если поймано"],
+    ["Bluetooth", btText, "BL источник"],
+    ["Компас/курс", uart.compass || "нет данных", "пока кандидат для CAN"],
+    ["TBT", uart.tbt || "нет данных", "поворот/дистанция"],
+    ["Последний UART", uart.last_valid || "-", "сырой кадр canbox"],
+  ].map(([label, value, hint]) => `
+    <div class="settings-card ${value !== "нет данных" && value !== "-" ? "ok" : ""}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(String(value))}</strong>
+      <small>${escapeHtml(hint)}</small>
+    </div>
+  `).join("");
+
+  permRoot.innerHTML = [
+    permissionCard("Уведомления", permissions.post_notifications, "Android notification permission"),
+    permissionCard("Notification access", listener, "спец-доступ для треков/навигации"),
+    permissionCard("Музыка/аудио", permissions.read_media_audio, "чтение медиа при необходимости"),
+    permissionCard("Геолокация", permissions.location, "компас/курс/навигация"),
+    permissionCard("USB", summary?.session?.device || "no USB", "адаптер / mode3"),
+  ].join("");
+
+  if (!notifications.length) {
+    noteRoot.innerHTML = `<div class="empty">Уведомлений пока нет. На Android включи доступ к уведомлениям, запусти музыку или навигацию.</div>`;
+    return;
+  }
+  noteRoot.innerHTML = notifications.slice(-20).reverse().map((item) => `
+    <div class="notification-row">
+      <span>${escapeHtml(shortPackageName(item.package || ""))}</span>
+      <strong>${escapeHtml(item.title || "-")}</strong>
+      <small>${escapeHtml(item.text || "")}</small>
+    </div>
+  `).join("");
 }
 
 function resultLooksLikeFrontDefog(result) {
