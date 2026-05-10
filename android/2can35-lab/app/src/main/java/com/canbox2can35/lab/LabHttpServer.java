@@ -322,6 +322,7 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             out.put("uart_state", uartState());
             out.put("uart_command_counts", new JSONArray());
             out.put("uart_events", new JSONArray(uartEvents));
+            out.put("android_notifications", NotificationStore.snapshot());
             out.put("recent", new JSONArray(canEvents));
             JSONObject learn = new JSONObject();
             learn.put("active", false);
@@ -371,6 +372,26 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
         state.put("last_valid", last == null ? "-" : last.optString("raw"));
         state.put("valid_count", uartEvents.size());
         state.put("invalid_count", 0);
+        JSONArray notifications = NotificationStore.snapshot();
+        state.put("android_notifications", notifications);
+        for (int i = notifications.length() - 1; i >= 0; i--) {
+            JSONObject item = notifications.optJSONObject(i);
+            if (item == null) continue;
+            String pkg = item.optString("package", "");
+            String title = item.optString("title", "");
+            String text = item.optString("text", "");
+            String combined = (pkg + " " + title + " " + text).toLowerCase(Locale.ROOT);
+            if (combined.contains("music") || combined.contains("spotify") || combined.contains("player") ||
+                    combined.contains("музык") || combined.contains("трек")) {
+                state.put("source", pkg);
+                state.put("track", title.isEmpty() ? text : title);
+                break;
+            }
+            if (combined.contains("nav") || combined.contains("maps") || combined.contains("яндекс") ||
+                    combined.contains("навиг")) {
+                state.put("nav", title.isEmpty() ? text : title + " " + text);
+            }
+        }
         return state;
     }
 

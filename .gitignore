@@ -34,3 +34,6 @@ logs/session_*/full_*.txt
 
 # Local reverse-engineering decode/disassembly outputs.
 re/
+
+# Local toolchains downloaded for APK builds.
+.tools/

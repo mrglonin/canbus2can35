@@ -39,6 +39,22 @@
 
 На машине должен быть JDK и Android SDK/Android Studio.
 
+Можно поставить локальный toolchain в корневую `.tools/` папку:
+
+```bash
+cd android/2can35-lab
+./scripts/install_toolchain.sh
+```
+
+Скрипт ставит локально, без системных изменений:
+
+- Temurin JDK 17;
+- Gradle 8.10.2;
+- Android command-line tools;
+- `platform-tools`;
+- `platforms;android-35`;
+- `build-tools;35.0.0`.
+
 ```bash
 cd android/2can35-lab
 ./scripts/build_apk.sh
@@ -67,4 +83,3 @@ Android WebView
 1 t1238AABBCCDDEEFF0011   CAN TX ch1
 U FD 05 05 01 00 0B       UART TX
 ```
-
