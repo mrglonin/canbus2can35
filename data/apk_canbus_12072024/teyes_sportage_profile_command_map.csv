@@ -1,0 +1,18 @@
+layer,direction,name,teyes_id,hex_or_slot,meaning,status,source
+profile,teyes_setting,RZC/Raise Sportage 2016,1442154,0x16016A,Кандидат Raise/RZC для Sportage 2016 в базе TEYES,candidate_profile,UPDATE/CANBUS FinalCanbus CAR_RZC3_XianDai_SPORTAGE_16
+profile,teyes_setting,RZC/Raise Sportage R 2018,65898,0x01016A,Кандидат Raise/RZC Sportage R 2018; ближе к выбранному Sportage 17-18,candidate_profile,UPDATE canbus.db/canbus_hsp.db
+profile,teyes_setting,XP/Simple Sportage R 2019 LOW/MID/HIGH,2097507 / 1900899 / 1966435,0x200163 / 0x1D0163 / 0x1E0163,Simple Soft альтернативный профиль Sportage; нужен live UART если захотим эмулировать Simple,candidate_profile,UPDATE/CANBUS FinalCanbus CAR_XP_19QiYa_Sportage_L/M/H
+raise_uart,canbox_to_hu,Двери/капот/багажник,,FD 05 05 FLAGS 00 CS,"bit0 LF, bit1 RF, bit2 LR, bit3 RR, bit4 trunk, bit5 hood",confirmed,RZC Korea public code + local live tests
+raise_uart,canbox_to_hu,Люк,,FD 05 05 40 00 4A,"Наш кандидат bit6; CAN люка найден, но TEYES/Raise профиль может его игнорировать",candidate_live_failed_once,local CAN 0x541 DATA[7]&0x02; public RZC Korea does not decode bit6
+raise_uart,canbox_to_hu,Наружная температура,U_EXIST_TEMP_OUT=1012,FD 04 01 TT CS,"Температура в Raise, bit7 обычно минус; точный CAN источник надо сверить с прошивкой прогера/live",protocol_confirmed_source_pending,RZC Korea public code; TEYES US FinalCanbus
+raise_uart,canbox_to_hu,Климат popup,"U_AIR_POWER=10,U_AIR_AC=11,U_AIR_AUTO=13,U_AIR_DUAL=14",FD 08 03 L_TEMP R_TEMP FAN FLAGS CS,"Общий popup климата; отдельные TEYES slots есть, но в Raise наружу идет компактный payload",protocol_confirmed_source_pending,RZC Korea public code + CANBUS FinalCanbus
+raise_uart,canbox_to_hu,Парктроники,,FD 06 04 FRONT_PACKED REAR_PACKED CS,2-bit зоны перед/зад; нужны live кадры с препятствиями,protocol_confirmed_live_pending,RZC Korea public code
+raise_uart,canbox_to_hu,Кнопки руля/пианино,,FD 06 02 KEY STATUS CS,У нас основной путь: stock Raise canbox -> UART2 -> наш адаптер -> TEYES,protocol_confirmed_bridge_pending,RZC Korea public code
+raise_uart,hu_to_canbox,USB музыка,,FD 0A 09 16 TRACK_H TRACK_L HOUR MIN SEC CS,Магнитола сообщает canbox источник USB и прогресс; это потом конвертируется в M-CAN приборки,confirmed_by_photo,RZC Korea public code + WR photo
+raise_uart,hu_to_canbox,BT музыка,,FD 06 09 11 00 CS,HU source Bluetooth music,protocol_confirmed_live_pending,RZC Korea public code
+raise_uart,hu_to_canbox,Навигация source,,FD 06 09 06 00 CS,HU сообщает navigation source; TBT/улицы идут отдельными M-CAN/firmware путями,protocol_confirmed_live_pending,RZC Korea public code
+teyes_slot,mcu_to_ui,Подогрев руля,U_AIR_HOT_STEER=66,slot 0x42,"Внутренний TEYES DataCanbus slot, НЕ готовый Raise UART пакет",slot_confirmed_uart_unknown,CANBUS FinalCanbus
+teyes_slot,mcu_to_ui,Подогрев сиденья водитель/пассажир,"U_AIR_SEAT_HOT_LEFT=29,U_AIR_SEAT_HOT_RIGHT=30",slots 0x1D/0x1E,Внутренние slots TEYES; external Raise UART payload не найден в APK,slot_confirmed_uart_unknown,CANBUS FinalCanbus
+teyes_slot,mcu_to_ui,Обдув сиденья водитель/пассажир,"U_AIR_SEAT_BLOW_LEFT=31,U_AIR_SEAT_BLOW_RIGHT=32",slots 0x1F/0x20,Внутренние slots TEYES; external Raise UART payload не найден в APK,slot_confirmed_uart_unknown,CANBUS FinalCanbus
+teyes_slot,mcu_to_ui,Лобовой/задний обогрев,"U_AIR_FRONT_DEFROST=65,U_AIR_REAR_DEFROST=16",slots 0x41/0x10,Внутренние slots TEYES; искать CAN и/или Raise climate payload,slot_confirmed_uart_unknown,CANBUS FinalCanbus
+teyes_mcu_api,android_to_mcu,CANBUS frame to MCU,C_CANBUS_FRAME_TO_MCU=1008,cmd 0x3F0,"Android/TEYES API для передачи CANBUS frame в MCU, не внешний UART canbox пакет",api_confirmed,US FinalCanbus

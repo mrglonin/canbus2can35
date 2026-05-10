@@ -11,7 +11,8 @@ PYTHON ?= python3
 BUILD := build
 TARGET := 2can35_custom
 APP_BASE ?= 0x08004000
-CANBOX_HSE_MHZ ?= 16
+LD_SCRIPT ?= app_0x08004000.ld
+CANBOX_HSE_MHZ ?= 8
 ENABLE_CAN_HW ?= 0
 USE_STOCK_BEEP ?= 0
 ENABLE_REVERSE_OUT ?= 0
@@ -22,6 +23,10 @@ UID_HEX ?= 37FFDA054247303859412243
 VERSION_HEX ?= 04351000
 UPDATE_KEY_A ?= 0x04
 UPDATE_KEY_B ?= 0x5b
+VERSION_B0 := 0x$(shell printf '%s' $(VERSION_HEX) | cut -c1-2)
+VERSION_B1 := 0x$(shell printf '%s' $(VERSION_HEX) | cut -c3-4)
+VERSION_B2 := 0x$(shell printf '%s' $(VERSION_HEX) | cut -c5-6)
+VERSION_B3 := 0x$(shell printf '%s' $(VERSION_HEX) | cut -c7-8)
 
 CFLAGS := -Os -std=gnu99 -Wall -Wextra -Wshadow -Wundef -Wstrict-prototypes \
 	-mcpu=cortex-m3 -mthumb -mfix-cortex-m3-ldrd -msoft-float \
@@ -31,10 +36,14 @@ CFLAGS := -Os -std=gnu99 -Wall -Wextra -Wshadow -Wundef -Wstrict-prototypes \
 	-DENABLE_REVERSE_OUT=$(ENABLE_REVERSE_OUT) \
 	-DENABLE_TEYES_UART=$(ENABLE_TEYES_UART) \
 	-DTEYES_UART_BAUD=$(TEYES_UART_BAUD) \
+	-DCANBOX_VERSION_B0=$(VERSION_B0) \
+	-DCANBOX_VERSION_B1=$(VERSION_B1) \
+	-DCANBOX_VERSION_B2=$(VERSION_B2) \
+	-DCANBOX_VERSION_B3=$(VERSION_B3) \
 	-Iinclude -I$(OPENCM3)/include \
 	-ffunction-sections -fdata-sections
 
-LDFLAGS := -Tapp_0x08004000.ld -L$(OPENCM3)/lib/stm32/f1 \
+LDFLAGS := -T$(LD_SCRIPT) -L$(OPENCM3)/lib/stm32/f1 \
 	-mcpu=cortex-m3 -mthumb -mfix-cortex-m3-ldrd -msoft-float \
 	-nostartfiles --specs=nosys.specs -Wl,--gc-sections -Wl,-Map,$(BUILD)/$(TARGET).map
 
@@ -78,7 +87,7 @@ $(BUILD):
 $(BUILD)/%.o: src/%.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD)/$(TARGET).elf: $(OBJ) $(LIBOPENCM3_OBJS) app_0x08004000.ld
+$(BUILD)/$(TARGET).elf: $(OBJ) $(LIBOPENCM3_OBJS) $(LD_SCRIPT)
 	$(CC) $(OBJ) $(LIBOPENCM3_OBJS) $(LDFLAGS) -o $@
 
 $(BUILD)/$(TARGET).bin: $(BUILD)/$(TARGET).elf

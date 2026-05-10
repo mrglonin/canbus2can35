@@ -1,0 +1,65 @@
+id,category,protocol,direction,cmd,name,frame,lab,decoded,status,checksum,source_match
+2e_key_00_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,release,2E 20 02 00 01 DC,u2E20020001DC,"2E кнопка/key code=0x00, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_01_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,source/mode candidate,2E 20 02 01 01 DB,u2E20020101DB,"2E кнопка/key code=0x01, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_01_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,source/mode candidate release,2E 20 02 01 00 DC,u2E20020100DC,"2E кнопка/key code=0x01, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_02_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,mute candidate,2E 20 02 02 01 DA,u2E20020201DA,"2E кнопка/key code=0x02, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_02_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,mute candidate release,2E 20 02 02 00 DB,u2E20020200DB,"2E кнопка/key code=0x02, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_10_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,mute,2E 20 02 10 01 CC,u2E20021001CC,"2E кнопка/key code=0x10, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_10_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,mute release,2E 20 02 10 00 CD,u2E20021000CD,"2E кнопка/key code=0x10, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_11_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,source/mode,2E 20 02 11 01 CB,u2E20021101CB,"2E кнопка/key code=0x11, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_11_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,source/mode release,2E 20 02 11 00 CC,u2E20021100CC,"2E кнопка/key code=0x11, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_12_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,seek up,2E 20 02 12 01 CA,u2E20021201CA,"2E кнопка/key code=0x12, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_12_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,seek up release,2E 20 02 12 00 CB,u2E20021200CB,"2E кнопка/key code=0x12, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_13_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,seek down,2E 20 02 13 01 C9,u2E20021301C9,"2E кнопка/key code=0x13, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_13_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,seek down release,2E 20 02 13 00 CA,u2E20021300CA,"2E кнопка/key code=0x13, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_14_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,volume up,2E 20 02 14 01 C8,u2E20021401C8,"2E кнопка/key code=0x14, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_14_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,volume up release,2E 20 02 14 00 C9,u2E20021400C9,"2E кнопка/key code=0x14, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_15_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,volume down,2E 20 02 15 01 C7,u2E20021501C7,"2E кнопка/key code=0x15, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_15_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,volume down release,2E 20 02 15 00 C8,u2E20021500C8,"2E кнопка/key code=0x15, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_16_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,phone accept,2E 20 02 16 01 C6,u2E20021601C6,"2E кнопка/key code=0x16, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_16_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,phone accept release,2E 20 02 16 00 C7,u2E20021600C7,"2E кнопка/key code=0x16, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_17_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,phone hangup,2E 20 02 17 01 C5,u2E20021701C5,"2E кнопка/key code=0x17, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_17_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,phone hangup release,2E 20 02 17 00 C6,u2E20021700C6,"2E кнопка/key code=0x17, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_18_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel power,2E 20 02 18 01 C4,u2E20021801C4,"2E кнопка/key code=0x18, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_18_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel power release,2E 20 02 18 00 C5,u2E20021800C5,"2E кнопка/key code=0x18, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_19_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel volume up,2E 20 02 19 01 C3,u2E20021901C3,"2E кнопка/key code=0x19, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_19_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel volume up release,2E 20 02 19 00 C4,u2E20021900C4,"2E кнопка/key code=0x19, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_1a_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel volume down,2E 20 02 1A 01 C2,u2E20021A01C2,"2E кнопка/key code=0x1A, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_1a_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel volume down release,2E 20 02 1A 00 C3,u2E20021A00C3,"2E кнопка/key code=0x1A, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_1b_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel FM/AM,2E 20 02 1B 01 C1,u2E20021B01C1,"2E кнопка/key code=0x1B, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_1b_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel FM/AM release,2E 20 02 1B 00 C2,u2E20021B00C2,"2E кнопка/key code=0x1B, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_1c_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel media,2E 20 02 1C 01 C0,u2E20021C01C0,"2E кнопка/key code=0x1C, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_1c_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel media release,2E 20 02 1C 00 C1,u2E20021C00C1,"2E кнопка/key code=0x1C, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_1d_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel phone,2E 20 02 1D 01 BF,u2E20021D01BF,"2E кнопка/key code=0x1D, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_1d_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel phone release,2E 20 02 1D 00 C0,u2E20021D00C0,"2E кнопка/key code=0x1D, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_1e_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel display,2E 20 02 1E 01 BE,u2E20021E01BE,"2E кнопка/key code=0x1E, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_1e_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel display release,2E 20 02 1E 00 BF,u2E20021E00BF,"2E кнопка/key code=0x1E, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_1f_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel seek up,2E 20 02 1F 01 BD,u2E20021F01BD,"2E кнопка/key code=0x1F, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_1f_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel seek up release,2E 20 02 1F 00 BE,u2E20021F00BE,"2E кнопка/key code=0x1F, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_key_20_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel seek down,2E 20 02 20 01 BC,u2E20022001BC,"2E кнопка/key code=0x20, status=0x01",candidate,ok,teyes_simple_external_candidate
+2e_key_20_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,0x20,panel seek down release,2E 20 02 20 00 BD,u2E20022000BD,"2E кнопка/key code=0x20, status=0x00",candidate,ok,teyes_simple_external_candidate
+2e_90_empty,Simple/2E HU,canbox_2e,hu_to_canbox,0x90,request id,2E 90 00 6F,u2E90006F,2E HU запрос ID canbox,candidate,ok,teyes_simple_external_candidate
+2e_81_00,Simple/2E HU,canbox_2e,hu_to_canbox,0x81,session start,2E 81 01 00 7D,u2E8101007D,2E HU session start/on,candidate,ok,teyes_simple_external_candidate
+2e_81_01,Simple/2E HU,canbox_2e,hu_to_canbox,0x81,session stop,2E 81 01 01 7C,u2E8101017C,2E HU session stop/off,candidate,ok,teyes_simple_external_candidate
+2e_21_0,Simple/2E климат raw,canbox_2e,mixed,0x21,климат raw #0,2E 21 04 00 00 00 00 DA,u2E210400000000DA,2E климат/AC raw 00 00 00 00,candidate,ok,teyes_simple_external_candidate
+2e_21_1,Simple/2E климат raw,canbox_2e,mixed,0x21,климат raw #1,2E 21 04 16 16 03 24 87,u2E21041616032487,2E климат/AC raw 16 16 03 24,candidate,ok,teyes_simple_external_candidate
+2e_21_2,Simple/2E климат raw,canbox_2e,mixed,0x21,климат raw #2,2E 21 04 16 16 04 40 6A,u2E2104161604406A,2E климат/AC raw 16 16 04 40,candidate,ok,teyes_simple_external_candidate
+2e_22_0,Simple/2E задние парктроники,canbox_2e,mixed,0x22,задние парктроники #0,2E 22 04 00 00 00 00 D9,u2E220400000000D9,2E задние парктроники raw 00 00 00 00,candidate,ok,teyes_simple_external_candidate
+2e_22_1,Simple/2E задние парктроники,canbox_2e,mixed,0x22,задние парктроники #1,2E 22 04 01 02 02 01 D3,u2E220401020201D3,2E задние парктроники raw 01 02 02 01,candidate,ok,teyes_simple_external_candidate
+2e_22_2,Simple/2E задние парктроники,canbox_2e,mixed,0x22,задние парктроники #2,2E 22 04 03 03 03 03 CD,u2E220403030303CD,2E задние парктроники raw 03 03 03 03,candidate,ok,teyes_simple_external_candidate
+2e_23_0,Simple/2E передние парктроники,canbox_2e,mixed,0x23,передние парктроники #0,2E 23 04 00 00 00 00 D8,u2E230400000000D8,2E передние парктроники raw 00 00 00 00,candidate,ok,teyes_simple_external_candidate
+2e_23_1,Simple/2E передние парктроники,canbox_2e,mixed,0x23,передние парктроники #1,2E 23 04 01 02 02 01 D2,u2E230401020201D2,2E передние парктроники raw 01 02 02 01,candidate,ok,teyes_simple_external_candidate
+2e_23_2,Simple/2E передние парктроники,canbox_2e,mixed,0x23,передние парктроники #2,2E 23 04 03 03 03 03 CC,u2E230403030303CC,2E передние парктроники raw 03 03 03 03,candidate,ok,teyes_simple_external_candidate
+2e_24_0,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #0,2E 24 01 00 DA,u2E240100DA,2E состояние авто raw 00,candidate,ok,teyes_simple_external_candidate
+2e_24_1,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #1,2E 24 01 01 D9,u2E240101D9,2E состояние авто raw 01,candidate,ok,teyes_simple_external_candidate
+2e_24_2,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #2,2E 24 01 02 D8,u2E240102D8,2E состояние авто raw 02,candidate,ok,teyes_simple_external_candidate
+2e_24_3,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #3,2E 24 01 04 D6,u2E240104D6,2E состояние авто raw 04,candidate,ok,teyes_simple_external_candidate
+2e_24_4,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #4,2E 24 01 08 D2,u2E240108D2,2E состояние авто raw 08,candidate,ok,teyes_simple_external_candidate
+2e_24_5,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #5,2E 24 01 10 CA,u2E240110CA,2E состояние авто raw 10,candidate,ok,teyes_simple_external_candidate
+2e_24_6,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #6,2E 24 01 20 BA,u2E240120BA,2E состояние авто raw 20,candidate,ok,teyes_simple_external_candidate
+2e_24_7,Simple/2E состояние авто,canbox_2e,mixed,0x24,состояние авто #7,2E 24 01 40 9A,u2E2401409A,2E состояние авто raw 40,candidate,ok,teyes_simple_external_candidate
+2e_25_0,Simple/2E parking state,canbox_2e,mixed,0x25,parking state #0,2E 25 01 00 D9,u2E250100D9,2E parking state raw 00,candidate,ok,teyes_simple_external_candidate
+2e_25_1,Simple/2E parking state,canbox_2e,mixed,0x25,parking state #1,2E 25 01 01 D8,u2E250101D8,2E parking state raw 01,candidate,ok,teyes_simple_external_candidate
+2e_a0_0,Simple/2E amplifier,canbox_2e,mixed,0xA0,amplifier #0,2E A0 01 00 5E,u2EA001005E,2E усилитель/amplifier raw 00,candidate,ok,teyes_simple_external_candidate
+2e_a0_1,Simple/2E amplifier,canbox_2e,mixed,0xA0,amplifier #1,2E A0 03 0A 0A 0A 3E,u2EA0030A0A0A3E,2E усилитель/amplifier raw 0A 0A 0A,candidate,ok,teyes_simple_external_candidate
+2e_a6_0,Simple/2E time,canbox_2e,mixed,0xA6,time #0,2E A6 03 2C 06 01 23,u2EA6032C060123,2E установка времени raw 2C 06 01,candidate,ok,teyes_simple_external_candidate

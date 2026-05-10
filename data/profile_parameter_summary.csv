@@ -1,0 +1,7 @@
+profile,profile_id,profile_hex,family,callback,total_slots,named_slots,slot_ranges,recommendation
+Raise/RZC Sportage 2016,1442154,0x16016A,RZC/Raise,Callback_0362_RZC3_16_QiYaK5,149,89,"0-5, 10-92, 500-559",same_raise_surface_older_sportage_fallback
+Raise/RZC Sportage R 2018,65898,0x01016A,RZC/Raise,Callback_0362_RZC3_16_QiYaK5,149,89,"0-5, 10-92, 500-559",best_match_for_current_teyes_raise_kia_hyundai_sportage_17_18
+Hiworld/WC2 Sportage R 2018,3408315,0x3401BB,Hiworld/WC2,Callback_0443_WC2_Xiandai_All,114,101,"0-5, 10-117",more_named_teyes_slots_but_different_canbox_family
+XP/Simple Sportage R 2019 HIGH,1966435,0x1E0163,XP/Simple,Callback_0355_XP_QiYaK5,108,99,"0-5, 10-111",simple_soft_candidate_requires_hu_profile_switch_and_live_uart
+XP/Simple Sportage R 2019 LOW,2097507,0x200163,XP/Simple,Callback_0355_XP_QiYaK5,108,99,"0-5, 10-111",simple_soft_candidate_requires_hu_profile_switch_and_live_uart
+XP/Simple Sportage R 2019 MID,1900899,0x1D0163,XP/Simple,Callback_0355_XP_QiYaK5,108,99,"0-5, 10-111",simple_soft_candidate_requires_hu_profile_switch_and_live_uart

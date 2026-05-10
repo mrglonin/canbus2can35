@@ -131,6 +131,11 @@ def main() -> int:
     )
     parser.add_argument("--stlink-out", type=Path)
     parser.add_argument("--report", type=Path)
+    parser.add_argument(
+        "--mode3-app-bin",
+        type=Path,
+        help="Optional raw app binary linked at 0x08009000. Replaces the preserved gs_usb logger slot.",
+    )
     parser.add_argument("--key-a", type=lambda s: int(s, 0), default=0x04)
     parser.add_argument("--key-b", type=lambda s: int(s, 0), default=0x5B)
     parser.add_argument(
@@ -175,6 +180,20 @@ def main() -> int:
             "old": f"0x{old:08x}",
             "new": f"0x{value:08x}",
         }
+
+    mode3_replacement = None
+    if args.mode3_app_bin is not None:
+        mode3_replacement = args.mode3_app_bin.read_bytes()
+        mode3_slot_start = addr_to_pkg_off(0x08009000)
+        required_len = mode3_slot_start + len(mode3_replacement)
+        if required_len > len(combined):
+            # Mode 3 is isolated above 0x08009000. Extending the package here
+            # preserves mode 1/mode 2 bytes and only appends flash data for the
+            # logger slot.
+            combined.extend(b"\xff" * (required_len - len(combined)))
+        mode3_slot_len = len(combined) - mode3_slot_start
+        combined[mode3_slot_start:] = b"\xff" * mode3_slot_len
+        combined[mode3_slot_start : mode3_slot_start + len(mode3_replacement)] = mode3_replacement
 
     mode3_branch_off = addr_to_pkg_off(MODE3_BRANCH_ADDR)
     old_mode3_branch = bytes(combined[mode3_branch_off : mode3_branch_off + 2])
@@ -272,9 +291,24 @@ def main() -> int:
         "software_modes": {
             "mode1": "programmer 04.35.00.08 canbox application",
             "mode2": "stock update path, value 0x01 through CMD 0x55",
-            "mode3": f"preserved gs_usb/budgetcan CAN logger at 0x08009000, value 0x03 through CMD 0x51; entry={args.mode3_entry}",
+            "mode3": (
+                "replacement mode3 app at 0x08009000, "
+                f"value 0x03 through CMD 0x51; entry={args.mode3_entry}"
+                if args.mode3_app_bin
+                else f"preserved gs_usb/budgetcan CAN logger at 0x08009000, value 0x03 through CMD 0x51; entry={args.mode3_entry}"
+            ),
             "reset": "value 0x04 through CMD 0x55",
         },
+        "mode3_replacement": (
+            {
+                "source": str(args.mode3_app_bin),
+                "size": len(mode3_replacement),
+                "sha256": sha256(mode3_replacement),
+                "slot_size": len(combined) - mode3_off,
+            }
+            if args.mode3_app_bin
+            else None
+        ),
         "roundtrip_ok": roundtrip_ok,
     }
 

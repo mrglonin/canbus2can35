@@ -45,6 +45,7 @@ logger в `mode3`. Чистая C-прошивка лежит в `firmware/custo
 - карта входов/выходов: `firmware/custom_c/docs/BOARD_IO_MAP.md`;
 - TEYES/Raise UART: `firmware/custom_c/docs/TEYES_RAISE_COMPAT.md`;
 - матрица команд Raise/RZC Korea UART: `docs/RAISE_RZC_KOREA_UART_MATRIX.md`;
+- TEYES APK UART/MCU reverse: `docs/TEYES_12072024_UART_MCU_ANALYSIS.md`;
 - восстановление через ST-Link: `docs/RECOVERY_STLINK_SEQUENCE.md`.
 - полный сценарий тестов в машине: `docs/END_TO_END_RUNBOOK.md`.
 - чек-лист модулей dashboard/API/export: `docs/DASHBOARD_MODULE_CHECKLIST.md`.

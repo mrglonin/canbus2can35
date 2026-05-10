@@ -22,6 +22,13 @@ static bool configured;
 static usb_rx_fn_t rx_callback;
 static ringbuf_t tx_rb;
 
+static void usb_startup_delay(void)
+{
+	for (volatile uint32_t i = 0; i < 720000U; i++) {
+		__asm volatile ("nop");
+	}
+}
+
 struct cdcacm_functional_descriptors {
 	struct usb_cdc_header_descriptor header;
 	struct usb_cdc_call_management_descriptor call_mgmt;
@@ -248,7 +255,7 @@ void usb_cdc_init(usb_rx_fn_t rx_fn)
 			   sizeof(usbd_control_buffer));
 	usbd_register_set_config_callback(usbdev, set_config);
 	usbd_disconnect(usbdev, true);
-	board_delay_ms(20);
+	usb_startup_delay();
 	usbd_disconnect(usbdev, false);
 	board_usb_force_connect();
 }

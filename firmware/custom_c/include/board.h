@@ -16,6 +16,7 @@ typedef enum {
 } board_mode_t;
 
 void board_runtime_sanitize(void);
+void board_watchdog_kick(void);
 void board_clock_setup(void);
 void board_systick_setup(void);
 uint32_t board_millis(void);

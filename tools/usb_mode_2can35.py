@@ -40,7 +40,7 @@ def switch_mode(port: str, mode: str, wait: bool) -> None:
         wait_for_port_cycle(port, timeout=8.0)
         print(f"port cycled: {port}")
     elif wait:
-        print("mode switch command sent; mode3 enumerates as USB device 1d50:606f, not as the same CDC port")
+        print("mode switch command sent; mode3 USB identity depends on the flashed mode3 payload")
 
 
 def main() -> int:

@@ -1,0 +1,184 @@
+id,group,protocol,direction,name,frame,lab,decoded,status,note
+fd_body_00,Raise FD кузов,raise_rzc_fd,canbox_to_hu,кузов все закрыто,FD 05 05 00 00 0A,uFD050500000A,кузов: все закрыто,candidate,
+fd_body_01,Raise FD кузов,raise_rzc_fd,canbox_to_hu,дверь LF,FD 05 05 01 00 0B,uFD050501000B,кузов: дверь водитель,candidate,
+fd_body_02,Raise FD кузов,raise_rzc_fd,canbox_to_hu,дверь RF,FD 05 05 02 00 0C,uFD050502000C,кузов: дверь пассажир,candidate,
+fd_body_04,Raise FD кузов,raise_rzc_fd,canbox_to_hu,дверь LR,FD 05 05 04 00 0E,uFD050504000E,кузов: задняя левая,candidate,
+fd_body_08,Raise FD кузов,raise_rzc_fd,canbox_to_hu,дверь RR,FD 05 05 08 00 12,uFD0505080012,кузов: задняя правая,candidate,
+fd_body_10,Raise FD кузов,raise_rzc_fd,canbox_to_hu,багажник,FD 05 05 10 00 1A,uFD050510001A,кузов: багажник,candidate,
+fd_body_20,Raise FD кузов,raise_rzc_fd,canbox_to_hu,капот,FD 05 05 20 00 2A,uFD050520002A,кузов: капот,candidate,
+fd_body_40,Raise FD кузов,raise_rzc_fd,canbox_to_hu,люк candidate bit6,FD 05 05 40 00 4A,uFD050540004A,кузов: люк candidate,candidate,
+fd_body_80,Raise FD кузов,raise_rzc_fd,canbox_to_hu,люк/доп bit7 candidate,FD 05 05 80 00 8A,uFD050580008A,кузов: все закрыто,candidate,
+fd_body_0f,Raise FD кузов,raise_rzc_fd,canbox_to_hu,все двери,FD 05 05 0F 00 19,uFD05050F0019,"кузов: дверь водитель, дверь пассажир, задняя левая, задняя правая",candidate,
+fd_body_3f,Raise FD кузов,raise_rzc_fd,canbox_to_hu,двери+багажник+капот,FD 05 05 3F 00 49,uFD05053F0049,"кузов: дверь водитель, дверь пассажир, задняя левая, задняя правая, багажник, капот",candidate,
+fd_body_7f,Raise FD кузов,raise_rzc_fd,canbox_to_hu,кузов все flags bit0..6,FD 05 05 7F 00 89,uFD05057F0089,"кузов: дверь водитель, дверь пассажир, задняя левая, задняя правая, багажник, капот, люк candidate",candidate,
+fd_body_4000,Raise FD кузов,raise_rzc_fd,canbox_to_hu,люк candidate 2-byte 40 00,FD 06 05 40 00 00 4B,uFD06054000004B,кузов: люк candidate,candidate,Дубликат quick-команд для проверки люка.
+fd_body_0040,Raise FD кузов,raise_rzc_fd,canbox_to_hu,люк candidate 2-byte 00 40,FD 06 05 00 40 00 4B,uFD06050040004B,кузов: все закрыто,candidate,Дубликат quick-команд для проверки люка.
+fd_key_00_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,release,FD 06 02 00 01 00 09,uFD060200010009,"кнопка release, status 1",candidate,
+fd_key_01_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,source/mode candidate,FD 06 02 01 01 00 0A,uFD06020101000A,"кнопка key 0x01, status 1",candidate,
+fd_key_01_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,source/mode candidate release,FD 06 02 01 00 00 09,uFD060201000009,"кнопка key 0x01, status 0",candidate,
+fd_key_02_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,mute candidate,FD 06 02 02 01 00 0B,uFD06020201000B,"кнопка key 0x02, status 1",candidate,
+fd_key_02_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,mute candidate release,FD 06 02 02 00 00 0A,uFD06020200000A,"кнопка key 0x02, status 0",candidate,
+fd_key_10_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,mute,FD 06 02 10 01 00 19,uFD060210010019,"кнопка mute, status 1",candidate,
+fd_key_10_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,mute release,FD 06 02 10 00 00 18,uFD060210000018,"кнопка mute, status 0",candidate,
+fd_key_11_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,source/mode,FD 06 02 11 01 00 1A,uFD06021101001A,"кнопка source/mode, status 1",candidate,
+fd_key_11_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,source/mode release,FD 06 02 11 00 00 19,uFD060211000019,"кнопка source/mode, status 0",candidate,
+fd_key_12_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,seek up,FD 06 02 12 01 00 1B,uFD06021201001B,"кнопка seek up, status 1",candidate,
+fd_key_12_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,seek up release,FD 06 02 12 00 00 1A,uFD06021200001A,"кнопка seek up, status 0",candidate,
+fd_key_13_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,seek down,FD 06 02 13 01 00 1C,uFD06021301001C,"кнопка seek down, status 1",candidate,
+fd_key_13_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,seek down release,FD 06 02 13 00 00 1B,uFD06021300001B,"кнопка seek down, status 0",candidate,
+fd_key_14_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,volume up,FD 06 02 14 01 00 1D,uFD06021401001D,"кнопка volume up, status 1",candidate,
+fd_key_14_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,volume up release,FD 06 02 14 00 00 1C,uFD06021400001C,"кнопка volume up, status 0",candidate,
+fd_key_15_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,volume down,FD 06 02 15 01 00 1E,uFD06021501001E,"кнопка volume down, status 1",candidate,
+fd_key_15_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,volume down release,FD 06 02 15 00 00 1D,uFD06021500001D,"кнопка volume down, status 0",candidate,
+fd_key_16_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,phone accept,FD 06 02 16 01 00 1F,uFD06021601001F,"кнопка phone accept, status 1",candidate,
+fd_key_16_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,phone accept release,FD 06 02 16 00 00 1E,uFD06021600001E,"кнопка phone accept, status 0",candidate,
+fd_key_17_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,phone hangup,FD 06 02 17 01 00 20,uFD060217010020,"кнопка phone hangup, status 1",candidate,
+fd_key_17_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,phone hangup release,FD 06 02 17 00 00 1F,uFD06021700001F,"кнопка phone hangup, status 0",candidate,
+fd_key_18_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel power,FD 06 02 18 01 00 21,uFD060218010021,"кнопка panel power, status 1",candidate,
+fd_key_18_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel power release,FD 06 02 18 00 00 20,uFD060218000020,"кнопка panel power, status 0",candidate,
+fd_key_19_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel volume up,FD 06 02 19 01 00 22,uFD060219010022,"кнопка panel volume up, status 1",candidate,
+fd_key_19_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel volume up release,FD 06 02 19 00 00 21,uFD060219000021,"кнопка panel volume up, status 0",candidate,
+fd_key_1a_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel volume down,FD 06 02 1A 01 00 23,uFD06021A010023,"кнопка panel volume down, status 1",candidate,
+fd_key_1a_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel volume down release,FD 06 02 1A 00 00 22,uFD06021A000022,"кнопка panel volume down, status 0",candidate,
+fd_key_1b_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel FM/AM,FD 06 02 1B 01 00 24,uFD06021B010024,"кнопка panel FM/AM, status 1",candidate,
+fd_key_1b_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel FM/AM release,FD 06 02 1B 00 00 23,uFD06021B000023,"кнопка panel FM/AM, status 0",candidate,
+fd_key_1c_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel media,FD 06 02 1C 01 00 25,uFD06021C010025,"кнопка panel media, status 1",candidate,
+fd_key_1c_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel media release,FD 06 02 1C 00 00 24,uFD06021C000024,"кнопка panel media, status 0",candidate,
+fd_key_1d_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel phone,FD 06 02 1D 01 00 26,uFD06021D010026,"кнопка panel phone, status 1",candidate,
+fd_key_1d_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel phone release,FD 06 02 1D 00 00 25,uFD06021D000025,"кнопка panel phone, status 0",candidate,
+fd_key_1e_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel display,FD 06 02 1E 01 00 27,uFD06021E010027,"кнопка panel display, status 1",candidate,
+fd_key_1e_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel display release,FD 06 02 1E 00 00 26,uFD06021E000026,"кнопка panel display, status 0",candidate,
+fd_key_1f_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel seek up,FD 06 02 1F 01 00 28,uFD06021F010028,"кнопка panel seek up, status 1",candidate,
+fd_key_1f_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel seek up release,FD 06 02 1F 00 00 27,uFD06021F000027,"кнопка panel seek up, status 0",candidate,
+fd_key_20_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel seek down,FD 06 02 20 01 00 29,uFD060220010029,"кнопка panel seek down, status 1",candidate,
+fd_key_20_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,panel seek down release,FD 06 02 20 00 00 28,uFD060220000028,"кнопка panel seek down, status 0",candidate,
+fd_key_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,key release,FD 06 02 00 00 00 08,uFD060200000008,"кнопка release, status 0",candidate,
+fd_climate_off,Raise FD климат,raise_rzc_fd,canbox_to_hu,климат выкл,FD 08 03 00 00 00 00 00 0B,uFD080300000000000B,климат L=0 R=0 fan=0 flags=0x00,candidate,
+fd_climate_popup_22,Raise FD климат,raise_rzc_fd,canbox_to_hu,климат 22/22 fan3,FD 08 03 16 16 03 24 00 5E,uFD080316160324005E,климат L=22 R=22 fan=3 flags=0x24,candidate,
+fd_climate_auto,Raise FD климат,raise_rzc_fd,canbox_to_hu,AUTO candidate,FD 08 03 16 16 03 20 00 5A,uFD080316160320005A,климат L=22 R=22 fan=3 flags=0x20,candidate,
+fd_climate_ac,Raise FD климат,raise_rzc_fd,canbox_to_hu,A/C candidate,FD 08 03 16 16 03 04 00 3E,uFD080316160304003E,климат L=22 R=22 fan=3 flags=0x04,candidate,
+fd_climate_front_defog,Raise FD климат,raise_rzc_fd,canbox_to_hu,обдув лобового candidate,FD 08 03 16 16 04 40 00 7B,uFD080316160440007B,климат L=22 R=22 fan=4 flags=0x40,candidate,
+fd_climate_rear_defog,Raise FD климат,raise_rzc_fd,canbox_to_hu,задний обогрев candidate,FD 08 03 16 16 03 80 00 BA,uFD08031616038000BA,климат L=22 R=22 fan=3 flags=0x80,candidate,
+fd_climate_recirc,Raise FD климат,raise_rzc_fd,canbox_to_hu,рециркуляция candidate,FD 08 03 16 16 03 10 00 4A,uFD080316160310004A,климат L=22 R=22 fan=3 flags=0x10,candidate,
+fd_climate_face,Raise FD климат,raise_rzc_fd,canbox_to_hu,обдув лицо candidate,FD 08 03 16 16 02 01 00 3A,uFD080316160201003A,климат L=22 R=22 fan=2 flags=0x01,candidate,
+fd_climate_feet,Raise FD климат,raise_rzc_fd,canbox_to_hu,обдув ноги candidate,FD 08 03 16 16 02 02 00 3B,uFD080316160202003B,климат L=22 R=22 fan=2 flags=0x02,candidate,
+fd_climate_screen_feet,Raise FD климат,raise_rzc_fd,canbox_to_hu,стекло+ноги candidate,FD 08 03 16 16 03 42 00 7C,uFD080316160342007C,климат L=22 R=22 fan=3 flags=0x42,candidate,
+fd_out_temp_m20,Raise FD климат,raise_rzc_fd,canbox_to_hu,наружная -20C,FD 05 01 94 00 9A,uFD050194009A,наружная температура -20C,candidate,
+fd_out_temp_m5,Raise FD климат,raise_rzc_fd,canbox_to_hu,наружная -5C,FD 05 01 85 00 8B,uFD050185008B,наружная температура -5C,candidate,
+fd_out_temp_0,Raise FD климат,raise_rzc_fd,canbox_to_hu,наружная 0C,FD 05 01 00 00 06,uFD0501000006,наружная температура 0C,candidate,
+fd_out_temp_19,Raise FD климат,raise_rzc_fd,canbox_to_hu,наружная 19C,FD 05 01 13 00 19,uFD0501130019,наружная температура 19C,candidate,
+fd_out_temp_21,Raise FD климат,raise_rzc_fd,canbox_to_hu,наружная 21C,FD 05 01 15 00 1B,uFD050115001B,наружная температура 21C,candidate,
+fd_out_temp_35,Raise FD климат,raise_rzc_fd,canbox_to_hu,наружная 35C,FD 05 01 23 00 29,uFD0501230029,наружная температура 35C,candidate,
+fd_backlight_0,Raise FD сервис,raise_rzc_fd,canbox_to_hu,подсветка 0,FD 05 07 00 00 0C,uFD050700000C,"cmd 0x07, payload 00",candidate,
+fd_backlight_20,Raise FD сервис,raise_rzc_fd,canbox_to_hu,подсветка 20,FD 05 07 14 00 20,uFD0507140020,"cmd 0x07, payload 14",candidate,
+fd_backlight_50,Raise FD сервис,raise_rzc_fd,canbox_to_hu,подсветка 50,FD 05 07 32 00 3E,uFD050732003E,"cmd 0x07, payload 32",candidate,
+fd_backlight_80,Raise FD сервис,raise_rzc_fd,canbox_to_hu,подсветка 80,FD 05 07 50 00 5C,uFD050750005C,"cmd 0x07, payload 50",candidate,
+fd_backlight_100,Raise FD сервис,raise_rzc_fd,canbox_to_hu,подсветка 100,FD 05 07 64 00 70,uFD0507640070,"cmd 0x07, payload 64",candidate,
+fd_radar_00_00,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,парктроники clear,FD 06 04 00 00 00 0A,uFD06040000000A,парктроники front=0x00 rear=0x00,candidate,
+fd_radar_55_00,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,перед близко,FD 06 04 55 00 00 5F,uFD06045500005F,парктроники front=0x55 rear=0x00,candidate,
+fd_radar_00_55,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,зад близко,FD 06 04 00 55 00 5F,uFD06040055005F,парктроники front=0x00 rear=0x55,candidate,
+fd_radar_55_55,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,перед+зад близко,FD 06 04 55 55 00 B4,uFD0604555500B4,парктроники front=0x55 rear=0x55,candidate,
+fd_radar_aa_aa,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,зоны pattern AA,FD 06 04 AA AA 01 5E,uFD0604AAAA015E,парктроники front=0xAA rear=0xAA,candidate,
+fd_reverse_02,Raise FD движение,raise_rzc_fd,canbox_to_hu,задний ход on,FD 06 7D 06 02 00 8B,uFD067D0602008B,задний ход on,candidate,
+fd_reverse_00,Raise FD движение,raise_rzc_fd,canbox_to_hu,задний ход off,FD 06 7D 06 00 00 89,uFD067D06000089,задний ход off,candidate,
+fd_ac_status_00,Raise FD климат,raise_rzc_fd,canbox_to_hu,climate status 00,FD 05 06 00 00 0B,uFD050600000B,"cmd 0x06, payload 00",candidate,Покрывает строку matrix ac_climate_status 0x06.
+fd_ac_status_01,Raise FD климат,raise_rzc_fd,canbox_to_hu,climate status 01,FD 05 06 01 00 0C,uFD050601000C,"cmd 0x06, payload 01",candidate,Покрывает строку matrix ac_climate_status 0x06.
+fd_ac_status_24,Raise FD климат,raise_rzc_fd,canbox_to_hu,climate status 24,FD 05 06 24 00 2F,uFD050624002F,"cmd 0x06, payload 24",candidate,Покрывает строку matrix ac_climate_status 0x06.
+fd_time_06_44_1,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,time 06:44 mode1,FD 07 06 2C 06 01 00 40,uFD07062C06010040,"время HU 06:44, mode 1",candidate,TEYES -> canbox time_info.
+fd_time_12_00_1,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,time 12:00 mode1,FD 07 06 00 0C 01 00 1A,uFD0706000C01001A,"время HU 12:00, mode 1",candidate,TEYES -> canbox time_info.
+fd_hu_power_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU power/session start,FD 05 04 00 00 09,uFD0504000009,HU питание/session start/on,candidate,"cmd 0x04 с 1 байтом декодируется как HU power, с 2 байтами как radar."
+fd_hu_power_01,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU power/session stop,FD 05 04 01 00 0A,uFD050401000A,HU питание/session end/off,candidate,"cmd 0x04 с 1 байтом декодируется как HU power, с 2 байтами как radar."
+fd_hu_power_02,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU power/session candidate 02,FD 05 04 02 00 0B,uFD050402000B,HU питание/session 0x02,candidate,"cmd 0x04 с 1 байтом декодируется как HU power, с 2 байтами как radar."
+fd_hu_volume_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,volume adjust 0,FD 05 05 00 00 0A,uFD050500000A,кузов: все закрыто,candidate,cmd 0x05 len1 конфликтует с body flags; проверять осторожно.
+fd_hu_volume_05,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,volume adjust 5,FD 05 05 05 00 0F,uFD050505000F,"кузов: дверь водитель, задняя левая",candidate,cmd 0x05 len1 конфликтует с body flags; проверять осторожно.
+fd_hu_volume_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,volume adjust 10,FD 05 05 0A 00 14,uFD05050A0014,"кузов: дверь пассажир, задняя правая",candidate,cmd 0x05 len1 конфликтует с body flags; проверять осторожно.
+fd_hu_volume_20,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,volume adjust 20,FD 05 05 14 00 1E,uFD050514001E,"кузов: задняя левая, багажник",candidate,cmd 0x05 len1 конфликтует с body flags; проверять осторожно.
+fd_hu_volume_35,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,volume adjust 35,FD 05 05 23 00 2D,uFD050523002D,"кузов: дверь водитель, дверь пассажир, капот",candidate,cmd 0x05 len1 конфликтует с body flags; проверять осторожно.
+fd_audio_balance_07_07,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,balance center,FD 06 07 07 07 00 1B,uFD06070707001B,"аудио баланс fade=0, balance=0",candidate,TEYES -> canbox audio_balance.
+fd_audio_balance_00_07,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,fade rear/max candidate,FD 06 07 00 07 00 14,uFD060700070014,"аудио баланс fade=-7, balance=0",candidate,TEYES -> canbox audio_balance.
+fd_audio_balance_14_07,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,fade front/max candidate,FD 06 07 0E 07 00 22,uFD06070E070022,"аудио баланс fade=7, balance=0",candidate,TEYES -> canbox audio_balance.
+fd_audio_balance_07_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,balance left/max candidate,FD 06 07 07 00 00 14,uFD060707000014,"аудио баланс fade=0, balance=-7",candidate,TEYES -> canbox audio_balance.
+fd_audio_balance_07_14,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,balance right/max candidate,FD 06 07 07 0E 00 22,uFD0607070E0022,"аудио баланс fade=0, balance=7",candidate,TEYES -> canbox audio_balance.
+fd_sound_10_10_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,EQ flat,FD 07 08 0A 0A 0A 00 2D,uFD07080A0A0A002D,"эквалайзер bass=0, mid=0, treble=0",candidate,TEYES -> canbox sound_effects.
+fd_sound_15_10_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,bass +5,FD 07 08 0F 0A 0A 00 32,uFD07080F0A0A0032,"эквалайзер bass=5, mid=0, treble=0",candidate,TEYES -> canbox sound_effects.
+fd_sound_05_10_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,bass -5,FD 07 08 05 0A 0A 00 28,uFD0708050A0A0028,"эквалайзер bass=-5, mid=0, treble=0",candidate,TEYES -> canbox sound_effects.
+fd_sound_10_15_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,mid +5,FD 07 08 0A 0F 0A 00 32,uFD07080A0F0A0032,"эквалайзер bass=0, mid=5, treble=0",candidate,TEYES -> canbox sound_effects.
+fd_sound_10_10_15,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,treble +5,FD 07 08 0A 0A 0F 00 32,uFD07080A0A0F0032,"эквалайзер bass=0, mid=0, treble=5",candidate,TEYES -> canbox sound_effects.
+fd_setting_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,setting 00,FD 05 03 00 00 08,uFD0503000008,HU setting/status: 00,candidate,"Matrix знает cmd 0x03 как setting, payload публично не расшифрован."
+fd_setting_01,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,setting 01,FD 05 03 01 00 09,uFD0503010009,HU setting/status: 01,candidate,"Matrix знает cmd 0x03 как setting, payload публично не расшифрован."
+fd_setting_160324,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,setting candidate 16 03 24,FD 07 03 16 03 24 00 47,uFD07031603240047,HU setting/status: 16 03 24,candidate,"Matrix знает cmd 0x03 как setting, payload публично не расшифрован."
+fd_ee_200100,Raise FD unknown,raise_rzc_fd,unknown,valid unknown EE 20 01 00,FD 07 EE 20 01 00 01 16,uFD07EE2001000116,HU extended/status 0xEE: 20 01 00,candidate,"Валидный кадр с фото/лога, назначение требует проверки."
+fd_hu_radio_fm,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status FM,FD 08 09 02 00 65 46 00 BE,uFD08090200654600BE,"источник HU: радио, FM 101.70",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_usb_2s,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status USB 2s,FD 0A 09 16 00 00 00 00 02 00 2B,uFD0A09160000000002002B,"источник HU: USB music, track=0, time=0:02",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_bt_music,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status BT music,FD 06 09 11 00 00 20,uFD060911000020,"источник HU: Bluetooth music, state=0x00",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_nav,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status navigation,FD 06 09 06 00 00 15,uFD060906000015,"источник HU: навигация, state=0x00",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_aux,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status AUX,FD 06 09 12 00 00 21,uFD060912000021,"источник HU: AUX, state=0x00",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_off,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status media off,FD 06 09 80 00 00 8F,uFD06098000008F,"источник HU: media off, state=0x00",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_other,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status other,FD 06 09 83 00 00 92,uFD060983000092,"источник HU: other media, state=0x00",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_bt_phone,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status phone,FD 06 09 07 01 00 17,uFD060907010017,"источник HU: Bluetooth phone, state=0x01",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_hu_bt_conn,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,HU status BT connected,FD 06 09 0B 04 00 1E,uFD06090B04001E,"источник HU: Bluetooth connect, state=0x04",candidate,Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта.
+fd_version_lab08,Raise FD сервис,raise_rzc_fd,canbox_to_hu,версия LAB08,FD 09 7F 4C 41 42 30 38 01 BF,uFD097F4C4142303801BF,"cmd 0x7F, payload 4C 41 42 30 38",candidate,
+2e_key_00_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,release,2E 20 02 00 01 DC,u2E20020001DC,"2E кнопка/key code=0x00, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_01_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,source/mode candidate,2E 20 02 01 01 DB,u2E20020101DB,"2E кнопка/key code=0x01, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_01_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,source/mode candidate release,2E 20 02 01 00 DC,u2E20020100DC,"2E кнопка/key code=0x01, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_02_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,mute candidate,2E 20 02 02 01 DA,u2E20020201DA,"2E кнопка/key code=0x02, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_02_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,mute candidate release,2E 20 02 02 00 DB,u2E20020200DB,"2E кнопка/key code=0x02, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_10_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,mute,2E 20 02 10 01 CC,u2E20021001CC,"2E кнопка/key code=0x10, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_10_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,mute release,2E 20 02 10 00 CD,u2E20021000CD,"2E кнопка/key code=0x10, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_11_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,source/mode,2E 20 02 11 01 CB,u2E20021101CB,"2E кнопка/key code=0x11, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_11_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,source/mode release,2E 20 02 11 00 CC,u2E20021100CC,"2E кнопка/key code=0x11, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_12_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,seek up,2E 20 02 12 01 CA,u2E20021201CA,"2E кнопка/key code=0x12, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_12_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,seek up release,2E 20 02 12 00 CB,u2E20021200CB,"2E кнопка/key code=0x12, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_13_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,seek down,2E 20 02 13 01 C9,u2E20021301C9,"2E кнопка/key code=0x13, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_13_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,seek down release,2E 20 02 13 00 CA,u2E20021300CA,"2E кнопка/key code=0x13, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_14_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,volume up,2E 20 02 14 01 C8,u2E20021401C8,"2E кнопка/key code=0x14, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_14_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,volume up release,2E 20 02 14 00 C9,u2E20021400C9,"2E кнопка/key code=0x14, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_15_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,volume down,2E 20 02 15 01 C7,u2E20021501C7,"2E кнопка/key code=0x15, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_15_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,volume down release,2E 20 02 15 00 C8,u2E20021500C8,"2E кнопка/key code=0x15, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_16_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,phone accept,2E 20 02 16 01 C6,u2E20021601C6,"2E кнопка/key code=0x16, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_16_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,phone accept release,2E 20 02 16 00 C7,u2E20021600C7,"2E кнопка/key code=0x16, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_17_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,phone hangup,2E 20 02 17 01 C5,u2E20021701C5,"2E кнопка/key code=0x17, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_17_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,phone hangup release,2E 20 02 17 00 C6,u2E20021700C6,"2E кнопка/key code=0x17, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_18_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel power,2E 20 02 18 01 C4,u2E20021801C4,"2E кнопка/key code=0x18, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_18_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel power release,2E 20 02 18 00 C5,u2E20021800C5,"2E кнопка/key code=0x18, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_19_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel volume up,2E 20 02 19 01 C3,u2E20021901C3,"2E кнопка/key code=0x19, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_19_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel volume up release,2E 20 02 19 00 C4,u2E20021900C4,"2E кнопка/key code=0x19, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1a_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel volume down,2E 20 02 1A 01 C2,u2E20021A01C2,"2E кнопка/key code=0x1A, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1a_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel volume down release,2E 20 02 1A 00 C3,u2E20021A00C3,"2E кнопка/key code=0x1A, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1b_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel FM/AM,2E 20 02 1B 01 C1,u2E20021B01C1,"2E кнопка/key code=0x1B, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1b_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel FM/AM release,2E 20 02 1B 00 C2,u2E20021B00C2,"2E кнопка/key code=0x1B, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1c_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel media,2E 20 02 1C 01 C0,u2E20021C01C0,"2E кнопка/key code=0x1C, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1c_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel media release,2E 20 02 1C 00 C1,u2E20021C00C1,"2E кнопка/key code=0x1C, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1d_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel phone,2E 20 02 1D 01 BF,u2E20021D01BF,"2E кнопка/key code=0x1D, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1d_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel phone release,2E 20 02 1D 00 C0,u2E20021D00C0,"2E кнопка/key code=0x1D, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1e_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel display,2E 20 02 1E 01 BE,u2E20021E01BE,"2E кнопка/key code=0x1E, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1e_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel display release,2E 20 02 1E 00 BF,u2E20021E00BF,"2E кнопка/key code=0x1E, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1f_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel seek up,2E 20 02 1F 01 BD,u2E20021F01BD,"2E кнопка/key code=0x1F, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_1f_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel seek up release,2E 20 02 1F 00 BE,u2E20021F00BE,"2E кнопка/key code=0x1F, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_20_press,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel seek down,2E 20 02 20 01 BC,u2E20022001BC,"2E кнопка/key code=0x20, status=0x01",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_key_20_release,Simple/2E кнопки,canbox_2e,canbox_to_hu,panel seek down release,2E 20 02 20 00 BD,u2E20022000BD,"2E кнопка/key code=0x20, status=0x00",candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_90_empty,Simple/2E HU,canbox_2e,hu_to_canbox,request id,2E 90 00 6F,u2E90006F,2E HU запрос ID canbox,candidate,Кандидат Simple/Hiworld.
+2e_81_00,Simple/2E HU,canbox_2e,hu_to_canbox,session start,2E 81 01 00 7D,u2E8101007D,2E HU session start/on,candidate,Кандидат Simple/Hiworld.
+2e_81_01,Simple/2E HU,canbox_2e,hu_to_canbox,session stop,2E 81 01 01 7C,u2E8101017C,2E HU session stop/off,candidate,Кандидат Simple/Hiworld.
+2e_21_0,Simple/2E климат raw,canbox_2e,mixed,климат raw #0,2E 21 04 00 00 00 00 DA,u2E210400000000DA,2E климат/AC raw 00 00 00 00,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_21_1,Simple/2E климат raw,canbox_2e,mixed,климат raw #1,2E 21 04 16 16 03 24 87,u2E21041616032487,2E климат/AC raw 16 16 03 24,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_21_2,Simple/2E климат raw,canbox_2e,mixed,климат raw #2,2E 21 04 16 16 04 40 6A,u2E2104161604406A,2E климат/AC raw 16 16 04 40,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_22_0,Simple/2E задние парктроники,canbox_2e,mixed,задние парктроники #0,2E 22 04 00 00 00 00 D9,u2E220400000000D9,2E задние парктроники raw 00 00 00 00,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_22_1,Simple/2E задние парктроники,canbox_2e,mixed,задние парктроники #1,2E 22 04 01 02 02 01 D3,u2E220401020201D3,2E задние парктроники raw 01 02 02 01,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_22_2,Simple/2E задние парктроники,canbox_2e,mixed,задние парктроники #2,2E 22 04 03 03 03 03 CD,u2E220403030303CD,2E задние парктроники raw 03 03 03 03,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_23_0,Simple/2E передние парктроники,canbox_2e,mixed,передние парктроники #0,2E 23 04 00 00 00 00 D8,u2E230400000000D8,2E передние парктроники raw 00 00 00 00,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_23_1,Simple/2E передние парктроники,canbox_2e,mixed,передние парктроники #1,2E 23 04 01 02 02 01 D2,u2E230401020201D2,2E передние парктроники raw 01 02 02 01,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_23_2,Simple/2E передние парктроники,canbox_2e,mixed,передние парктроники #2,2E 23 04 03 03 03 03 CC,u2E230403030303CC,2E передние парктроники raw 03 03 03 03,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_0,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #0,2E 24 01 00 DA,u2E240100DA,2E состояние авто raw 00,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_1,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #1,2E 24 01 01 D9,u2E240101D9,2E состояние авто raw 01,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_2,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #2,2E 24 01 02 D8,u2E240102D8,2E состояние авто raw 02,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_3,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #3,2E 24 01 04 D6,u2E240104D6,2E состояние авто raw 04,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_4,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #4,2E 24 01 08 D2,u2E240108D2,2E состояние авто raw 08,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_5,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #5,2E 24 01 10 CA,u2E240110CA,2E состояние авто raw 10,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_6,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #6,2E 24 01 20 BA,u2E240120BA,2E состояние авто raw 20,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_24_7,Simple/2E состояние авто,canbox_2e,mixed,состояние авто #7,2E 24 01 40 9A,u2E2401409A,2E состояние авто raw 40,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_25_0,Simple/2E parking state,canbox_2e,mixed,parking state #0,2E 25 01 00 D9,u2E250100D9,2E parking state raw 00,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_25_1,Simple/2E parking state,canbox_2e,mixed,parking state #1,2E 25 01 01 D8,u2E250101D8,2E parking state raw 01,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_a0_0,Simple/2E amplifier,canbox_2e,mixed,amplifier #0,2E A0 01 00 5E,u2EA001005E,2E усилитель/amplifier raw 00,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_a0_1,Simple/2E amplifier,canbox_2e,mixed,amplifier #1,2E A0 03 0A 0A 0A 3E,u2EA0030A0A0A3E,2E усилитель/amplifier raw 0A 0A 0A,candidate,"Кандидат Simple/Hiworld, подтверждать live."
+2e_a6_0,Simple/2E time,canbox_2e,mixed,time #0,2E A6 03 2C 06 01 23,u2EA6032C060123,2E установка времени raw 2C 06 01,candidate,"Кандидат Simple/Hiworld, подтверждать live."

@@ -1,0 +1,120 @@
+id,category,protocol,direction,cmd,name,frame,lab,decoded,status,checksum,source_match
+fd_body_00,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,кузов все закрыто,FD 05 05 00 00 0A,uFD050500000A,кузов: все закрыто,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_01,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,дверь LF,FD 05 05 01 00 0B,uFD050501000B,кузов: дверь водитель,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_02,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,дверь RF,FD 05 05 02 00 0C,uFD050502000C,кузов: дверь пассажир,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_04,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,дверь LR,FD 05 05 04 00 0E,uFD050504000E,кузов: задняя левая,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_08,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,дверь RR,FD 05 05 08 00 12,uFD0505080012,кузов: задняя правая,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_10,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,багажник,FD 05 05 10 00 1A,uFD050510001A,кузов: багажник,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_20,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,капот,FD 05 05 20 00 2A,uFD050520002A,кузов: капот,candidate,ok,vehicle_doors; programmer_firmware_or_user_photo_match
+fd_body_40,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,люк candidate bit6,FD 05 05 40 00 4A,uFD050540004A,кузов: люк candidate,candidate,ok,vehicle_sunroof_candidate
+fd_body_80,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,люк/доп bit7 candidate,FD 05 05 80 00 8A,uFD050580008A,кузов: все закрыто,candidate,ok,vehicle_sunroof_candidate
+fd_body_0f,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,все двери,FD 05 05 0F 00 19,uFD05050F0019,"кузов: дверь водитель, дверь пассажир, задняя левая, задняя правая",candidate,ok,vehicle_doors
+fd_body_3f,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,двери+багажник+капот,FD 05 05 3F 00 49,uFD05053F0049,"кузов: дверь водитель, дверь пассажир, задняя левая, задняя правая, багажник, капот",candidate,ok,vehicle_doors
+fd_body_7f,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,кузов все flags bit0..6,FD 05 05 7F 00 89,uFD05057F0089,"кузов: дверь водитель, дверь пассажир, задняя левая, задняя правая, багажник, капот, люк candidate",candidate,ok,vehicle_doors
+fd_body_4000,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,люк candidate 2-byte 40 00,FD 06 05 40 00 00 4B,uFD06054000004B,кузов: люк candidate,candidate,ok,vehicle_sunroof_candidate
+fd_body_0040,Raise FD кузов,raise_rzc_fd,canbox_to_hu,0x05,люк candidate 2-byte 00 40,FD 06 05 00 40 00 4B,uFD06050040004B,кузов: все закрыто,candidate,ok,vehicle_sunroof_candidate
+fd_key_00_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,release,FD 06 02 00 01 00 09,uFD060200010009,"кнопка release, status 1",candidate,ok,steering_panel_key
+fd_key_01_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,source/mode candidate,FD 06 02 01 01 00 0A,uFD06020101000A,"кнопка key 0x01, status 1",candidate,ok,steering_panel_key
+fd_key_01_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,source/mode candidate release,FD 06 02 01 00 00 09,uFD060201000009,"кнопка key 0x01, status 0",candidate,ok,steering_panel_key
+fd_key_02_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,mute candidate,FD 06 02 02 01 00 0B,uFD06020201000B,"кнопка key 0x02, status 1",candidate,ok,steering_panel_key
+fd_key_02_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,mute candidate release,FD 06 02 02 00 00 0A,uFD06020200000A,"кнопка key 0x02, status 0",candidate,ok,steering_panel_key
+fd_key_10_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,mute,FD 06 02 10 01 00 19,uFD060210010019,"кнопка mute, status 1",candidate,ok,steering_panel_key
+fd_key_10_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,mute release,FD 06 02 10 00 00 18,uFD060210000018,"кнопка mute, status 0",candidate,ok,steering_panel_key
+fd_key_11_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,source/mode,FD 06 02 11 01 00 1A,uFD06021101001A,"кнопка source/mode, status 1",candidate,ok,steering_panel_key
+fd_key_11_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,source/mode release,FD 06 02 11 00 00 19,uFD060211000019,"кнопка source/mode, status 0",candidate,ok,steering_panel_key
+fd_key_12_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,seek up,FD 06 02 12 01 00 1B,uFD06021201001B,"кнопка seek up, status 1",candidate,ok,steering_panel_key
+fd_key_12_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,seek up release,FD 06 02 12 00 00 1A,uFD06021200001A,"кнопка seek up, status 0",candidate,ok,steering_panel_key
+fd_key_13_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,seek down,FD 06 02 13 01 00 1C,uFD06021301001C,"кнопка seek down, status 1",candidate,ok,steering_panel_key
+fd_key_13_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,seek down release,FD 06 02 13 00 00 1B,uFD06021300001B,"кнопка seek down, status 0",candidate,ok,steering_panel_key
+fd_key_14_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,volume up,FD 06 02 14 01 00 1D,uFD06021401001D,"кнопка volume up, status 1",candidate,ok,steering_panel_key
+fd_key_14_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,volume up release,FD 06 02 14 00 00 1C,uFD06021400001C,"кнопка volume up, status 0",candidate,ok,steering_panel_key
+fd_key_15_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,volume down,FD 06 02 15 01 00 1E,uFD06021501001E,"кнопка volume down, status 1",candidate,ok,steering_panel_key
+fd_key_15_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,volume down release,FD 06 02 15 00 00 1D,uFD06021500001D,"кнопка volume down, status 0",candidate,ok,steering_panel_key
+fd_key_16_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,phone accept,FD 06 02 16 01 00 1F,uFD06021601001F,"кнопка phone accept, status 1",candidate,ok,steering_panel_key
+fd_key_16_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,phone accept release,FD 06 02 16 00 00 1E,uFD06021600001E,"кнопка phone accept, status 0",candidate,ok,steering_panel_key
+fd_key_17_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,phone hangup,FD 06 02 17 01 00 20,uFD060217010020,"кнопка phone hangup, status 1",candidate,ok,steering_panel_key
+fd_key_17_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,phone hangup release,FD 06 02 17 00 00 1F,uFD06021700001F,"кнопка phone hangup, status 0",candidate,ok,steering_panel_key
+fd_key_18_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel power,FD 06 02 18 01 00 21,uFD060218010021,"кнопка panel power, status 1",candidate,ok,steering_panel_key
+fd_key_18_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel power release,FD 06 02 18 00 00 20,uFD060218000020,"кнопка panel power, status 0",candidate,ok,steering_panel_key
+fd_key_19_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel volume up,FD 06 02 19 01 00 22,uFD060219010022,"кнопка panel volume up, status 1",candidate,ok,steering_panel_key
+fd_key_19_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel volume up release,FD 06 02 19 00 00 21,uFD060219000021,"кнопка panel volume up, status 0",candidate,ok,steering_panel_key
+fd_key_1a_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel volume down,FD 06 02 1A 01 00 23,uFD06021A010023,"кнопка panel volume down, status 1",candidate,ok,steering_panel_key
+fd_key_1a_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel volume down release,FD 06 02 1A 00 00 22,uFD06021A000022,"кнопка panel volume down, status 0",candidate,ok,steering_panel_key
+fd_key_1b_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel FM/AM,FD 06 02 1B 01 00 24,uFD06021B010024,"кнопка panel FM/AM, status 1",candidate,ok,steering_panel_key
+fd_key_1b_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel FM/AM release,FD 06 02 1B 00 00 23,uFD06021B000023,"кнопка panel FM/AM, status 0",candidate,ok,steering_panel_key
+fd_key_1c_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel media,FD 06 02 1C 01 00 25,uFD06021C010025,"кнопка panel media, status 1",candidate,ok,steering_panel_key
+fd_key_1c_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel media release,FD 06 02 1C 00 00 24,uFD06021C000024,"кнопка panel media, status 0",candidate,ok,steering_panel_key
+fd_key_1d_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel phone,FD 06 02 1D 01 00 26,uFD06021D010026,"кнопка panel phone, status 1",candidate,ok,steering_panel_key
+fd_key_1d_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel phone release,FD 06 02 1D 00 00 25,uFD06021D000025,"кнопка panel phone, status 0",candidate,ok,steering_panel_key
+fd_key_1e_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel display,FD 06 02 1E 01 00 27,uFD06021E010027,"кнопка panel display, status 1",candidate,ok,steering_panel_key
+fd_key_1e_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel display release,FD 06 02 1E 00 00 26,uFD06021E000026,"кнопка panel display, status 0",candidate,ok,steering_panel_key
+fd_key_1f_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel seek up,FD 06 02 1F 01 00 28,uFD06021F010028,"кнопка panel seek up, status 1",candidate,ok,steering_panel_key
+fd_key_1f_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel seek up release,FD 06 02 1F 00 00 27,uFD06021F000027,"кнопка panel seek up, status 0",candidate,ok,steering_panel_key
+fd_key_20_press,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel seek down,FD 06 02 20 01 00 29,uFD060220010029,"кнопка panel seek down, status 1",candidate,ok,steering_panel_key
+fd_key_20_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,panel seek down release,FD 06 02 20 00 00 28,uFD060220000028,"кнопка panel seek down, status 0",candidate,ok,steering_panel_key
+fd_key_release,Raise FD кнопки,raise_rzc_fd,canbox_to_hu,0x02,key release,FD 06 02 00 00 00 08,uFD060200000008,"кнопка release, status 0",candidate,ok,steering_panel_key
+fd_climate_off,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,климат выкл,FD 08 03 00 00 00 00 00 0B,uFD080300000000000B,климат L=0 R=0 fan=0 flags=0x00,candidate,ok,air_conditioning
+fd_climate_popup_22,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,климат 22/22 fan3,FD 08 03 16 16 03 24 00 5E,uFD080316160324005E,климат L=22 R=22 fan=3 flags=0x24,candidate,ok,air_conditioning
+fd_climate_auto,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,AUTO candidate,FD 08 03 16 16 03 20 00 5A,uFD080316160320005A,климат L=22 R=22 fan=3 flags=0x20,candidate,ok,air_conditioning
+fd_climate_ac,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,A/C candidate,FD 08 03 16 16 03 04 00 3E,uFD080316160304003E,климат L=22 R=22 fan=3 flags=0x04,candidate,ok,air_conditioning
+fd_climate_front_defog,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,обдув лобового candidate,FD 08 03 16 16 04 40 00 7B,uFD080316160440007B,климат L=22 R=22 fan=4 flags=0x40,candidate,ok,air_conditioning
+fd_climate_rear_defog,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,задний обогрев candidate,FD 08 03 16 16 03 80 00 BA,uFD08031616038000BA,климат L=22 R=22 fan=3 flags=0x80,candidate,ok,air_conditioning
+fd_climate_recirc,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,рециркуляция candidate,FD 08 03 16 16 03 10 00 4A,uFD080316160310004A,климат L=22 R=22 fan=3 flags=0x10,candidate,ok,air_conditioning
+fd_climate_face,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,обдув лицо candidate,FD 08 03 16 16 02 01 00 3A,uFD080316160201003A,климат L=22 R=22 fan=2 flags=0x01,candidate,ok,air_conditioning
+fd_climate_feet,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,обдув ноги candidate,FD 08 03 16 16 02 02 00 3B,uFD080316160202003B,климат L=22 R=22 fan=2 flags=0x02,candidate,ok,air_conditioning
+fd_climate_screen_feet,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x03,стекло+ноги candidate,FD 08 03 16 16 03 42 00 7C,uFD080316160342007C,климат L=22 R=22 fan=3 flags=0x42,candidate,ok,air_conditioning
+fd_out_temp_m20,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x01,наружная -20C,FD 05 01 94 00 9A,uFD050194009A,наружная температура -20C,candidate,ok,external_temperature
+fd_out_temp_m5,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x01,наружная -5C,FD 05 01 85 00 8B,uFD050185008B,наружная температура -5C,candidate,ok,external_temperature
+fd_out_temp_0,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x01,наружная 0C,FD 05 01 00 00 06,uFD0501000006,наружная температура 0C,candidate,ok,external_temperature
+fd_out_temp_19,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x01,наружная 19C,FD 05 01 13 00 19,uFD0501130019,наружная температура 19C,candidate,ok,external_temperature
+fd_out_temp_21,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x01,наружная 21C,FD 05 01 15 00 1B,uFD050115001B,наружная температура 21C,candidate,ok,external_temperature
+fd_out_temp_35,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x01,наружная 35C,FD 05 01 23 00 29,uFD0501230029,наружная температура 35C,candidate,ok,external_temperature
+fd_backlight_0,Raise FD сервис,raise_rzc_fd,canbox_to_hu,0x07,подсветка 0,FD 05 07 00 00 0C,uFD050700000C,"cmd 0x07, payload 00",candidate,ok,backlight
+fd_backlight_20,Raise FD сервис,raise_rzc_fd,canbox_to_hu,0x07,подсветка 20,FD 05 07 14 00 20,uFD0507140020,"cmd 0x07, payload 14",candidate,ok,backlight
+fd_backlight_50,Raise FD сервис,raise_rzc_fd,canbox_to_hu,0x07,подсветка 50,FD 05 07 32 00 3E,uFD050732003E,"cmd 0x07, payload 32",candidate,ok,backlight
+fd_backlight_80,Raise FD сервис,raise_rzc_fd,canbox_to_hu,0x07,подсветка 80,FD 05 07 50 00 5C,uFD050750005C,"cmd 0x07, payload 50",candidate,ok,backlight
+fd_backlight_100,Raise FD сервис,raise_rzc_fd,canbox_to_hu,0x07,подсветка 100,FD 05 07 64 00 70,uFD0507640070,"cmd 0x07, payload 64",candidate,ok,backlight
+fd_radar_00_00,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,0x04,парктроники clear,FD 06 04 00 00 00 0A,uFD06040000000A,парктроники front=0x00 rear=0x00,candidate,ok,radar
+fd_radar_55_00,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,0x04,перед близко,FD 06 04 55 00 00 5F,uFD06045500005F,парктроники front=0x55 rear=0x00,candidate,ok,radar
+fd_radar_00_55,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,0x04,зад близко,FD 06 04 00 55 00 5F,uFD06040055005F,парктроники front=0x00 rear=0x55,candidate,ok,radar
+fd_radar_55_55,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,0x04,перед+зад близко,FD 06 04 55 55 00 B4,uFD0604555500B4,парктроники front=0x55 rear=0x55,candidate,ok,radar
+fd_radar_aa_aa,Raise FD парктроники,raise_rzc_fd,canbox_to_hu,0x04,зоны pattern AA,FD 06 04 AA AA 01 5E,uFD0604AAAA015E,парктроники front=0xAA rear=0xAA,candidate,ok,radar
+fd_reverse_02,Raise FD движение,raise_rzc_fd,canbox_to_hu,0x7D,задний ход on,FD 06 7D 06 02 00 8B,uFD067D0602008B,задний ход on,candidate,ok,reverse_local; programmer_firmware_or_user_photo_match
+fd_reverse_00,Raise FD движение,raise_rzc_fd,canbox_to_hu,0x7D,задний ход off,FD 06 7D 06 00 00 89,uFD067D06000089,задний ход off,candidate,ok,reverse_local; programmer_firmware_or_user_photo_match
+fd_ac_status_00,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x06,climate status 00,FD 05 06 00 00 0B,uFD050600000B,"cmd 0x06, payload 00",candidate,ok,ac_climate_status
+fd_ac_status_01,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x06,climate status 01,FD 05 06 01 00 0C,uFD050601000C,"cmd 0x06, payload 01",candidate,ok,ac_climate_status
+fd_ac_status_24,Raise FD климат,raise_rzc_fd,canbox_to_hu,0x06,climate status 24,FD 05 06 24 00 2F,uFD050624002F,"cmd 0x06, payload 24",candidate,ok,ac_climate_status
+fd_time_06_44_1,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x06,time 06:44 mode1,FD 07 06 2C 06 01 00 40,uFD07062C06010040,"время HU 06:44, mode 1",candidate,ok,time_info; programmer_firmware_or_user_photo_match
+fd_time_12_00_1,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x06,time 12:00 mode1,FD 07 06 00 0C 01 00 1A,uFD0706000C01001A,"время HU 12:00, mode 1",candidate,ok,time_info
+fd_hu_power_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x04,HU power/session start,FD 05 04 00 00 09,uFD0504000009,HU питание/session start/on,candidate,ok,power
+fd_hu_power_01,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x04,HU power/session stop,FD 05 04 01 00 0A,uFD050401000A,HU питание/session end/off,candidate,ok,power
+fd_hu_power_02,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x04,HU power/session candidate 02,FD 05 04 02 00 0B,uFD050402000B,HU питание/session 0x02,candidate,ok,power
+fd_hu_volume_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x05,volume adjust 0,FD 05 05 00 00 0A,uFD050500000A,кузов: все закрыто,candidate,ok,volume_adjust; programmer_firmware_or_user_photo_match
+fd_hu_volume_05,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x05,volume adjust 5,FD 05 05 05 00 0F,uFD050505000F,"кузов: дверь водитель, задняя левая",candidate,ok,volume_adjust
+fd_hu_volume_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x05,volume adjust 10,FD 05 05 0A 00 14,uFD05050A0014,"кузов: дверь пассажир, задняя правая",candidate,ok,volume_adjust
+fd_hu_volume_20,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x05,volume adjust 20,FD 05 05 14 00 1E,uFD050514001E,"кузов: задняя левая, багажник",candidate,ok,volume_adjust
+fd_hu_volume_35,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x05,volume adjust 35,FD 05 05 23 00 2D,uFD050523002D,"кузов: дверь водитель, дверь пассажир, капот",candidate,ok,volume_adjust
+fd_audio_balance_07_07,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x07,balance center,FD 06 07 07 07 00 1B,uFD06070707001B,"аудио баланс fade=0, balance=0",candidate,ok,audio_balance
+fd_audio_balance_00_07,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x07,fade rear/max candidate,FD 06 07 00 07 00 14,uFD060700070014,"аудио баланс fade=-7, balance=0",candidate,ok,audio_balance
+fd_audio_balance_14_07,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x07,fade front/max candidate,FD 06 07 0E 07 00 22,uFD06070E070022,"аудио баланс fade=7, balance=0",candidate,ok,audio_balance
+fd_audio_balance_07_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x07,balance left/max candidate,FD 06 07 07 00 00 14,uFD060707000014,"аудио баланс fade=0, balance=-7",candidate,ok,audio_balance
+fd_audio_balance_07_14,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x07,balance right/max candidate,FD 06 07 07 0E 00 22,uFD0607070E0022,"аудио баланс fade=0, balance=7",candidate,ok,audio_balance
+fd_sound_10_10_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x08,EQ flat,FD 07 08 0A 0A 0A 00 2D,uFD07080A0A0A002D,"эквалайзер bass=0, mid=0, treble=0",candidate,ok,sound_effects
+fd_sound_15_10_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x08,bass +5,FD 07 08 0F 0A 0A 00 32,uFD07080F0A0A0032,"эквалайзер bass=5, mid=0, treble=0",candidate,ok,sound_effects
+fd_sound_05_10_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x08,bass -5,FD 07 08 05 0A 0A 00 28,uFD0708050A0A0028,"эквалайзер bass=-5, mid=0, treble=0",candidate,ok,sound_effects
+fd_sound_10_15_10,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x08,mid +5,FD 07 08 0A 0F 0A 00 32,uFD07080A0F0A0032,"эквалайзер bass=0, mid=5, treble=0",candidate,ok,sound_effects
+fd_sound_10_10_15,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x08,treble +5,FD 07 08 0A 0A 0F 00 32,uFD07080A0A0F0032,"эквалайзер bass=0, mid=0, treble=5",candidate,ok,sound_effects
+fd_setting_00,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x03,setting 00,FD 05 03 00 00 08,uFD0503000008,HU setting/status: 00,candidate,ok,setting
+fd_setting_01,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x03,setting 01,FD 05 03 01 00 09,uFD0503010009,HU setting/status: 01,candidate,ok,setting
+fd_setting_160324,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x03,setting candidate 16 03 24,FD 07 03 16 03 24 00 47,uFD07031603240047,HU setting/status: 16 03 24,candidate,ok,setting
+fd_ee_200100,Raise FD unknown,raise_rzc_fd,unknown,0xEE,valid unknown EE 20 01 00,FD 07 EE 20 01 00 01 16,uFD07EE2001000116,HU extended/status 0xEE: 20 01 00,candidate,ok,valid_unknown; programmer_firmware_or_user_photo_match
+fd_hu_radio_fm,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status FM,FD 08 09 02 00 65 46 00 BE,uFD08090200654600BE,"источник HU: радио, FM 101.70",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_usb_2s,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status USB 2s,FD 0A 09 16 00 00 00 00 02 00 2B,uFD0A09160000000002002B,"источник HU: USB music, track=0, time=0:02",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection; programmer_firmware_or_user_photo_match
+fd_hu_bt_music,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status BT music,FD 06 09 11 00 00 20,uFD060911000020,"источник HU: Bluetooth music, state=0x00",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_nav,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status navigation,FD 06 09 06 00 00 15,uFD060906000015,"источник HU: навигация, state=0x00",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_aux,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status AUX,FD 06 09 12 00 00 21,uFD060912000021,"источник HU: AUX, state=0x00",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_off,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status media off,FD 06 09 80 00 00 8F,uFD06098000008F,"источник HU: media off, state=0x00",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_other,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status other,FD 06 09 83 00 00 92,uFD060983000092,"источник HU: other media, state=0x00",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_bt_phone,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status phone,FD 06 09 07 01 00 17,uFD060907010017,"источник HU: Bluetooth phone, state=0x01",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_hu_bt_conn,Raise FD HU→canbox,raise_rzc_fd,hu_to_canbox,0x09,HU status BT connected,FD 06 09 0B 04 00 1E,uFD06090B04001E,"источник HU: Bluetooth connect, state=0x04",candidate,ok,host_status_radio; host_status_usb; host_status_other; host_status_aux; host_status_off; host_status_navigation; host_status_bt_music; host_status_bt_phone; host_status_bt_connection
+fd_version_lab08,Raise FD сервис,raise_rzc_fd,canbox_to_hu,0x7F,версия LAB08,FD 09 7F 4C 41 42 30 38 01 BF,uFD097F4C4142303801BF,"cmd 0x7F, payload 4C 41 42 30 38",candidate,ok,protocol_version

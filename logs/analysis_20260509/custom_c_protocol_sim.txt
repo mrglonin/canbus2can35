@@ -1,0 +1,6 @@
+$ make -C firmware/custom_c sim
+exit=0
+python3 tools/sim_protocol.py
+protocol simulation ok
+python3 tools/sim_teyes_raise.py
+teyes/raise simulation ok

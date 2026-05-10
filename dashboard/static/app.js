@@ -21,6 +21,20 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 const ACTIVE_TAB_KEY = "2can35.activeTab.v2";
+const STATUS_KNOWN = "known";
+const STATUS_FIRMWARE = "firmware";
+const STATUS_LEARNED = "learned";
+const STATUS_UNKNOWN = "unknown";
+const BRIDGE_DEFAULTS = {
+  door_driver: { semantic_key: "door_lf", mode: "body_flags", uart_hex_on: "FD 05 05 01 00 0B", uart_hex_off: "FD 05 05 00 00 0A" },
+  door_passenger: { semantic_key: "door_rf", mode: "body_flags", uart_hex_on: "FD 05 05 02 00 0C", uart_hex_off: "FD 05 05 00 00 0A" },
+  door_rear_left: { semantic_key: "door_lr", mode: "body_flags", uart_hex_on: "FD 05 05 04 00 0E", uart_hex_off: "FD 05 05 00 00 0A" },
+  door_rear_right: { semantic_key: "door_rr", mode: "body_flags", uart_hex_on: "FD 05 05 08 00 12", uart_hex_off: "FD 05 05 00 00 0A" },
+  trunk: { semantic_key: "trunk", mode: "body_flags", uart_hex_on: "FD 05 05 10 00 1A", uart_hex_off: "FD 05 05 00 00 0A" },
+  hood: { semantic_key: "hood", mode: "body_flags", uart_hex_on: "FD 05 05 20 00 2A", uart_hex_off: "FD 05 05 00 00 0A" },
+  sunroof: { semantic_key: "sunroof", mode: "body_flags", uart_hex_on: "FD 05 05 40 00 4A", uart_hex_off: "FD 05 05 00 00 0A" },
+  reverse: { semantic_key: "reverse_111", mode: "explicit", uart_hex_on: "FD 06 7D 06 02 00 8B", uart_hex_off: "FD 06 7D 06 00 00 89" },
+};
 
 function makeDefaultCar(source = "live") {
   return {
@@ -37,6 +51,12 @@ function makeDefaultCar(source = "live") {
     gear: "-",
     brake: "-",
     parkBrake: "-",
+    autoHold: "-",
+    driveMode: "-",
+    parkingAssist: "-",
+    frontParking: "-",
+    hillDescent: "-",
+    centerLock: "-",
     steering: "центр",
     turn: "off",
     hazard: false,
@@ -156,7 +176,10 @@ function rawFrame(summary, idHex, channel = null) {
   const latest = summary?.latest || {};
   const normalized = String(idHex).toUpperCase();
   if (channel !== null) {
-    return latest[`ch${channel}:${normalized}`] || latest[normalized] || null;
+    const specific = latest[`ch${channel}:${normalized}`];
+    if (specific) return specific;
+    const fallback = latest[normalized];
+    return Number(fallback?.ch) === Number(channel) ? fallback : null;
   }
   return latest[normalized] || null;
 }
@@ -257,6 +280,7 @@ const DEMO_STEPS = {
     { label: "Дверь + свет", patch: { doors: { lf: true }, lowBeam: true, turn: "left", lastLabel: "LF + left" } },
     { label: "R + датчики", patch: { doors: { lf: false }, reverse: true, parking: "rear near", turn: "off", lastLabel: "R sensors" } },
     { label: "Климат/сиденья", patch: { reverse: false, heatedWheel: true, driverSeatHeat: "2", fan: "5", lastLabel: "comfort" } },
+    { label: "Кнопки тоннеля", patch: { autoHold: "вкл", driveMode: "Sport", parkBrake: "выкл", frontParking: "вкл", hillDescent: "вкл", centerLock: "вкл", lastLabel: "buttons" } },
     { label: "Люк/багажник", patch: { sunroof: true, trunk: true, lastLabel: "sunroof trunk" } },
     { label: "Возврат в норму", patch: makeDefaultCar("demo") },
   ],
@@ -326,6 +350,21 @@ function semanticToCar(summary) {
       case "engine_temp": next.engineTemp = value; break;
       case "outside_temp": next.outsideTemp = value; break;
       case "battery_voltage": next.batteryVoltage = value; break;
+      case "auto_hold_507":
+        next.autoHold = value;
+        break;
+      case "drive_mode_50a":
+        next.driveMode = value;
+        break;
+      case "epb_490":
+        next.parkBrake = value;
+        break;
+      case "parking_button_522":
+        next.parkingAssist = value;
+        break;
+      case "hill_descent_153":
+        next.hillDescent = value;
+        break;
       case "heated_wheel": next.heatedWheel = isOn; break;
       case "front_defog_up_043":
       case "front_defog_up_132":
@@ -396,6 +435,14 @@ function semanticToCar(summary) {
     gear169: rawValueWithAge(summary, "0x169"),
     steering2b0: rawValueWithAge(summary, "0x2B0"),
     steering381: rawValueWithAge(summary, "0x381"),
+    brake394: rawValueWithAge(summary, "0x394", 1),
+    epb490: rawValueWithAge(summary, "0x490", 1),
+    tcs153: rawValueWithAge(summary, "0x153", 1),
+    tcs507: rawValueWithAge(summary, "0x507", 1),
+    driveMode50a: rawValueWithAge(summary, "0x50A", 1),
+    cluster515: rawValueWithAge(summary, "0x515", 1),
+    ipm522: rawValueWithAge(summary, "0x522", 0),
+    spas4f4: rawValueWithAge(summary, "0x4F4", 1),
     climate034: rawValueWithAge(summary, "0x034", 0),
     climate044: rawValueWithAge(summary, "0x044", 1),
     climate042: rawValueWithAge(summary, "0x042", 1),
@@ -496,10 +543,14 @@ function renderLearnStatus(learn) {
   if (learn.result) state.lastLearnResult = learn.result;
   const changes = Number(learn.detected_changes || 0);
   const target = Number(learn.target_repeats || 5);
+  const cleanFrames = Number(learn.frames_count || 0);
+  const rawFrames = Number(learn.raw_frames_seen || cleanFrames);
+  const hiddenNoise = Number(learn.known_noise_hidden || 0);
+  const frameLimit = Number(learn.frame_limit || 0);
   const text = active
-    ? `Запись: ${learn.action_name || learn.action_id}. Чистых изменений: ${Math.min(changes, target)}/${target}. CAN ${learn.frames_count}, UART ${learn.uart_count}${learn.capture_closed ? " · 5/5 набрано, можно жать анализ" : ""}`
+    ? `Запись: ${learn.action_name || learn.action_id}. Чистых изменений: ${Math.min(changes, target)}/${target}. CAN чистых ${cleanFrames}${frameLimit ? `/${frameLimit}` : ""}, сырья ${rawFrames}, скрыто шума ${hiddenNoise}, UART ${learn.uart_count}${learn.capture_closed ? " · 5/5 набрано, можно жать анализ" : ""}`
     : learn.result
-      ? `Последний анализ: ${learn.result.action_name}. Чистых изменений ${learn.result.detected_changes || 0}/${learn.result.target_repeats || 5}, скрыто шума ${learn.result.noise_hidden || 0}`
+      ? `Последний анализ: ${learn.result.action_name}. Чистых изменений ${learn.result.detected_changes || 0}/${learn.result.target_repeats || 5}, CAN чистых ${learn.result.frames || 0}, сырья ${learn.result.raw_frames_seen || learn.result.frames || 0}, скрыто шума ${(Number(learn.result.noise_hidden || 0) + Number(learn.result.known_noise_hidden || 0))}`
       : "Нет активной записи";
   $("learnStatus").textContent = text;
   $("learnStatus").className = `learn-status ${active ? "recording" : ""} ${learn.capture_closed ? "ready" : ""}`;
@@ -541,11 +592,26 @@ function stateCards() {
     ["Климат", car.climate, car.climate !== "выкл"],
     ["Обдув вверх", statusText(car.frontDefog), car.frontDefog],
     ["Подогрев руля", statusText(car.heatedWheel), car.heatedWheel],
+    ["Auto Hold", car.autoHold, isRealValue(car.autoHold)],
+    ["Drive Mode", car.driveMode, isRealValue(car.driveMode)],
+    ["EPB", car.parkBrake, isRealValue(car.parkBrake)],
     ["Парктроники", car.parking, car.parking !== "clear"],
     ["Медиа", car.media, car.media !== "нет данных"],
     ["Навигация", car.nav, car.nav !== "нет данных"],
     ["Источник", car.source, car.source === "demo"],
   ];
+}
+
+function liveStatusMeta(status) {
+  if (status === true) status = STATUS_LEARNED;
+  if (status === false || status == null) status = STATUS_UNKNOWN;
+  const map = {
+    [STATUS_LEARNED]: { className: "learned", icon: "!", label: "обучено нами, требует отдельного подтверждения" },
+    [STATUS_KNOWN]: { className: "known", icon: "✓", label: "подтверждено логом" },
+    [STATUS_FIRMWARE]: { className: "firmware", icon: "✓", label: "взято из рабочей логики прошивки прогера/DBC" },
+    [STATUS_UNKNOWN]: { className: "unlearned", icon: "?", label: "не обучено / не подтверждено" },
+  };
+  return map[status] || map[STATUS_UNKNOWN];
 }
 
 function renderCarStatus() {
@@ -554,117 +620,163 @@ function renderCarStatus() {
   renderLearnedLive();
 }
 
+function hasLearnedAction(...actionIds) {
+  const wanted = new Set(actionIds);
+  return state.learnedAssignments.some((item) =>
+    wanted.has(item.action_id) && (item.verified === true || item.manual === true || item.locked === true)
+  );
+}
+
 function liveGroups() {
   const car = state.car;
+  const learned = {
+    autoHold: hasLearnedAction("auto_hold"),
+    driveMode: hasLearnedAction("drive_mode"),
+    epb: hasLearnedAction("parking_brake"),
+    brake: hasLearnedAction("brake"),
+    parkingAssist: hasLearnedAction("front_parking", "rear_parking"),
+    hillDescent: hasLearnedAction("hill_descent"),
+    centerLock: hasLearnedAction("lock_button"),
+  };
+  const climateSource = STATUS_FIRMWARE;
   return [
     {
-      title: "Движение",
-      hint: "скорость, тахометр, зажигание, коробка",
+      title: "Показатели",
+      hint: "OBD-слой: скорость, обороты, температуры, АКБ",
       className: "wide",
       items: [
-        ["Скорость", `${car.speed} км/ч`, Number(car.speed) > 0],
-        ["Обороты / тахометр", car.rpm, car.rpm !== "-"],
-        ["Зажигание", statusText(car.ignition, "вкл", "выкл"), car.ignition],
-        ["Задний ход", statusText(car.reverse), car.reverse],
-        ["Выход R +12V", car.reverseOutput12v, car.reverseOutput12v !== "-"],
-        ["Руль", car.steering, car.steering !== "центр"],
-        ["Скорость raw 0x316", car.raw.speed316, isRealValue(car.raw.speed316)],
-        ["Колеса raw 0x386", car.raw.wheel386, isRealValue(car.raw.wheel386)],
-        ["Передача raw 0x111", car.raw.gear111, isRealValue(car.raw.gear111)],
-        ["Передача raw 0x354/169", `${car.raw.gear354} | ${car.raw.gear169}`, isRealValue(car.raw.gear354) || isRealValue(car.raw.gear169)],
-        ["Угол руля raw", `${car.raw.steering2b0} | ${car.raw.steering381}`, isRealValue(car.raw.steering2b0) || isRealValue(car.raw.steering381)],
+        ["Скорость", `${car.speed} км/ч`, Number(car.speed) > 0, STATUS_FIRMWARE],
+        ["Обороты / тахометр", car.rpm, car.rpm !== "-", STATUS_KNOWN],
+        ["Темп. двигателя", car.engineTemp, car.engineTemp !== "-", STATUS_FIRMWARE],
+        ["Темп. улицы", car.outsideTemp, car.outsideTemp !== "-", STATUS_FIRMWARE],
+        ["АКБ", car.batteryVoltage, car.batteryVoltage !== "-", STATUS_KNOWN],
+        ["Зажигание", statusText(car.ignition, "вкл", "выкл"), car.ignition, STATUS_KNOWN],
+      ],
+    },
+    {
+      title: "Движение",
+      hint: "коробка, реверс, руль, служебные кадры",
+      className: "wide",
+      items: [
+        ["Задний ход", statusText(car.reverse), car.reverse, STATUS_FIRMWARE],
+        ["Выход R +12V", car.reverseOutput12v, car.reverseOutput12v !== "-", STATUS_FIRMWARE],
+        ["Руль", car.steering, car.steering !== "центр", STATUS_KNOWN],
+        ["Передача raw 0x111", car.raw.gear111, isRealValue(car.raw.gear111), false],
+        ["Передача raw 0x354/169", `${car.raw.gear354} | ${car.raw.gear169}`, isRealValue(car.raw.gear354) || isRealValue(car.raw.gear169), false],
+        ["Угол руля raw", `${car.raw.steering2b0} | ${car.raw.steering381}`, isRealValue(car.raw.steering2b0) || isRealValue(car.raw.steering381), false],
+        ["Колеса raw 0x386", car.raw.wheel386, isRealValue(car.raw.wheel386), false],
+      ],
+    },
+    {
+      title: "Кнопки и режимы",
+      hint: "Auto Hold, Drive Mode, EPB, парковка, спуск",
+      className: "wide",
+      items: [
+        ["Auto Hold", car.autoHold, isRealValue(car.autoHold), learned.autoHold],
+        ["Drive Mode", car.driveMode, isRealValue(car.driveMode), learned.driveMode],
+        ["EPB / ручник", car.parkBrake, isRealValue(car.parkBrake), learned.epb],
+        ["Тормоз", car.brake, isRealValue(car.brake), learned.brake],
+        ["Парковка кнопка", car.parkingAssist, isRealValue(car.parkingAssist), learned.parkingAssist],
+        ["Передние парктроники", car.frontParking, isRealValue(car.frontParking), learned.parkingAssist],
+        ["Спуск с горы", car.hillDescent, isRealValue(car.hillDescent), learned.hillDescent],
+        ["Lock", car.centerLock, isRealValue(car.centerLock), learned.centerLock],
+        ["Auto Hold raw 0x507", car.raw.tcs507, isRealValue(car.raw.tcs507), false],
+        ["Drive Mode raw 0x50A", car.raw.driveMode50a, isRealValue(car.raw.driveMode50a), false],
+        ["EPB raw 0x490", car.raw.epb490, isRealValue(car.raw.epb490), false],
+        ["Тормоз raw 0x394", car.raw.brake394, isRealValue(car.raw.brake394), false],
+        ["TCS raw 0x153", car.raw.tcs153, isRealValue(car.raw.tcs153), false],
+        ["Cluster raw 0x515", car.raw.cluster515, isRealValue(car.raw.cluster515), false],
+        ["Parking raw 0x4F4", car.raw.spas4f4, isRealValue(car.raw.spas4f4), false],
+        ["IPM raw 0x522", car.raw.ipm522, isRealValue(car.raw.ipm522), false],
       ],
     },
     {
       title: "Кузов",
       hint: "двери, капот, багажник, люк, замки",
       items: [
-        ["LF дверь", openText(car.doors.lf), car.doors.lf],
-        ["RF дверь", openText(car.doors.rf), car.doors.rf],
-        ["LR дверь", openText(car.doors.lr), car.doors.lr],
-        ["RR дверь", openText(car.doors.rr), car.doors.rr],
-        ["Багажник", openText(car.trunk), car.trunk],
-        ["Капот", openText(car.hood), car.hood],
-        ["Люк", openText(car.sunroof), car.sunroof],
-        ["Замки", car.locked ? "закрыто" : "-", car.locked],
-        ["Ремень водителя", car.seatbeltDriver, isRealValue(car.seatbeltDriver)],
-        ["Ремень пассажира", car.seatbeltPassenger, isRealValue(car.seatbeltPassenger)],
-        ["Кузов raw 0x541", car.raw.body541, isRealValue(car.raw.body541)],
-        ["Задние двери raw 0x553", car.raw.body553, isRealValue(car.raw.body553)],
-        ["Окна/руль raw 0x559", car.raw.body559, isRealValue(car.raw.body559)],
+        ["LF дверь", openText(car.doors.lf), car.doors.lf, true],
+        ["RF дверь", openText(car.doors.rf), car.doors.rf, true],
+        ["LR дверь", openText(car.doors.lr), car.doors.lr, true],
+        ["RR дверь", openText(car.doors.rr), car.doors.rr, true],
+        ["Багажник", openText(car.trunk), car.trunk, true],
+        ["Капот", openText(car.hood), car.hood, true],
+        ["Люк", openText(car.sunroof), car.sunroof, true],
+        ["Замки", car.locked ? "закрыто" : "-", car.locked, hasLearnedAction("lock_unlock")],
+        ["Ремень водителя", car.seatbeltDriver, isRealValue(car.seatbeltDriver), hasLearnedAction("seatbelt_driver")],
+        ["Ремень пассажира", car.seatbeltPassenger, isRealValue(car.seatbeltPassenger), hasLearnedAction("seatbelt_passenger")],
+        ["Кузов raw 0x541", car.raw.body541, isRealValue(car.raw.body541), false],
+        ["Задние двери raw 0x553", car.raw.body553, isRealValue(car.raw.body553), false],
+        ["Окна/руль raw 0x559", car.raw.body559, isRealValue(car.raw.body559), false],
       ],
     },
     {
       title: "Климат подробно",
-      hint: "температуры, режимы, обдув, подогревы, raw ID",
+      hint: "режимы, обдув, подогревы, raw ID",
       className: "wide climate-category",
       items: [
-        ["Климат", car.climate, car.climate !== "выкл"],
-        ["Темп. водитель", car.driverTemp, car.driverTemp !== "-"],
-        ["Темп. пассажир", car.passengerTemp, car.passengerTemp !== "-"],
-        ["Темп. двигателя", car.engineTemp, car.engineTemp !== "-"],
-        ["Темп. улицы", car.outsideTemp, car.outsideTemp !== "-"],
-        ["АКБ", car.batteryVoltage, car.batteryVoltage !== "-"],
-        ["Вентилятор", car.fan, car.fan !== "-"],
-        ["Режим обдува", car.climateMode, car.climateMode !== "-"],
-        ["AUTO", car.autoClimate, car.autoClimate !== "-"],
-        ["DUAL/SYNC", car.dual, car.dual !== "-"],
-        ["Рециркуляция", car.intake, car.intake !== "-"],
-        ["A/C", statusText(car.ac), car.ac],
-        ["Обдув вверх", statusText(car.frontDefog), car.frontDefog],
-        ["Задний обогрев", statusText(car.rearDefog), car.rearDefog],
-        ["Подогрев руля", statusText(car.heatedWheel), car.heatedWheel],
-        ["Водитель сиденье heat", car.driverSeatHeat, car.driverSeatHeat !== "off"],
-        ["Пассажир сиденье heat", car.passengerSeatHeat, car.passengerSeatHeat !== "off"],
-        ["Водитель сиденье vent", car.driverSeatVent, car.driverSeatVent !== "off"],
-        ["Пассажир сиденье vent", car.passengerSeatVent, car.passengerSeatVent !== "off"],
-        ["HU климат 0x034", car.raw.climate034, isRealValue(car.raw.climate034)],
-        ["Улица DATC11 0x044", car.raw.climate044, isRealValue(car.raw.climate044)],
-        ["Темп. C-CAN 0x042", car.raw.climate042, isRealValue(car.raw.climate042)],
-        ["Климат C-CAN 0x043", car.raw.climate043, isRealValue(car.raw.climate043)],
-        ["Темп. M-CAN 0x131", car.raw.climate131, isRealValue(car.raw.climate131)],
-        ["Климат M-CAN 0x132", car.raw.climate132, isRealValue(car.raw.climate132)],
-        ["Сиденья 0x134", car.raw.climate134, isRealValue(car.raw.climate134)],
-        ["FATC 0x383", car.raw.climate383, isRealValue(car.raw.climate383)],
+        ["Климат", car.climate, car.climate !== "выкл", climateSource],
+        ["Темп. водитель", car.driverTemp, car.driverTemp !== "-", hasLearnedAction("driver_temp")],
+        ["Темп. пассажир", car.passengerTemp, car.passengerTemp !== "-", hasLearnedAction("passenger_temp")],
+        ["Вентилятор", car.fan, car.fan !== "-", hasLearnedAction("fan_speed")],
+        ["Режим обдува", car.climateMode, car.climateMode !== "-", hasLearnedAction("air_modes")],
+        ["AUTO", car.autoClimate, car.autoClimate !== "-", hasLearnedAction("climate_auto")],
+        ["DUAL/SYNC", car.dual, car.dual !== "-", false],
+        ["Рециркуляция", car.intake, car.intake !== "-", false],
+        ["A/C", statusText(car.ac), car.ac, hasLearnedAction("ac_button")],
+        ["Обдув вверх", statusText(car.frontDefog), car.frontDefog, hasLearnedAction("front_defog")],
+        ["Задний обогрев", statusText(car.rearDefog), car.rearDefog, hasLearnedAction("rear_defog")],
+        ["Подогрев руля", statusText(car.heatedWheel), car.heatedWheel, STATUS_KNOWN],
+        ["Водитель сиденье heat", car.driverSeatHeat, car.driverSeatHeat !== "off", hasLearnedAction("driver_seat_heat")],
+        ["Пассажир сиденье heat", car.passengerSeatHeat, car.passengerSeatHeat !== "off", hasLearnedAction("passenger_seat_heat")],
+        ["Водитель сиденье vent", car.driverSeatVent, car.driverSeatVent !== "off", hasLearnedAction("driver_seat_vent")],
+        ["Пассажир сиденье vent", car.passengerSeatVent, car.passengerSeatVent !== "off", hasLearnedAction("passenger_seat_vent")],
+        ["HU климат 0x034", car.raw.climate034, isRealValue(car.raw.climate034), false],
+        ["Улица DATC11 0x044", car.raw.climate044, isRealValue(car.raw.climate044), false],
+        ["Темп. C-CAN 0x042", car.raw.climate042, isRealValue(car.raw.climate042), STATUS_FIRMWARE],
+        ["Климат C-CAN 0x043", car.raw.climate043, isRealValue(car.raw.climate043), STATUS_FIRMWARE],
+        ["Темп. M-CAN 0x131", car.raw.climate131, isRealValue(car.raw.climate131), STATUS_FIRMWARE],
+        ["Климат M-CAN 0x132", car.raw.climate132, isRealValue(car.raw.climate132), STATUS_FIRMWARE],
+        ["Сиденья 0x134", car.raw.climate134, isRealValue(car.raw.climate134), STATUS_FIRMWARE],
+        ["FATC 0x383", car.raw.climate383, isRealValue(car.raw.climate383), STATUS_FIRMWARE],
       ],
     },
     {
       title: "Свет и безопасность",
       hint: "свет, повороты, парковка, ассистенты",
       items: [
-        ["AUTO свет", car.autoLight, isRealValue(car.autoLight)],
-        ["Свет", car.lowBeam ? "ближний" : car.highBeam ? "дальний" : "выкл", car.lowBeam || car.highBeam],
-        ["Противотуманки", car.fog || car.frontFog || car.rearFog ? "вкл" : "выкл", car.fog || car.frontFog || car.rearFog],
-        ["Дворники", car.wiper, isRealValue(car.wiper)],
-        ["Задний дворник", car.rearWiper, isRealValue(car.rearWiper)],
-        ["Поворот", car.turn, car.turn !== "off"],
-        ["Аварийка", statusText(car.hazard), car.hazard],
-        ["Парктроники", car.parking, car.parking !== "clear"],
-        ["SPAS/линии", car.spas, isRealValue(car.spas)],
-        ["Динамические линии", car.dynamicLines, isRealValue(car.dynamicLines)],
-        ["RCTA", car.rcta, car.rcta !== "нет"],
-        ["Слепые зоны", car.blindSpot, isRealValue(car.blindSpot)],
-        ["TPMS", car.tpms, isRealValue(car.tpms)],
-        ["SPAS raw 0x390", car.raw.parking390, isRealValue(car.raw.parking390)],
-        ["Парктроники raw 0x436", car.raw.parking436, isRealValue(car.raw.parking436)],
-        ["LCA/RCTA raw 0x58B", car.raw.safety58b, isRealValue(car.raw.safety58b)],
+        ["AUTO свет", car.autoLight, isRealValue(car.autoLight), hasLearnedAction("lights_low_auto")],
+        ["Свет", car.lowBeam ? "ближний" : car.highBeam ? "дальний" : "выкл", car.lowBeam || car.highBeam, hasLearnedAction("lights_low_auto", "high_beam")],
+        ["Противотуманки", car.fog || car.frontFog || car.rearFog ? "вкл" : "выкл", car.fog || car.frontFog || car.rearFog, hasLearnedAction("front_fog")],
+        ["Дворники", car.wiper, isRealValue(car.wiper), hasLearnedAction("wipers_front")],
+        ["Задний дворник", car.rearWiper, isRealValue(car.rearWiper), hasLearnedAction("wipers_rear")],
+        ["Поворот", car.turn, car.turn !== "off", hasLearnedAction("turn_left", "turn_right")],
+        ["Аварийка", statusText(car.hazard), car.hazard, hasLearnedAction("hazard")],
+        ["Парктроники", car.parking, car.parking !== "clear", true],
+        ["SPAS/линии", car.spas, isRealValue(car.spas), hasLearnedAction("front_parking", "rear_parking")],
+        ["Динамические линии", car.dynamicLines, isRealValue(car.dynamicLines), hasLearnedAction("front_parking", "rear_parking")],
+        ["RCTA", car.rcta, car.rcta !== "нет", hasLearnedAction("rcta_left_right")],
+        ["Слепые зоны", car.blindSpot, isRealValue(car.blindSpot), hasLearnedAction("blind_spot_left_right")],
+        ["TPMS", car.tpms, isRealValue(car.tpms), hasLearnedAction("tpms_warning")],
+        ["SPAS raw 0x390", car.raw.parking390, isRealValue(car.raw.parking390), false],
+        ["Парктроники raw 0x436", car.raw.parking436, isRealValue(car.raw.parking436), false],
+        ["LCA/RCTA raw 0x58B", car.raw.safety58b, isRealValue(car.raw.safety58b), false],
       ],
     },
     {
       title: "Медиа и навигация",
       hint: "HU, источники, приборка, TBT",
       items: [
-        ["Медиа", car.media, car.media !== "нет данных"],
-        ["Навигация", car.nav, car.nav !== "нет данных"],
-        ["Источник HU", car.mediaSource, car.mediaSource !== "-"],
-        ["HU source 0x114", car.raw.media114, isRealValue(car.raw.media114)],
-        ["HU nav 0x197", car.raw.media197, isRealValue(car.raw.media197)],
-        ["USB текст 0x490", car.raw.media490, isRealValue(car.raw.media490)],
-        ["FM/AM текст 0x4E8", car.raw.media4e8, isRealValue(car.raw.media4e8)],
-        ["Нави текст 0x49B", car.raw.media49b, isRealValue(car.raw.media49b)],
-        ["Нави TBT 0x4BB", car.raw.media4bb, isRealValue(car.raw.media4bb)],
-        ["Кнопки руля raw 0x523", car.raw.buttons523, isRealValue(car.raw.buttons523)],
-        ["Источник данных", car.source, car.source === "demo"],
+        ["Медиа", car.media, car.media !== "нет данных", hasLearnedAction("hu_media_usb", "hu_media_bt", "hu_radio_fm")],
+        ["Навигация", car.nav, car.nav !== "нет данных", hasLearnedAction("hu_navigation")],
+        ["Источник HU", car.mediaSource, car.mediaSource !== "-", hasLearnedAction("hu_media_usb", "hu_media_bt", "hu_radio_fm")],
+        ["HU source 0x114", car.raw.media114, isRealValue(car.raw.media114), false],
+        ["HU nav 0x197", car.raw.media197, isRealValue(car.raw.media197), false],
+        ["USB текст 0x490", car.raw.media490, isRealValue(car.raw.media490), false],
+        ["FM/AM текст 0x4E8", car.raw.media4e8, isRealValue(car.raw.media4e8), false],
+        ["Нави текст 0x49B", car.raw.media49b, isRealValue(car.raw.media49b), false],
+        ["Нави TBT 0x4BB", car.raw.media4bb, isRealValue(car.raw.media4bb), false],
+        ["Кнопки руля raw 0x523", car.raw.buttons523, isRealValue(car.raw.buttons523), false],
+        ["Источник данных", car.source, car.source === "demo", true],
       ],
     },
   ];
@@ -680,12 +792,16 @@ function renderLiveCategories() {
         <span>${escapeHtml(group.hint)}</span>
       </header>
       <div class="live-category-cards">
-        ${group.items.map(([label, value, on]) => `
-          <div class="status-card ${on ? "on" : ""}">
+        ${group.items.map(([label, value, on, status]) => {
+          const meta = liveStatusMeta(status);
+          return `
+          <div class="status-card ${on ? "on" : ""} ${escapeHtml(meta.className)}">
             <span>${escapeHtml(label)}</span>
             <strong>${escapeHtml(value)}</strong>
+            <em title="${escapeHtml(meta.label)}" aria-label="${escapeHtml(meta.label)}">${escapeHtml(meta.icon)}</em>
           </div>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     </section>
   `).join("");
@@ -695,6 +811,53 @@ function candidateText(candidate) {
   if (!candidate) return "кандидат не выбран";
   const bytes = (candidate.changed_bytes || []).length ? `байты ${candidate.changed_bytes.join(",")}` : "байты без явного изменения";
   return `${candidate.bus || "-"} ${candidate.id_hex || "-"} DLC ${candidate.dlc ?? "-"} · ${bytes}`;
+}
+
+function cleanHexText(value) {
+  return String(value || "").replace(/[^0-9A-Fa-f]/g, "").toUpperCase();
+}
+
+function prettyHex(value) {
+  const clean = cleanHexText(value);
+  return clean.replace(/(..)/g, "$1 ").trim();
+}
+
+function bridgeDraft(result, candidate) {
+  const base = { ...(BRIDGE_DEFAULTS[result?.action_id] || {}) };
+  const semantic = (candidate?.semantic || []).find((item) => item?.key);
+  if (!base.semantic_key && semantic?.key) base.semantic_key = semantic.key;
+  if (!base.mode) base.mode = base.semantic_key ? "explicit" : "none";
+  return {
+    enabled: Boolean(base.semantic_key),
+    mode: base.mode,
+    semantic_key: base.semantic_key || "",
+    uart_hex_on: base.uart_hex_on || "",
+    uart_hex_off: base.uart_hex_off || "",
+  };
+}
+
+function uartChoices(result) {
+  return (result?.uart || [])
+    .filter((item) => item?.raw && item.valid !== false)
+    .slice(-12)
+    .reverse();
+}
+
+function readBridgeEditor(article) {
+  const enabled = article.querySelector("[data-bridge-enabled]")?.checked !== false;
+  const mode = article.querySelector("[data-bridge-mode]")?.value || "explicit";
+  const semanticKey = article.querySelector("[data-bridge-semantic]")?.value.trim() || "";
+  const uartOn = prettyHex(article.querySelector("[data-bridge-on]")?.value || "");
+  const uartOff = prettyHex(article.querySelector("[data-bridge-off]")?.value || "");
+  if (!semanticKey || mode === "none") return null;
+  return {
+    enabled,
+    mode,
+    semantic_key: semanticKey,
+    uart_hex_on: uartOn,
+    uart_hex_off: uartOff,
+    note: "saved from dashboard CAN<->UART learning",
+  };
 }
 
 function learnedKey(item, index) {
@@ -924,17 +1087,20 @@ function renderCandidates(result) {
     `;
     return;
   }
+  const uartOptions = uartChoices(result);
   root.innerHTML = `
     <div class="learn-result-clean">
       <strong>Чистых изменений: ${Number(result.detected_changes || 0)}/${Number(result.target_repeats || 5)}</strong>
-      <span>${(result.profile?.ids || []).join(", ") || "профиль общий"}</span>
+      <span>${(result.profile?.ids || []).join(", ") || "профиль общий"} · UART в окне: ${Number(result.uart?.length || 0)}</span>
       ${transitions.length ? `<div class="transition-list">${transitions.map((event) => `
         <code>${escapeHtml(event.label)}: ${escapeHtml(event.value)} · ${escapeHtml(event.source)}</code>
       `).join("")}</div>` : ""}
     </div>
     ${hidden > 0 ? `<div class="candidate-noise-note">Фоновый шум скрыт: ${hidden} кандидатов не относятся к выбранному действию.</div>` : ""}
-    ${candidates.map((item, index) => `
-    <article class="candidate">
+    ${candidates.map((item, index) => {
+      const bridge = bridgeDraft(result, item);
+      return `
+    <article class="candidate" data-candidate-card="${index}">
       <header>
         <strong>${index + 1}. ${escapeHtml(item.bus)} ${escapeHtml(item.id_hex)} DLC ${item.dlc}</strong>
         <span>score ${item.score} · ${item.count} кадров</span>
@@ -952,16 +1118,59 @@ function renderCandidates(result) {
           ${item.semantic.map((s) => `<span>${escapeHtml(s.label)}: ${escapeHtml(s.value)}</span>`).join("")}
         </div>
       ` : ""}
+      <div class="bridge-editor">
+        <div class="bridge-editor-head">
+          <strong>Связка CAN→UART canbox</strong>
+          <label><input type="checkbox" data-bridge-enabled ${bridge.enabled ? "checked" : ""} /> включить</label>
+        </div>
+        <div class="bridge-editor-grid">
+          <label>Событие
+            <input data-bridge-semantic value="${escapeHtml(bridge.semantic_key)}" placeholder="door_lf / sunroof / reverse_111" />
+          </label>
+          <label>Режим
+            <select data-bridge-mode>
+              <option value="body_flags" ${bridge.mode === "body_flags" ? "selected" : ""}>кузов FD 05 05 flags</option>
+              <option value="explicit" ${bridge.mode === "explicit" ? "selected" : ""}>явные UART ON/OFF</option>
+              <option value="none" ${bridge.mode === "none" ? "selected" : ""}>не связывать</option>
+            </select>
+          </label>
+          <label>UART ON / открыть
+            <input data-bridge-on value="${escapeHtml(bridge.uart_hex_on)}" placeholder="FD 05 05 01 00 0B" />
+          </label>
+          <label>UART OFF / закрыть
+            <input data-bridge-off value="${escapeHtml(bridge.uart_hex_off)}" placeholder="FD 05 05 00 00 0A" />
+          </label>
+        </div>
+        ${uartOptions.length ? `
+          <div class="uart-picks">
+            <span>UART из этой записи:</span>
+            ${uartOptions.slice(0, 6).map((u, uIndex) => `
+              <button data-uart-pick="${uIndex}" data-uart-raw="${escapeHtml(u.raw)}" title="${escapeHtml(u.text || "")}">${escapeHtml(u.cmd || "UART")} ${escapeHtml(u.raw)}</button>
+            `).join("")}
+          </div>
+        ` : `<small>В этом окне нет UART RX. Для полной связки запусти Live CAN+UART и повтори тест.</small>`}
+      </div>
       <button class="save-candidate" data-index="${index}">Закрепить как ${escapeHtml(result.action_name)}</button>
     </article>
-  `).join("")}`;
+  `;
+    }).join("")}`;
+  root.querySelectorAll("[data-uart-pick]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const editor = button.closest(".bridge-editor");
+      const target = editor?.querySelector("[data-bridge-on]");
+      if (target) target.value = prettyHex(button.dataset.uartRaw || "");
+    });
+  });
   root.querySelectorAll(".save-candidate").forEach((button) => {
     button.addEventListener("click", async () => {
       const candidate = candidates[Number(button.dataset.index)];
-      await post("/api/learn/save", {
+      const article = button.closest("[data-candidate-card]");
+      const bridge = article ? readBridgeEditor(article) : null;
+      const saveResult = await post("/api/learn/save", {
         action_id: result.action_id,
         action_name: result.action_name,
         candidate,
+        bridge,
       });
       if (state.commands?.test_plan) {
         const item = state.commands.test_plan.find((planItem) => planItem.id === result.action_id);
@@ -976,11 +1185,12 @@ function renderCandidates(result) {
         action_id: result.action_id,
         action_name: result.action_name,
         candidate,
+        bridge: saveResult.item?.bridge || bridge,
         verified: true,
       });
       state.learnedAssignments = state.learnedAssignments.slice(0, 80);
       renderLearnedLive();
-      logAction(`закреплено: ${result.action_name} -> ${candidate.bus} ${candidate.id_hex}`);
+      logAction(`закреплено: ${result.action_name} -> ${candidate.bus} ${candidate.id_hex}${bridge ? " + UART bridge" : ""}`);
     });
   });
 }
@@ -1030,6 +1240,8 @@ function renderCommands() {
     });
   });
 
+  renderUartCandidates();
+
   const filter = state.commandFilter.trim().toLowerCase();
   const rows = commandRows().filter((row) => !filter || Object.values(row).join(" ").toLowerCase().includes(filter));
   $("commandTable").innerHTML = rows.slice(0, 260).map((row) => `
@@ -1042,6 +1254,83 @@ function renderCommands() {
     </div>
   `).join("");
   renderPlan();
+}
+
+function verificationLabel(item) {
+  const verification = item.verification || {};
+  const verdict = verification.verdict || item.status || "candidate";
+  return {
+    works: "работает",
+    no_effect: "нет эффекта",
+    bad: "ошибка",
+    unsafe: "опасно",
+    unknown: "кандидат",
+    candidate: "кандидат",
+  }[verdict] || verdict;
+}
+
+function renderUartCandidates() {
+  const root = $("uartCandidateTable");
+  if (!root || !state.commands) return;
+  const filter = state.commandFilter.trim().toLowerCase();
+  const items = (state.commands.uart_candidate_tests || [])
+    .filter((item) => !filter || Object.values(item).join(" ").toLowerCase().includes(filter));
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">Нет UART-кандидатов под этот фильтр.</div>`;
+    return;
+  }
+  root.innerHTML = items.slice(0, 180).map((item) => {
+    const status = item.verification?.verdict || item.status || "candidate";
+    return `
+      <article class="uart-candidate ${escapeHtml(status)}">
+        <div>
+          <span>${escapeHtml(item.group || "-")} · ${escapeHtml(item.protocol || "-")} · ${escapeHtml(item.direction || "-")}</span>
+          <strong>${escapeHtml(item.name || "-")}</strong>
+          <code>${escapeHtml(item.frame || "-")}</code>
+          <small>${escapeHtml(item.decoded || item.note || "")}</small>
+        </div>
+        <div class="uart-candidate-actions">
+          <em>${escapeHtml(verificationLabel(item))}</em>
+          <button data-uart-send="${escapeHtml(item.lab)}" data-command-id="${escapeHtml(item.id)}">TX</button>
+          <button data-uart-verify="works" data-command-id="${escapeHtml(item.id)}">работает</button>
+          <button data-uart-verify="no_effect" data-command-id="${escapeHtml(item.id)}">нет</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  root.querySelectorAll("[data-uart-send]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const item = (state.commands.uart_candidate_tests || []).find((candidate) => candidate.id === button.dataset.commandId);
+      try {
+        const result = await post("/api/lab/send", { command: button.dataset.uartSend });
+        logAction(`UART TX ${item?.name || button.dataset.commandId}: ${result.uart_hex || button.dataset.uartSend}`);
+      } catch (error) {
+        logAction(`UART TX ошибка ${button.dataset.commandId}: ${error.message}`);
+      }
+    });
+  });
+  root.querySelectorAll("[data-uart-verify]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const item = (state.commands.uart_candidate_tests || []).find((candidate) => candidate.id === button.dataset.commandId);
+      if (!item) return;
+      try {
+        const result = await post("/api/uart/verify", {
+          command_id: item.id,
+          verdict: button.dataset.uartVerify,
+          name: item.name,
+          frame: item.frame,
+          protocol: item.protocol,
+          note: item.note || "",
+        });
+        item.verification = result.item;
+        item.status = result.item.verdict;
+        renderUartCandidates();
+        logAction(`UART проверка: ${item.name} -> ${result.item.verdict}`);
+      } catch (error) {
+        logAction(`UART verify ошибка: ${error.message}`);
+      }
+    });
+  });
 }
 
 function renderPlan() {
@@ -1116,6 +1405,8 @@ function renderRecent(rows) {
 }
 
 function renderScenarioButtons() {
+  const root = document.getElementById("scenarioButtons");
+  if (!root) return;
   const scenarios = state.commands?.demo_scenarios || [
     { id: "walkaround", name: "Обход кузова" },
     { id: "parking", name: "Парковка" },
@@ -1123,10 +1414,10 @@ function renderScenarioButtons() {
     { id: "media", name: "Медиа" },
     { id: "stress", name: "Стресс" },
   ];
-  $("scenarioButtons").innerHTML = scenarios.map((item) => `
+  root.innerHTML = scenarios.map((item) => `
     <button data-scenario="${escapeHtml(item.id)}" title="${escapeHtml(item.description || "")}">${escapeHtml(item.name)}</button>
   `).join("");
-  $("scenarioButtons").querySelectorAll("[data-scenario]").forEach((button) => {
+  root.querySelectorAll("[data-scenario]").forEach((button) => {
     button.addEventListener("click", () => startDemo(button.dataset.scenario));
   });
 }

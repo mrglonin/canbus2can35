@@ -12,7 +12,7 @@ static void observe_c_can(uint32_t id, const uint8_t *d, uint8_t len)
 		vehicle_state.right_front_door = (d[4] & 0x08U) != 0U;
 		vehicle_state.trunk = (d[1] & 0x10U) != 0U;
 		vehicle_state.hood = (d[2] & 0x02U) != 0U;
-		vehicle_state.sunroof_open = ((d[0] & 0x02U) != 0U) || ((d[7] & 0x02U) != 0U);
+		vehicle_state.sunroof_open = (d[7] & 0x02U) != 0U;
 	}
 	if (id == 0x553U && len >= 8U) {
 		vehicle_state.left_rear_door = (d[3] & 0x01U) != 0U;

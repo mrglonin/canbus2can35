@@ -115,6 +115,18 @@ void protocol_emit_can(uint8_t bus, uint32_t id, bool ext, bool rtr, uint8_t len
 	emit("\r\n");
 }
 
+void protocol_emit_uart_rx(const uint8_t *data, uint8_t len)
+{
+	if (!logging_enabled || data == 0 || len == 0U) {
+		return;
+	}
+	emit("U ");
+	for (uint8_t i = 0; i < len; i++) {
+		emit_hex8(data[i]);
+	}
+	emit("\r\n");
+}
+
 static uint8_t checksum(const uint8_t *data, uint8_t len)
 {
 	uint8_t sum = 0;
@@ -133,7 +145,7 @@ static void send_frame(uint8_t cmd, const uint8_t *payload, uint8_t payload_len)
 	out[pos++] = 0xbbU;
 	out[pos++] = 0xa1U;
 	out[pos++] = 0x41U;
-	out[pos++] = (uint8_t)(payload_len + 1U);
+	out[pos++] = (uint8_t)(payload_len + 6U);
 	out[pos++] = cmd;
 	for (uint8_t i = 0; i < payload_len && pos < (sizeof(out) - 1U); i++) {
 		out[pos++] = payload[i];
@@ -172,11 +184,15 @@ static void handle_binary_payload(const uint8_t *payload, uint8_t len)
 	}
 	case 0x55:
 		if (len >= 2U && payload[1] == 1U) {
-			board_set_mode(BOARD_MODE_CANBOX);
-			send_ack(0x55, 0x01);
+			board_enter_update_request();
 		} else if (len >= 2U && payload[1] == 3U) {
 			board_set_mode(BOARD_MODE_LAB);
 			send_ack(0x55, 0x03);
+		} else if (len >= 2U && payload[1] == 4U) {
+			board_set_mode(BOARD_MODE_CANBOX);
+			send_ack(0x55, 0x04);
+			board_delay_ms(50);
+			board_reboot();
 		} else if (len >= 2U && payload[1] == 2U) {
 			send_ack(0x55, 0xe2);
 		} else {
@@ -192,13 +208,17 @@ static void handle_binary_payload(const uint8_t *payload, uint8_t len)
 		}
 		break;
 	case 0x70:
-		if (len >= 12U) {
+		if (len >= 5U) {
 			can_frame_t frame;
 			can_bus_t bus = payload[1] == 1U ? CANBUS_M : CANBUS_C;
 			frame.id = ((uint32_t)payload[2] << 8) | payload[3];
 			frame.len = payload[4] > 8U ? 8U : payload[4];
 			frame.ext = false;
 			frame.rtr = false;
+			if (len < (uint8_t)(5U + frame.len)) {
+				send_ack(0x70, 0xff);
+				break;
+			}
 			for (uint8_t i = 0; i < frame.len; i++) {
 				frame.data[i] = payload[5U + i];
 			}
@@ -226,14 +246,17 @@ static void parse_binary_byte(uint8_t b)
 	}
 
 	if (frame_pos >= 4U) {
-		uint8_t payload_len = frame_buf[3];
-		uint8_t total = (uint8_t)(payload_len + 5U);
+		uint8_t total = frame_buf[3];
 
+		if (total < 6U || total > FRAME_MAX) {
+			frame_pos = 0;
+			return;
+		}
 		if (frame_pos == total) {
 			if (frame_buf[0] == 0xbbU && frame_buf[1] == 0x41U &&
 			    frame_buf[2] == 0xa1U &&
 			    checksum(frame_buf, (uint8_t)(total - 1U)) == frame_buf[total - 1U]) {
-				handle_binary_payload(&frame_buf[4], payload_len);
+				handle_binary_payload(&frame_buf[4], (uint8_t)(total - 5U));
 			}
 			frame_pos = 0;
 		}
@@ -359,7 +382,7 @@ static void handle_line(const char *line)
 	}
 	if (line[0] == '?' || line[0] == 'V' || line[0] == 'v') {
 		print_status();
-		emit("cmd: ?, O, C, I, mode1, mode3, 0S6, 1S3, 0t1238..., 1t1238..., uFD0505...\r\n");
+		emit("cmd: ?, O, C, I, mode1, mode3, 0S6, 1S3, 0t1238..., 1t1238..., uFD0505...; UART RX prints as U ...\r\n");
 		return;
 	}
 	if (line[0] == 'O' || line[0] == 'o') {
@@ -380,7 +403,9 @@ static void handle_line(const char *line)
 	if (line[0] == 'm' && line[1] == 'o' && line[2] == 'd' && line[3] == 'e') {
 		if (line[4] == '1') {
 			board_set_mode(BOARD_MODE_CANBOX);
-			emit("OK mode1\r\n");
+			emit("OK mode1 reboot\r\n");
+			board_delay_ms(50);
+			board_reboot();
 		} else if (line[4] == '3') {
 			board_set_mode(BOARD_MODE_LAB);
 			emit("OK mode3\r\n");

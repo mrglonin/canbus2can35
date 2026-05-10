@@ -32,7 +32,7 @@ Photo-based board notes and STM32F105RBT6 LQFP64 pin numbers are in
 
 | Feature | CAN source | Current firmware state |
 |---|---|---|
-| Front doors / trunk / hood / sunroof / ignition | C-CAN `0x541` | read-only parsed |
+| Front doors / trunk / hood / sunroof / ignition | C-CAN ch1 500 kbit/s, STD ID `0x541`, DLC 8 | read-only parsed; sunroof is `DATA[7] & 0x02`, not `DATA[0]` |
 | Rear doors | C-CAN `0x553` | parsed with v06 firmware bit mapping |
 | Reverse gear | C-CAN `0x111`, byte4 `0x64`; fallback `0x169` low nibble `7` | parsed; can drive PC14 when `ENABLE_REVERSE_OUT=1` |
 | Speed | C-CAN `0x316` | read-only parsed candidate |

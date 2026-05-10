@@ -1,0 +1,89 @@
+source,expected,coverage,candidate_count,candidate_ids,note
+raise_matrix,canbox_to_hu 0x01 external_temperature,covered,6,"fd_out_temp_m20, fd_out_temp_m5, fd_out_temp_0, fd_out_temp_19, fd_out_temp_21, fd_out_temp_35",outside temperature; bit7 means negative Celsius
+raise_matrix,canbox_to_hu 0x02 steering_panel_key,covered,40,"fd_key_00_press, fd_key_01_press, fd_key_01_release, fd_key_02_press, fd_key_02_release, fd_key_10_press, fd_key_10_release, fd_key_11_press, fd_key_11_release, fd_key_12_press, fd_key_12_release, fd_key_13_press","steering wheel and panel keys; status 0 release, >=1 press/repeat"
+raise_matrix,canbox_to_hu 0x03 air_conditioning,covered,13,"fd_climate_off, fd_climate_popup_22, fd_climate_auto, fd_climate_ac, fd_climate_front_defog, fd_climate_rear_defog, fd_climate_recirc, fd_climate_face, fd_climate_feet, fd_climate_screen_feet, fd_setting_00, fd_setting_01",climate popup; AC/dual/auto/air direction/defog/recirc bits in FLAGS
+raise_matrix,canbox_to_hu 0x04 radar,covered,8,"fd_radar_00_00, fd_radar_55_00, fd_radar_00_55, fd_radar_55_55, fd_radar_aa_aa, fd_hu_power_00, fd_hu_power_01, fd_hu_power_02",front/rear parking sensor packed 2-bit zones
+raise_matrix,canbox_to_hu 0x05 vehicle_doors,covered,19,"fd_body_00, fd_body_01, fd_body_02, fd_body_04, fd_body_08, fd_body_10, fd_body_20, fd_body_40, fd_body_80, fd_body_0f, fd_body_3f, fd_body_7f","bit0 LF, bit1 RF, bit2 LR, bit3 RR, bit4 trunk, bit5 hood"
+raise_matrix,canbox_to_hu 0x05 vehicle_sunroof_candidate,covered,19,"fd_body_00, fd_body_01, fd_body_02, fd_body_04, fd_body_08, fd_body_10, fd_body_20, fd_body_40, fd_body_80, fd_body_0f, fd_body_3f, fd_body_7f",experimental 0x40 from C-CAN 0x541 DATA[7]&0x02; not decoded by public RZC Korea
+raise_matrix,canbox_to_hu 0x06 ac_climate_status,covered,5,"fd_ac_status_00, fd_ac_status_01, fd_ac_status_24, fd_time_06_44_1, fd_time_12_00_1",show climate panel/status; public code comment references 2017 KX5
+raise_matrix,canbox_to_hu 0x07 backlight,covered,10,"fd_backlight_0, fd_backlight_20, fd_backlight_50, fd_backlight_80, fd_backlight_100, fd_audio_balance_07_07, fd_audio_balance_00_07, fd_audio_balance_14_07, fd_audio_balance_07_00, fd_audio_balance_07_14",brightness/backlight level
+raise_matrix,canbox_to_hu 0x7F protocol_version,covered,1,fd_version_lab08,canbox software/protocol version
+raise_matrix,canbox_to_hu 0x7D reverse_local,covered,2,"fd_reverse_02, fd_reverse_00",reverse off/on used by programmer firmware
+raise_matrix,hu_to_canbox 0x03 setting,covered,13,"fd_climate_off, fd_climate_popup_22, fd_climate_auto, fd_climate_ac, fd_climate_front_defog, fd_climate_rear_defog, fd_climate_recirc, fd_climate_face, fd_climate_feet, fd_climate_screen_feet, fd_setting_00, fd_setting_01",settings command; not decoded in public manager
+raise_matrix,hu_to_canbox 0x04 power,covered,8,"fd_radar_00_00, fd_radar_55_00, fd_radar_00_55, fd_radar_55_55, fd_radar_aa_aa, fd_hu_power_00, fd_hu_power_01, fd_hu_power_02",session start/end
+raise_matrix,hu_to_canbox 0x05 volume_adjust,covered,19,"fd_body_00, fd_body_01, fd_body_02, fd_body_04, fd_body_08, fd_body_10, fd_body_20, fd_body_40, fd_body_80, fd_body_0f, fd_body_3f, fd_body_7f",amplifier volume 0..35 after HU scaling
+raise_matrix,hu_to_canbox 0x06 time_info,covered,5,"fd_ac_status_00, fd_ac_status_01, fd_ac_status_24, fd_time_06_44_1, fd_time_12_00_1","time sync; example FD07062C06010040 = 06:44, mode 1"
+raise_matrix,hu_to_canbox 0x07 audio_balance,covered,10,"fd_backlight_0, fd_backlight_20, fd_backlight_50, fd_backlight_80, fd_backlight_100, fd_audio_balance_07_07, fd_audio_balance_00_07, fd_audio_balance_14_07, fd_audio_balance_07_00, fd_audio_balance_07_14",amplifier fade/balance
+raise_matrix,hu_to_canbox 0x08 sound_effects,covered,5,"fd_sound_10_10_10, fd_sound_15_10_10, fd_sound_05_10_10, fd_sound_10_15_10, fd_sound_10_10_15",amplifier tone
+raise_matrix,hu_to_canbox 0x09 host_status_radio,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",radio/FM/AM source status
+raise_matrix,hu_to_canbox 0x09 host_status_usb,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",USB media numeric status; photo shows seconds incrementing
+raise_matrix,hu_to_canbox 0x09 host_status_other,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",other media source
+raise_matrix,hu_to_canbox 0x09 host_status_aux,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",AUX source
+raise_matrix,hu_to_canbox 0x09 host_status_off,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",media off
+raise_matrix,hu_to_canbox 0x09 host_status_navigation,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",navigation source
+raise_matrix,hu_to_canbox 0x09 host_status_bt_music,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",Bluetooth music source
+raise_matrix,hu_to_canbox 0x09 host_status_bt_phone,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",Bluetooth phone call state
+raise_matrix,hu_to_canbox 0x09 host_status_bt_connection,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",Bluetooth connected/disconnected
+raise_matrix,unknown 0xEE valid_unknown,covered,1,fd_ee_200100,valid checksum in user WR photo but not present in public RZC Korea protocol
+raise_rzc_korea_uart,canbox_to_hu 0x01 external_temperature,covered,6,"fd_out_temp_m20, fd_out_temp_m5, fd_out_temp_0, fd_out_temp_19, fd_out_temp_21, fd_out_temp_35",public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x02 steering_panel_key,covered,40,"fd_key_00_press, fd_key_01_press, fd_key_01_release, fd_key_02_press, fd_key_02_release, fd_key_10_press, fd_key_10_release, fd_key_11_press, fd_key_11_release, fd_key_12_press, fd_key_12_release, fd_key_13_press",public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x03 air_conditioning,covered,13,"fd_climate_off, fd_climate_popup_22, fd_climate_auto, fd_climate_ac, fd_climate_front_defog, fd_climate_rear_defog, fd_climate_recirc, fd_climate_face, fd_climate_feet, fd_climate_screen_feet, fd_setting_00, fd_setting_01",public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x04 radar,covered,8,"fd_radar_00_00, fd_radar_55_00, fd_radar_00_55, fd_radar_55_55, fd_radar_aa_aa, fd_hu_power_00, fd_hu_power_01, fd_hu_power_02",public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x05 vehicle_doors,covered,19,"fd_body_00, fd_body_01, fd_body_02, fd_body_04, fd_body_08, fd_body_10, fd_body_20, fd_body_40, fd_body_80, fd_body_0f, fd_body_3f, fd_body_7f",public_and_local_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x05 vehicle_sunroof_candidate,covered,19,"fd_body_00, fd_body_01, fd_body_02, fd_body_04, fd_body_08, fd_body_10, fd_body_20, fd_body_40, fd_body_80, fd_body_0f, fd_body_3f, fd_body_7f",local_experiment
+raise_rzc_korea_uart,canbox_to_hu 0x06 ac_climate_status,covered,5,"fd_ac_status_00, fd_ac_status_01, fd_ac_status_24, fd_time_06_44_1, fd_time_12_00_1",public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x07 backlight,covered,10,"fd_backlight_0, fd_backlight_20, fd_backlight_50, fd_backlight_80, fd_backlight_100, fd_audio_balance_07_07, fd_audio_balance_00_07, fd_audio_balance_14_07, fd_audio_balance_07_00, fd_audio_balance_07_14",public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x7F protocol_version,covered,1,fd_version_lab08,public_confirmed
+raise_rzc_korea_uart,canbox_to_hu 0x7D reverse_local,covered,2,"fd_reverse_02, fd_reverse_00",local_confirmed_not_public
+raise_rzc_korea_uart,hu_to_canbox 0x03 setting,covered,13,"fd_climate_off, fd_climate_popup_22, fd_climate_auto, fd_climate_ac, fd_climate_front_defog, fd_climate_rear_defog, fd_climate_recirc, fd_climate_face, fd_climate_feet, fd_climate_screen_feet, fd_setting_00, fd_setting_01",public_named_unknown_payload
+raise_rzc_korea_uart,hu_to_canbox 0x04 power,covered,8,"fd_radar_00_00, fd_radar_55_00, fd_radar_00_55, fd_radar_55_55, fd_radar_aa_aa, fd_hu_power_00, fd_hu_power_01, fd_hu_power_02",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x05 volume_adjust,covered,19,"fd_body_00, fd_body_01, fd_body_02, fd_body_04, fd_body_08, fd_body_10, fd_body_20, fd_body_40, fd_body_80, fd_body_0f, fd_body_3f, fd_body_7f",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x06 time_info,covered,5,"fd_ac_status_00, fd_ac_status_01, fd_ac_status_24, fd_time_06_44_1, fd_time_12_00_1",public_and_local_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x07 audio_balance,covered,10,"fd_backlight_0, fd_backlight_20, fd_backlight_50, fd_backlight_80, fd_backlight_100, fd_audio_balance_07_07, fd_audio_balance_00_07, fd_audio_balance_14_07, fd_audio_balance_07_00, fd_audio_balance_07_14",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x08 sound_effects,covered,5,"fd_sound_10_10_10, fd_sound_15_10_10, fd_sound_05_10_10, fd_sound_10_15_10, fd_sound_10_10_15",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_radio,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_usb,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_and_local_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_other,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_aux,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_off,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_navigation,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_bt_music,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_bt_phone,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,hu_to_canbox 0x09 host_status_bt_connection,covered,9,"fd_hu_radio_fm, fd_hu_usb_2s, fd_hu_bt_music, fd_hu_nav, fd_hu_aux, fd_hu_off, fd_hu_other, fd_hu_bt_phone, fd_hu_bt_conn",public_confirmed
+raise_rzc_korea_uart,unknown 0xEE valid_unknown,covered,1,fd_ee_200100,needs_live_capture
+external_canbox_uart_candidate,canbox_to_hu 0x20 keys,covered,39,"2e_key_00_press, 2e_key_01_press, 2e_key_01_release, 2e_key_02_press, 2e_key_02_release, 2e_key_10_press, 2e_key_10_release, 2e_key_11_press, 2e_key_11_release, 2e_key_12_press, 2e_key_12_release, 2e_key_13_press",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,canbox_to_hu 0x21 ac,covered,3,"2e_21_0, 2e_21_1, 2e_21_2",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,canbox_to_hu 0x22 rear_radar,covered,3,"2e_22_0, 2e_22_1, 2e_22_2",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,canbox_to_hu 0x23 front_radar,covered,3,"2e_23_0, 2e_23_1, 2e_23_2",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,canbox_to_hu 0x24 vehicle_state,covered,8,"2e_24_0, 2e_24_1, 2e_24_2, 2e_24_3, 2e_24_4, 2e_24_5, 2e_24_6, 2e_24_7",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,canbox_to_hu 0x25 parking_on,covered,2,"2e_25_0, 2e_25_1",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,hu_to_canbox 0x81 start_stop,covered,2,"2e_81_00, 2e_81_01",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,hu_to_canbox 0x90 request_id,covered,1,2e_90_empty,candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,hu_to_canbox 0xA0 amplifier,covered,2,"2e_a0_0, 2e_a0_1",candidate_protocol_not_confirmed_for_teyes_sportage
+external_canbox_uart_candidate,hu_to_canbox 0xA6 time,covered,1,2e_a6_0,candidate_protocol_not_confirmed_for_teyes_sportage
+dashboard_safe_uart,body_closed Кузов: все закрыто,covered,1,fd_hu_volume_00,
+dashboard_safe_uart,door_driver Дверь водитель открыта,covered,1,fd_body_01,
+dashboard_safe_uart,door_passenger Дверь пассажир открыта,covered,1,fd_body_02,
+dashboard_safe_uart,door_rear_left Дверь задняя левая открыта,covered,1,fd_body_04,
+dashboard_safe_uart,door_rear_right Дверь задняя правая открыта,covered,1,fd_body_08,
+dashboard_safe_uart,trunk Багажник открыт,covered,1,fd_body_10,
+dashboard_safe_uart,hood Капот открыт,covered,1,fd_body_20,
+dashboard_safe_uart,sunroof Люк test: body bit6 0x40,covered,1,fd_body_40,"Эксперимент: CAN люка подтвержден, TEYES/Raise bit 0x40 может игнорировать"
+dashboard_safe_uart,sunroof_bit7 Люк test: body bit7 0x80,covered,1,fd_body_80,Экспериментальный альтернативный бит
+dashboard_safe_uart,sunroof_2byte_4000 Люк test: body 40 00,covered,1,fd_body_4000,Экспериментальный 2-byte payload
+dashboard_safe_uart,sunroof_2byte_0040 Люк test: body 00 40,covered,1,fd_body_0040,Экспериментальный 2-byte payload
+dashboard_safe_uart,all_doors Кузов: все двери открыты,covered,1,fd_body_0f,
+dashboard_safe_uart,reverse_on Задний ход on,covered,1,fd_reverse_02,
+dashboard_safe_uart,reverse_off Задний ход off,covered,1,fd_reverse_00,
+dashboard_safe_uart,climate_popup Климат popup demo,covered,1,fd_climate_popup_22,
+dashboard_safe_uart,climate_off Климат popup off,covered,1,fd_climate_off,
+dashboard_safe_uart,key_vol_up Кнопка volume up,covered,1,fd_key_14_press,
+dashboard_safe_uart,key_vol_down Кнопка volume down candidate,covered,1,fd_key_15_press,
+dashboard_safe_uart,key_source Кнопка source/mode candidate,covered,1,fd_key_01_press,
+dashboard_safe_uart,key_mute Кнопка mute candidate,covered,1,fd_key_02_press,
+dashboard_safe_uart,key_release Кнопка release,covered,1,fd_key_release,
+dashboard_safe_uart,outside_temp Наружная температура 21C,covered,1,fd_out_temp_21,
+dashboard_safe_uart,backlight Подсветка 80%,covered,1,fd_backlight_80,
+dashboard_safe_uart,radar_clear Парктроники clear,covered,1,fd_radar_00_00,
+dashboard_safe_uart,radar_demo Парктроники demo,covered,1,fd_radar_55_55,
+dashboard_safe_uart,version Версия canbox LAB08,covered,1,fd_version_lab08,

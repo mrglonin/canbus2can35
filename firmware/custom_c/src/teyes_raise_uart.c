@@ -30,6 +30,7 @@ static uint8_t last_reverse = 0xffU;
 static uint32_t last_heartbeat_ms;
 static uint8_t rx_frame[TEYES_FRAME_MAX];
 static uint8_t rx_pos;
+static teyes_raise_uart_rx_fn_t rx_callback;
 
 static uint16_t frame_checksum(const uint8_t *frame, uint8_t len_field)
 {
@@ -104,6 +105,9 @@ static uint8_t body_flags_from_state(const kia_vehicle_state_t *state)
 	if (state->hood) {
 		flags |= 0x20U;
 	}
+	if (state->sunroof_open) {
+		flags |= 0x40U;
+	}
 	return flags;
 }
 
@@ -135,6 +139,9 @@ static void drain_rx(void)
 		}
 		if (rx_pos >= 2U && rx_frame[1] < (TEYES_FRAME_MAX - 1U) &&
 		    rx_pos > rx_frame[1]) {
+			if (rx_callback != 0) {
+				rx_callback(rx_frame, rx_pos);
+			}
 			rx_pos = 0;
 		}
 	}
@@ -211,4 +218,9 @@ void teyes_raise_uart_send_raw(const uint8_t *data, uint8_t len)
 	(void)data;
 	(void)len;
 #endif
+}
+
+void teyes_raise_uart_set_rx_callback(teyes_raise_uart_rx_fn_t cb)
+{
+	rx_callback = cb;
 }

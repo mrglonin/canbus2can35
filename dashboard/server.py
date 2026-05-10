@@ -38,6 +38,7 @@ STATIC = Path(__file__).resolve().parent / "static"
 MATRIX = ROOT / "data" / "can_function_matrix.csv"
 RAISE_MATRIX = ROOT / "data" / "raise_rzc_korea_uart_matrix.csv"
 LEARNED_ASSIGNMENTS = ROOT / "data" / "learned_assignments.jsonl"
+UART_VERIFICATIONS = ROOT / "data" / "uart_command_verifications.jsonl"
 DEFAULT_LOG = ROOT / "logs" / "car_can_cleanjump_20260506_220618.txt"
 LIVE_LOG_DIR = ROOT / "logs" / "live"
 TOOLS = ROOT / "tools"
@@ -148,12 +149,33 @@ ACTION_PROFILES = {
     "engine_temp": {"ids": {0x329}, "keys": {"engine_temp"}},
     "front_parking": {"ids": {0x436, 0x390, 0x4F4}, "keys": {"parking_sensors"}},
     "rear_parking": {"ids": {0x436, 0x390, 0x4F4, 0x58B}, "keys": {"parking_sensors"}},
-    "auto_hold": {"ids": {0x507}, "labels": {"Auto Hold"}},
+    "parking_brake": {"ids": {0x394, 0x490, 0x541}, "keys": {"epb_490"}},
+    "auto_hold": {"ids": {0x507, 0x153}, "keys": {"auto_hold_507"}},
+    "drive_mode": {"ids": {0x50A, 0x515, 0x507, 0x153}, "keys": {"drive_mode_50a"}},
+    "hill_descent": {"ids": {0x153, 0x507}, "keys": {"hill_descent_153"}},
+    "lock_button": {"ids": {0x541, 0x522}, "keys": {"parking_button_522"}},
 }
 
 LEARN_TARGET_REPEATS = 5
+LEARN_FRAME_LIMIT = 50000
+LEARN_UART_LIMIT = 5000
 BODY_UART_KEYS = {"door_lf", "door_rf", "door_lr", "door_rr", "trunk", "hood", "sunroof"}
 BRIDGE_UART_KEYS = BODY_UART_KEYS | {"reverse_111"}
+ACTION_BRIDGE_DEFAULTS = {
+    "door_driver": {"semantic_key": "door_lf", "mode": "body_flags"},
+    "door_passenger": {"semantic_key": "door_rf", "mode": "body_flags"},
+    "door_rear_left": {"semantic_key": "door_lr", "mode": "body_flags"},
+    "door_rear_right": {"semantic_key": "door_rr", "mode": "body_flags"},
+    "trunk": {"semantic_key": "trunk", "mode": "body_flags"},
+    "hood": {"semantic_key": "hood", "mode": "body_flags"},
+    "sunroof": {"semantic_key": "sunroof", "mode": "body_flags"},
+    "reverse": {
+        "semantic_key": "reverse_111",
+        "mode": "explicit",
+        "uart_hex_on": "FD067D0602008B",
+        "uart_hex_off": "FD067D06000089",
+    },
+}
 
 
 def now_ms() -> int:
@@ -207,6 +229,15 @@ def raise_frame(cmd: int, payload: bytes = b"") -> str:
     checksum_value = raise_checksum(length, cmd, payload)
     frame = bytes([0xFD, length, cmd]) + payload + bytes([(checksum_value >> 8) & 0xFF, checksum_value & 0xFF])
     return frame.hex(" ").upper()
+
+
+def canbox2e_checksum(cmd: int, payload: bytes) -> int:
+    return ((cmd + len(payload) + sum(payload)) & 0xFF) ^ 0xFF
+
+
+def canbox2e_frame(cmd: int, payload: bytes = b"") -> str:
+    frame = bytes([0x2E, cmd & 0xFF, len(payload) & 0xFF]) + payload
+    return (frame + bytes([canbox2e_checksum(cmd, payload)])).hex(" ").upper()
 
 
 def format_hms(seconds: int) -> str:
@@ -375,6 +406,88 @@ def decode_raise_frame(data: bytes) -> dict:
         "checksum": f"got=0x{got:04X} want=0x{want:04X}" + (" accepted_zero" if zero_checksum_quirk else ""),
         "text": text,
         "fields": fields,
+    }
+
+
+def decode_canbox2e_frame(data: bytes) -> dict:
+    if len(data) < 4 or data[0] != 0x2E:
+        return {"raw": data.hex(" ").upper(), "valid": False, "text": "not 2E canbox frame"}
+    cmd = data[1]
+    payload_len = data[2]
+    payload = data[3:-1]
+    got = data[-1]
+    want = canbox2e_checksum(cmd, payload)
+    cmd_names = {
+        0x20: "keys/buttons",
+        0x21: "air conditioning",
+        0x22: "rear radar",
+        0x23: "front radar",
+        0x24: "vehicle state",
+        0x25: "parking state",
+        0x81: "HU start/stop",
+        0x90: "HU request canbox id",
+        0xA0: "HU amplifier",
+        0xA6: "HU set time",
+    }
+    cmd_name = cmd_names.get(cmd, f"cmd 0x{cmd:02X}")
+    fields: dict[str, object] = {
+        "protocol": "canbox_2e",
+        "cmd_int": cmd,
+        "cmd_name": cmd_name,
+        "payload_len": len(payload),
+    }
+    text = f"2E {cmd_name}, payload {payload.hex(' ').upper() or '-'}"
+    if cmd == 0x20 and len(payload) >= 2:
+        text = f"2E кнопка/key code=0x{payload[0]:02X}, status=0x{payload[1]:02X}"
+        fields.update({"kind": "key", "key_code": f"0x{payload[0]:02X}", "status": payload[1]})
+    elif cmd == 0x21:
+        text = f"2E климат/AC raw {payload.hex(' ').upper() or '-'}"
+        fields.update({"kind": "climate"})
+    elif cmd in (0x22, 0x23):
+        text = f"2E {'задние' if cmd == 0x22 else 'передние'} парктроники raw {payload.hex(' ').upper() or '-'}"
+        fields.update({"kind": "parking_radar", "radar_side": "rear" if cmd == 0x22 else "front"})
+    elif cmd == 0x24:
+        text = f"2E состояние авто raw {payload.hex(' ').upper() or '-'}"
+        fields.update({"kind": "vehicle_state"})
+    elif cmd == 0x25:
+        text = f"2E parking state raw {payload.hex(' ').upper() or '-'}"
+        fields.update({"kind": "parking_state"})
+    elif cmd == 0x81 and payload:
+        state = "start/on" if payload[0] == 0x00 else "stop/off" if payload[0] == 0x01 else f"0x{payload[0]:02X}"
+        text = f"2E HU session {state}"
+        fields.update({"kind": "hu_power", "state": state})
+    elif cmd == 0x90:
+        text = "2E HU запрос ID canbox"
+        fields.update({"kind": "request_id"})
+    elif cmd == 0xA0:
+        text = f"2E усилитель/amplifier raw {payload.hex(' ').upper() or '-'}"
+        fields.update({"kind": "amplifier"})
+    elif cmd == 0xA6:
+        text = f"2E установка времени raw {payload.hex(' ').upper() or '-'}"
+        fields.update({"kind": "hu_time"})
+    return {
+        "raw": data.hex(" ").upper(),
+        "valid": got == want and len(payload) == payload_len and len(data) == payload_len + 4,
+        "cmd": f"0x{cmd:02X}",
+        "payload": payload.hex(" ").upper(),
+        "checksum": f"got=0x{got:02X} want=0x{want:02X}",
+        "text": text,
+        "fields": fields,
+    }
+
+
+def decode_canbox_uart_frame(data: bytes) -> dict:
+    if data.startswith(b"\xFD"):
+        decoded = decode_raise_frame(data)
+        decoded.setdefault("fields", {})["protocol"] = "raise_rzc_fd"
+        return decoded
+    if data.startswith(b"\x2E"):
+        return decode_canbox2e_frame(data)
+    return {
+        "raw": data.hex(" ").upper(),
+        "valid": False,
+        "text": f"unknown UART frame prefix 0x{data[0]:02X}" if data else "empty UART frame",
+        "fields": {"protocol": "unknown"},
     }
 
 
@@ -547,29 +660,51 @@ class RaiseStreamParser:
         self.buf.extend(data)
         frames: list[bytes] = []
         while self.buf:
-            if self.buf[0] != 0xFD:
-                next_fd = self.buf.find(0xFD)
-                if next_fd < 0:
+            if self.buf[0] not in (0xFD, 0x2E):
+                starts = [idx for idx in (self.buf.find(0xFD), self.buf.find(0x2E)) if idx >= 0]
+                if not starts:
                     self.buf.clear()
                     break
-                del self.buf[:next_fd]
-            if len(self.buf) < 2:
-                break
-            length = self.buf[1]
-            total = length + 1
-            if length < 4 or total > 128:
+                del self.buf[:min(starts)]
+            if self.buf[0] == 0xFD:
+                if len(self.buf) < 2:
+                    break
+                length = self.buf[1]
+                total = length + 1
+                if length < 4 or total > 128:
+                    del self.buf[0]
+                    continue
+                if len(self.buf) < total:
+                    break
+                candidate = bytes(self.buf[:total])
+                got = (candidate[-2] << 8) | candidate[-1]
+                want = raise_checksum(candidate[1], candidate[2], candidate[3:-2])
+                if got != want:
+                    next_starts = [idx for idx in (self.buf.find(0xFD, 1), self.buf.find(0x2E, 1)) if 0 < idx < total]
+                    if next_starts:
+                        del self.buf[:min(next_starts)]
+                        continue
+            elif self.buf[0] == 0x2E:
+                if len(self.buf) < 3:
+                    break
+                payload_len = self.buf[2]
+                total = payload_len + 4
+                if total > 128:
+                    del self.buf[0]
+                    continue
+                if len(self.buf) < total:
+                    break
+                candidate = bytes(self.buf[:total])
+                got = candidate[-1]
+                want = canbox2e_checksum(candidate[1], candidate[3:-1])
+                if got != want:
+                    next_starts = [idx for idx in (self.buf.find(0xFD, 1), self.buf.find(0x2E, 1)) if 0 < idx < total]
+                    if next_starts:
+                        del self.buf[:min(next_starts)]
+                        continue
+            else:
                 del self.buf[0]
                 continue
-            if len(self.buf) < total:
-                break
-            candidate = bytes(self.buf[:total])
-            got = (candidate[-2] << 8) | candidate[-1]
-            want = raise_checksum(candidate[1], candidate[2], candidate[3:-2])
-            if got != want:
-                next_fd = self.buf.find(0xFD, 1)
-                if 0 < next_fd < total:
-                    del self.buf[:next_fd]
-                    continue
             frames.append(candidate)
             del self.buf[:total]
         return frames
@@ -579,12 +714,17 @@ def split_raise_frames(data: bytes) -> list[bytes]:
     frames: list[bytes] = []
     i = 0
     while i < len(data):
-        if data[i] != 0xFD:
+        if data[i] == 0xFD:
+            if i + 1 >= len(data):
+                break
+            end = i + data[i + 1] + 1
+        elif data[i] == 0x2E:
+            if i + 2 >= len(data):
+                break
+            end = i + data[i + 2] + 4
+        else:
             i += 1
             continue
-        if i + 1 >= len(data):
-            break
-        end = i + data[i + 1] + 1
         if end > len(data):
             break
         frames.append(data[i:end])
@@ -615,7 +755,7 @@ def parse_uart_lines(line: str, parser: RaiseStreamParser | None = None) -> list
     out = []
     frames = parser.feed(data) if parser is not None else split_raise_frames(data)
     for frame in frames:
-        decoded = decode_raise_frame(frame)
+        decoded = decode_canbox_uart_frame(frame)
         out.append({
             "ts": ts,
             "ms": now_ms(),
@@ -744,6 +884,7 @@ CONFIRMED_SEMANTIC_KEYS = {
 def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
     data = frame_bytes(frame)
     can_id = frame.get("id")
+    ch = int(frame.get("ch", 0))
     values: list[tuple[str, str, str, str]] = []
 
     if can_id == 0x541 and len(data) >= 8:
@@ -773,6 +914,9 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
         values.append(("speed_candidate", "Скорость", f"{data[6]} км/ч", "0x316 EMS11 candidate"))
         values.append(("rpm_316", "Обороты двигателя", rpm_from_ems11(data), "C-CAN ch1 STD 0x316 EMS11 DATA[2..3]/4"))
 
+    if ch == 1 and can_id == 0x394 and len(data) >= 1:
+        values.append(("brake_394", "Тормоз / стоп raw", raw_data_text(data), "C-CAN ch1 STD 0x394 brake candidate"))
+
     if can_id == 0x329 and len(data) >= 2:
         values.append(("engine_temp", "Температура двигателя", engine_temp_from_ems12(data[1]), "C-CAN ch1 STD 0x329 EMS12 DATA[1], формула прошивки прогера"))
 
@@ -799,24 +943,12 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
         values.append(("climate_temp_042", "Климат DATC12 raw", raw_data_text(data), "C-CAN ch1 STD 0x042 DATC12"))
 
     if can_id == 0x043 and len(data) >= 3:
-        values.append((
-            "front_defog_up_043",
-            "Обдув вверх/лобовое",
-            on_off((data[2] & 0x40) != 0),
-            "C-CAN ch1 STD 0x043 DATA[2] bit6",
-        ))
         values.append(("climate_display_043", "Климат DATC13 raw", raw_data_text(data), "C-CAN ch1 STD 0x043 DATC13"))
 
     if can_id == 0x131 and len(data) >= 1:
         values.append(("climate_temp_131", "Климат DATC_PE_02 raw", raw_data_text(data), "M-CAN ch0 STD 0x131 DATC_PE_02"))
 
     if can_id == 0x132 and len(data) >= 3:
-        values.append((
-            "front_defog_up_132",
-            "Обдув вверх/лобовое",
-            on_off((data[2] & 0x01) != 0),
-            "M-CAN ch0 STD 0x132 DATA[2] bit0",
-        ))
         values.append(("climate_display_132", "Климат DATC_PE_03 raw", raw_data_text(data), "M-CAN ch0 STD 0x132 DATC_PE_03"))
 
     if can_id == 0x4E5 and len(data) >= 8:
@@ -830,13 +962,33 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
     if can_id == 0x436 and len(data) >= 4:
         values.append(("parking_sensors", "Парктроники", "нет препятствий" if data == b"\x00\x00\x00\x00" else data.hex(" ").upper(), "0x436 PAS11"))
 
+    if ch == 1 and can_id == 0x490 and len(data) >= 1:
+        values.append(("epb_490", "EPB / ручник raw", raw_data_text(data), "C-CAN ch1 STD 0x490 EPB candidate"))
+
+    if ch == 1 and can_id == 0x153 and len(data) >= 1:
+        values.append(("hill_descent_153", "Спуск/TCS raw", raw_data_text(data), "C-CAN ch1 STD 0x153 TCS11 candidate"))
+
+    if ch == 1 and can_id == 0x507 and len(data) >= 1:
+        values.append(("auto_hold_507", "Auto Hold raw", raw_data_text(data), "C-CAN ch1 STD 0x507 TCS15/AVH candidate"))
+
+    if ch == 1 and can_id == 0x50A and len(data) >= 1:
+        values.append(("drive_mode_50a", "Drive Mode raw", raw_data_text(data), "C-CAN ch1 STD 0x50A SCC13 candidate"))
+
+    if ch == 1 and can_id == 0x515 and len(data) >= 1:
+        values.append(("cluster_settings_515", "Настройки/режим raw", raw_data_text(data), "C-CAN ch1 STD 0x515 cluster candidate"))
+
+    if ch == 1 and can_id == 0x4F4 and len(data) >= 1:
+        values.append(("parking_zones_4f4", "Парковка зоны raw", raw_data_text(data), "C-CAN ch1 STD 0x4F4 parking zones candidate"))
+
+    if ch == 0 and can_id == 0x522 and len(data) >= 1:
+        values.append(("parking_button_522", "Парковка/кнопки raw", raw_data_text(data), "M-CAN ch0 STD 0x522 IPM/button candidate"))
+
     if can_id == 0x390 and len(data) >= 1:
         values.append(("parking_spas_390", "SPAS / динамические линии raw", raw_data_text(data), "C-CAN ch1 STD 0x390 SPAS11"))
 
     if can_id == 0x58B and len(data) >= 1:
         values.append(("parking_safety_58b", "RCTA / слепые зоны raw", raw_data_text(data), "C-CAN ch1 STD 0x58B LCA11"))
 
-    ch = int(frame.get("ch", 0))
     if ch == 0 and can_id == 0x114 and len(data) >= 1:
         values.append(("media_hu_114", "HU источник raw", raw_data_text(data), "M-CAN ch0 STD 0x114 HU_CLU_PE_01"))
     if ch == 0 and can_id == 0x197 and len(data) >= 1:
@@ -851,6 +1003,36 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
         values.append(("media_nav_tbt_4bb", "Навигация TBT raw", raw_data_text(data), "M-CAN ch0 STD 0x4BB"))
 
     return values
+
+
+def frame_matches_action_profile(frame: dict, semantic_updates: list[tuple[str, str, str, str]], profile: dict | None) -> bool:
+    if not profile:
+        return False
+    can_id = int(frame.get("id", 0))
+    allowed_ids = set(profile.get("ids") or set())
+    allowed_keys = set(profile.get("keys") or set())
+    allowed_labels = set(profile.get("labels") or set())
+    semantic_keys = {item[0] for item in semantic_updates}
+    semantic_labels = {item[1] for item in semantic_updates}
+    return (
+        can_id in allowed_ids
+        or bool(allowed_keys & semantic_keys)
+        or bool(allowed_labels & semantic_labels)
+    )
+
+
+def should_keep_learning_frame(frame: dict, semantic_updates: list[tuple[str, str, str, str]], action_id: str | None) -> tuple[bool, bool]:
+    """Return (keep, hidden_as_known_noise). Known confirmed frames are noise unless they belong to selected action."""
+    profile = ACTION_PROFILES.get(str(action_id or ""))
+    if frame_matches_action_profile(frame, semantic_updates, profile):
+        return True, False
+    semantic_keys = {item[0] for item in semantic_updates}
+    known_confirmed = bool(semantic_keys & CONFIRMED_SEMANTIC_KEYS)
+    if known_confirmed:
+        return False, True
+    if profile:
+        return False, False
+    return True, False
 
 
 def channel_label(frame: dict) -> str:
@@ -1220,9 +1402,18 @@ class DashboardState:
             for idx, value in enumerate(data[:8]):
                 self.byte_values[key][idx].add(value)
             if self.learn.get("active") and not self.learn.get("capture_closed"):
-                self.learn["frames"].append(dict(frame))
-                if len(self.learn["frames"]) > 5000:
-                    self.learn["frames"] = self.learn["frames"][-5000:]
+                self.learn["raw_frames_seen"] = int(self.learn.get("raw_frames_seen", 0)) + 1
+                keep_learning_frame, hidden_known_noise = should_keep_learning_frame(
+                    frame,
+                    semantic_updates,
+                    self.learn.get("action_id"),
+                )
+                if hidden_known_noise:
+                    self.learn["known_noise_hidden"] = int(self.learn.get("known_noise_hidden", 0)) + 1
+                if keep_learning_frame:
+                    self.learn["frames"].append(dict(frame))
+                    if len(self.learn["frames"]) > LEARN_FRAME_LIMIT:
+                        self.learn["frames"] = self.learn["frames"][-LEARN_FRAME_LIMIT:]
             for state_key, label, value, source in semantic_updates:
                 previous = self.semantic_values.get(state_key, {}).get("value")
                 current = {
@@ -1295,8 +1486,8 @@ class DashboardState:
             self.update_uart_state_locked(item)
             if self.learn.get("active"):
                 self.learn["uart"].append(dict(item))
-                if len(self.learn["uart"]) > 1000:
-                    self.learn["uart"] = self.learn["uart"][-1000:]
+                if len(self.learn["uart"]) > LEARN_UART_LIMIT:
+                    self.learn["uart"] = self.learn["uart"][-LEARN_UART_LIMIT:]
         self.broadcast({"type": "uart", "uart": item, "summary": self.summary()})
 
     def record_uart_tx(self, count: int = 1) -> None:
@@ -1320,6 +1511,23 @@ class DashboardState:
         return flags
 
     def bridge_uart_request_locked(self, state_key: str, value: str) -> tuple[str, str, int | None] | None:
+        for item in reversed(load_learned_assignments()):
+            bridge = item.get("bridge") or {}
+            if bridge.get("enabled") is False:
+                continue
+            if str(bridge.get("semantic_key") or "") != state_key:
+                continue
+            mode = str(bridge.get("mode") or "explicit")
+            if mode == "body_flags" and state_key in BODY_UART_KEYS:
+                flags = self.body_uart_flags_locked()
+                return (f"learned:{state_key}", raise_frame(0x05, bytes([flags])).replace(" ", ""), flags)
+            uart_hex = bridge.get("uart_hex_on") if value_is_active(value) else bridge.get("uart_hex_off")
+            try:
+                uart_hex = normalized_uart_hex_or_empty(uart_hex)
+            except ValueError:
+                uart_hex = ""
+            if uart_hex:
+                return (f"learned:{state_key}", uart_hex, None)
         if state_key in BODY_UART_KEYS:
             flags = self.body_uart_flags_locked()
             return ("body", raise_frame(0x05, bytes([flags])).replace(" ", ""), flags)
@@ -1418,6 +1626,8 @@ class DashboardState:
                 "target_repeats": LEARN_TARGET_REPEATS,
                 "capture_closed": False,
                 "detected_events": [],
+                "raw_frames_seen": 0,
+                "known_noise_hidden": 0,
             }
         self.marker(f"START {action_id} {action_name}")
         self.broadcast({"type": "summary", "summary": self.summary()})
@@ -1430,8 +1640,13 @@ class DashboardState:
             action_id = self.learn.get("action_id") or "manual"
             action_name = self.learn.get("action_name") or action_id
             started_ms = self.learn.get("started_ms")
+            raw_frames_seen = int(self.learn.get("raw_frames_seen", len(frames)))
+            known_noise_hidden = int(self.learn.get("known_noise_hidden", 0))
             self.learn["active"] = False
         result = analyze_learning(action_id, action_name, started_ms, frames, uart)
+        result["raw_frames_seen"] = raw_frames_seen
+        result["known_noise_hidden"] = known_noise_hidden
+        result["frame_limit"] = LEARN_FRAME_LIMIT
         with self.lock:
             self.learn["result"] = result
         self.marker(f"STOP {action_id} candidates={len(result['candidates'])} uart={len(result['uart'])}")
@@ -1446,6 +1661,10 @@ class DashboardState:
                 "action_name": self.learn.get("action_name"),
                 "started_ms": self.learn.get("started_ms"),
                 "frames_count": len(self.learn.get("frames", [])),
+                "raw_frames_seen": int(self.learn.get("raw_frames_seen", 0)),
+                "known_noise_hidden": int(self.learn.get("known_noise_hidden", 0)),
+                "frame_limit": LEARN_FRAME_LIMIT,
+                "uart_limit": LEARN_UART_LIMIT,
                 "uart_count": len(self.learn.get("uart", [])),
                 "result": self.learn.get("result"),
                 "detected_changes": self.learn.get("detected_changes", 0),
@@ -1584,6 +1803,10 @@ class DashboardState:
                     "action_name": self.learn.get("action_name"),
                     "started_ms": self.learn.get("started_ms"),
                     "frames_count": len(self.learn.get("frames", [])),
+                    "raw_frames_seen": int(self.learn.get("raw_frames_seen", 0)),
+                    "known_noise_hidden": int(self.learn.get("known_noise_hidden", 0)),
+                    "frame_limit": LEARN_FRAME_LIMIT,
+                    "uart_limit": LEARN_UART_LIMIT,
                     "uart_count": len(self.learn.get("uart", [])),
                     "result": self.learn.get("result"),
                     "detected_changes": self.learn.get("detected_changes", 0),
@@ -1889,7 +2112,7 @@ def run_send_uart(command: str) -> dict:
     uart_hex = lab_command_to_uart_hex(command)
     path = append_tx_request({"type": "uart", "uart_hex": uart_hex})
     STATE.record_uart_tx()
-    decoded = decode_raise_frame(bytes.fromhex(uart_hex))
+    decoded = decode_canbox_uart_frame(bytes.fromhex(uart_hex))
     STATE.marker(f"uart tx: {spaced_hex(uart_hex)}")
     return {
         "ok": True,
@@ -1959,6 +2182,30 @@ def run_sweep_can(payload: dict) -> dict:
     path = append_tx_request({"frames": frames})
     STATE.marker(f"sweep ch{base['channel']} {base['id']} byte{byte_index} {start}->{end} frames={len(frames) * count_each}")
     return {"ok": True, "queued": len(frames), "frames": len(frames) * count_each, "tx_control": str(path)}
+
+
+def save_uart_verification(payload: dict) -> dict:
+    command_id = str(payload.get("command_id") or "").strip()
+    verdict = str(payload.get("verdict") or "").strip().lower()
+    if not command_id:
+        raise ValueError("command_id is required")
+    if verdict not in {"works", "no_effect", "bad", "unsafe", "unknown"}:
+        raise ValueError("verdict must be works, no_effect, bad, unsafe or unknown")
+    item = {
+        "saved_ms": now_ms(),
+        "command_id": command_id,
+        "verdict": verdict,
+        "name": str(payload.get("name") or ""),
+        "frame": spaced_hex(str(payload.get("frame") or "")),
+        "protocol": str(payload.get("protocol") or ""),
+        "profile": str(payload.get("profile") or ""),
+        "note": str(payload.get("note") or ""),
+    }
+    UART_VERIFICATIONS.parent.mkdir(parents=True, exist_ok=True)
+    with UART_VERIFICATIONS.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(item, ensure_ascii=False, separators=(",", ":")) + "\n")
+    STATE.marker(f"uart verdict {command_id}: {verdict}")
+    return {"ok": True, "path": str(UART_VERIFICATIONS), "item": item}
 
 
 def read_json(handler: SimpleHTTPRequestHandler) -> dict:
@@ -2037,6 +2284,203 @@ def load_learned_assignments() -> list[dict]:
                     items.append(item)
             except json.JSONDecodeError:
                 items.append({"raw": line, "error": "json_decode"})
+    return items
+
+
+def load_uart_verifications() -> list[dict]:
+    items = []
+    if not UART_VERIFICATIONS.exists():
+        return items
+    with UART_VERIFICATIONS.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                items.append(json.loads(line))
+            except json.JSONDecodeError:
+                items.append({"raw": line, "error": "json_decode"})
+    return items
+
+
+def latest_uart_verdicts() -> dict[str, dict]:
+    latest: dict[str, dict] = {}
+    for item in load_uart_verifications():
+        command_id = str(item.get("command_id") or "")
+        if command_id:
+            latest[command_id] = item
+    return latest
+
+
+def normalized_uart_hex_or_empty(value) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return lab_command_to_uart_hex(text)
+
+
+def value_is_active(value: str) -> bool:
+    return str(value).strip().lower() in {"открыто", "включено", "on", "1", "true", "да"}
+
+
+def uart_candidate(command_id: str, group: str, protocol: str, direction: str, name: str, frame: str, note: str = "") -> dict:
+    raw = frame.replace(" ", "")
+    decoded = decode_canbox_uart_frame(bytes.fromhex(raw))
+    return {
+        "id": command_id,
+        "group": group,
+        "protocol": protocol,
+        "direction": direction,
+        "name": name,
+        "frame": spaced_hex(raw),
+        "lab": "u" + raw,
+        "decoded": decoded.get("text", ""),
+        "status": "candidate",
+        "note": note,
+    }
+
+
+def build_uart_candidate_tests() -> list[dict]:
+    items: list[dict] = []
+    body_bits = [
+        (0x00, "кузов все закрыто"),
+        (0x01, "дверь LF"),
+        (0x02, "дверь RF"),
+        (0x04, "дверь LR"),
+        (0x08, "дверь RR"),
+        (0x10, "багажник"),
+        (0x20, "капот"),
+        (0x40, "люк candidate bit6"),
+        (0x80, "люк/доп bit7 candidate"),
+        (0x0F, "все двери"),
+        (0x3F, "двери+багажник+капот"),
+        (0x7F, "кузов все flags bit0..6"),
+    ]
+    for value, name in body_bits:
+        items.append(uart_candidate(f"fd_body_{value:02x}", "Raise FD кузов", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x05, bytes([value]))))
+    for payload, name in [
+        (bytes([0x40, 0x00]), "люк candidate 2-byte 40 00"),
+        (bytes([0x00, 0x40]), "люк candidate 2-byte 00 40"),
+    ]:
+        items.append(uart_candidate(f"fd_body_{payload.hex()}", "Raise FD кузов", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x05, payload), "Дубликат quick-команд для проверки люка."))
+
+    keys = {
+        0x00: "release",
+        0x01: "source/mode candidate",
+        0x02: "mute candidate",
+        0x10: "mute",
+        0x11: "source/mode",
+        0x12: "seek up",
+        0x13: "seek down",
+        0x14: "volume up",
+        0x15: "volume down",
+        0x16: "phone accept",
+        0x17: "phone hangup",
+        0x18: "panel power",
+        0x19: "panel volume up",
+        0x1A: "panel volume down",
+        0x1B: "panel FM/AM",
+        0x1C: "panel media",
+        0x1D: "panel phone",
+        0x1E: "panel display",
+        0x1F: "panel seek up",
+        0x20: "panel seek down",
+    }
+    for code, name in keys.items():
+        items.append(uart_candidate(f"fd_key_{code:02x}_press", "Raise FD кнопки", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x02, bytes([code, 0x01]))))
+        if code:
+            items.append(uart_candidate(f"fd_key_{code:02x}_release", "Raise FD кнопки", "raise_rzc_fd", "canbox_to_hu", f"{name} release", raise_frame(0x02, bytes([code, 0x00]))))
+    items.append(uart_candidate("fd_key_release", "Raise FD кнопки", "raise_rzc_fd", "canbox_to_hu", "key release", raise_frame(0x02, bytes([0x00, 0x00]))))
+
+    climate_samples = [
+        ("off", "климат выкл", [0, 0, 0, 0x00]),
+        ("popup_22", "климат 22/22 fan3", [22, 22, 3, 0x24]),
+        ("auto", "AUTO candidate", [22, 22, 3, 0x20]),
+        ("ac", "A/C candidate", [22, 22, 3, 0x04]),
+        ("front_defog", "обдув лобового candidate", [22, 22, 4, 0x40]),
+        ("rear_defog", "задний обогрев candidate", [22, 22, 3, 0x80]),
+        ("recirc", "рециркуляция candidate", [22, 22, 3, 0x10]),
+        ("face", "обдув лицо candidate", [22, 22, 2, 0x01]),
+        ("feet", "обдув ноги candidate", [22, 22, 2, 0x02]),
+        ("screen_feet", "стекло+ноги candidate", [22, 22, 3, 0x42]),
+    ]
+    for suffix, name, payload in climate_samples:
+        items.append(uart_candidate(f"fd_climate_{suffix}", "Raise FD климат", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x03, bytes(payload))))
+
+    for temp in [-20, -5, 0, 19, 21, 35]:
+        raw = (abs(temp) | 0x80) if temp < 0 else temp
+        items.append(uart_candidate(f"fd_out_temp_{temp}".replace("-", "m"), "Raise FD климат", "raise_rzc_fd", "canbox_to_hu", f"наружная {temp}C", raise_frame(0x01, bytes([raw]))))
+    for level in [0, 20, 50, 80, 100]:
+        items.append(uart_candidate(f"fd_backlight_{level}", "Raise FD сервис", "raise_rzc_fd", "canbox_to_hu", f"подсветка {level}", raise_frame(0x07, bytes([level]))))
+    for front, rear, name in [(0, 0, "парктроники clear"), (0x55, 0, "перед близко"), (0, 0x55, "зад близко"), (0x55, 0x55, "перед+зад близко"), (0xAA, 0xAA, "зоны pattern AA")]:
+        items.append(uart_candidate(f"fd_radar_{front:02x}_{rear:02x}", "Raise FD парктроники", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x04, bytes([front, rear]))))
+    for payload, name in [(bytes([0x06, 0x02]), "задний ход on"), (bytes([0x06, 0x00]), "задний ход off")]:
+        items.append(uart_candidate(f"fd_reverse_{payload[-1]:02x}", "Raise FD движение", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x7D, payload)))
+
+    for value, name in [(0x00, "climate status 00"), (0x01, "climate status 01"), (0x24, "climate status 24")]:
+        items.append(uart_candidate(f"fd_ac_status_{value:02x}", "Raise FD климат", "raise_rzc_fd", "canbox_to_hu", name, raise_frame(0x06, bytes([value])), "Покрывает строку matrix ac_climate_status 0x06."))
+    for minute, hour, mode, name in [(44, 6, 1, "time 06:44 mode1"), (0, 12, 1, "time 12:00 mode1")]:
+        items.append(uart_candidate(f"fd_time_{hour:02d}_{minute:02d}_{mode}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", name, raise_frame(0x06, bytes([minute, hour, mode])), "TEYES -> canbox time_info."))
+    for payload, name in [
+        (bytes([0x00]), "HU power/session start"),
+        (bytes([0x01]), "HU power/session stop"),
+        (bytes([0x02]), "HU power/session candidate 02"),
+    ]:
+        items.append(uart_candidate(f"fd_hu_power_{payload[0]:02x}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", name, raise_frame(0x04, payload), "cmd 0x04 с 1 байтом декодируется как HU power, с 2 байтами как radar."))
+    for volume in [0, 5, 10, 20, 35]:
+        items.append(uart_candidate(f"fd_hu_volume_{volume:02d}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", f"volume adjust {volume}", raise_frame(0x05, bytes([volume])), "cmd 0x05 len1 конфликтует с body flags; проверять осторожно."))
+    for fade, balance, name in [(7, 7, "balance center"), (0, 7, "fade rear/max candidate"), (14, 7, "fade front/max candidate"), (7, 0, "balance left/max candidate"), (7, 14, "balance right/max candidate")]:
+        items.append(uart_candidate(f"fd_audio_balance_{fade:02d}_{balance:02d}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", name, raise_frame(0x07, bytes([fade, balance])), "TEYES -> canbox audio_balance."))
+    for bass, mid, treble, name in [(10, 10, 10, "EQ flat"), (15, 10, 10, "bass +5"), (5, 10, 10, "bass -5"), (10, 15, 10, "mid +5"), (10, 10, 15, "treble +5")]:
+        items.append(uart_candidate(f"fd_sound_{bass:02d}_{mid:02d}_{treble:02d}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", name, raise_frame(0x08, bytes([bass, mid, treble])), "TEYES -> canbox sound_effects."))
+    for payload, name in [(bytes([0x00]), "setting 00"), (bytes([0x01]), "setting 01"), (bytes([0x16, 0x03, 0x24]), "setting candidate 16 03 24")]:
+        items.append(uart_candidate(f"fd_setting_{payload.hex()}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", name, raise_frame(0x03, payload), "Matrix знает cmd 0x03 как setting, payload публично не расшифрован."))
+    items.append(uart_candidate("fd_ee_200100", "Raise FD unknown", "raise_rzc_fd", "unknown", "valid unknown EE 20 01 00", raise_frame(0xEE, bytes([0x20, 0x01, 0x00])), "Валидный кадр с фото/лога, назначение требует проверки."))
+
+    hu_status = [
+        ("radio_fm", "HU status FM", [0x02, 0x00, 101, 70]),
+        ("usb_2s", "HU status USB 2s", [0x16, 0, 0, 0, 0, 2]),
+        ("bt_music", "HU status BT music", [0x11, 0]),
+        ("nav", "HU status navigation", [0x06, 0]),
+        ("aux", "HU status AUX", [0x12, 0]),
+        ("off", "HU status media off", [0x80, 0]),
+        ("other", "HU status other", [0x83, 0]),
+        ("bt_phone", "HU status phone", [0x07, 1]),
+        ("bt_conn", "HU status BT connected", [0x0B, 4]),
+    ]
+    for suffix, name, payload in hu_status:
+        items.append(uart_candidate(f"fd_hu_{suffix}", "Raise FD HU→canbox", "raise_rzc_fd", "hu_to_canbox", name, raise_frame(0x09, bytes(payload)), "Обычно это направление от магнитолы к canbox; отправка в HU может не иметь визуального эффекта."))
+    items.append(uart_candidate("fd_version_lab08", "Raise FD сервис", "raise_rzc_fd", "canbox_to_hu", "версия LAB08", raise_frame(0x7F, b"LAB08")))
+
+    for code, name in keys.items():
+        items.append(uart_candidate(f"2e_key_{code:02x}_press", "Simple/2E кнопки", "canbox_2e", "canbox_to_hu", name, canbox2e_frame(0x20, bytes([code, 0x01])), "Кандидат Simple/Hiworld, подтверждать live."))
+        if code:
+            items.append(uart_candidate(f"2e_key_{code:02x}_release", "Simple/2E кнопки", "canbox_2e", "canbox_to_hu", f"{name} release", canbox2e_frame(0x20, bytes([code, 0x00])), "Кандидат Simple/Hiworld, подтверждать live."))
+    for payload, name in [
+        (b"", "request id"),
+        (bytes([0x00]), "session start"),
+        (bytes([0x01]), "session stop"),
+    ]:
+        cmd = 0x90 if not payload else 0x81
+        items.append(uart_candidate(f"2e_{cmd:02x}_{payload.hex() or 'empty'}", "Simple/2E HU", "canbox_2e", "hu_to_canbox", name, canbox2e_frame(cmd, payload), "Кандидат Simple/Hiworld."))
+    for cmd, name, payloads in [
+        (0x21, "климат raw", [bytes([0, 0, 0, 0]), bytes([22, 22, 3, 0x24]), bytes([22, 22, 4, 0x40])]),
+        (0x22, "задние парктроники", [bytes([0, 0, 0, 0]), bytes([1, 2, 2, 1]), bytes([3, 3, 3, 3])]),
+        (0x23, "передние парктроники", [bytes([0, 0, 0, 0]), bytes([1, 2, 2, 1]), bytes([3, 3, 3, 3])]),
+        (0x24, "состояние авто", [bytes([0]), bytes([1]), bytes([2]), bytes([4]), bytes([8]), bytes([0x10]), bytes([0x20]), bytes([0x40])]),
+        (0x25, "parking state", [bytes([0]), bytes([1])]),
+        (0xA0, "amplifier", [bytes([0]), bytes([10, 10, 10])]),
+        (0xA6, "time", [bytes([44, 6, 1])]),
+    ]:
+        for index, payload in enumerate(payloads):
+            items.append(uart_candidate(f"2e_{cmd:02x}_{index}", f"Simple/2E {name}", "canbox_2e", "mixed", f"{name} #{index}", canbox2e_frame(cmd, payload), "Кандидат Simple/Hiworld, подтверждать live."))
+
+    verdicts = latest_uart_verdicts()
+    for item in items:
+        verdict = verdicts.get(item["id"])
+        if verdict:
+            item["verification"] = verdict
+            item["status"] = verdict.get("verdict", item["status"])
     return items
 
 
@@ -2124,6 +2568,8 @@ def command_catalog() -> dict:
         "can_matrix": can_rows,
         "can_summary": can_summary,
         "safe_uart_tests": safe_uart,
+        "uart_candidate_tests": build_uart_candidate_tests(),
+        "uart_verifications": load_uart_verifications(),
         "hu_to_canbox_examples": hu_examples,
         "demo_scenarios": demo_scenarios,
         "test_plan": build_test_plan(),
@@ -2252,6 +2698,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/learned":
             json_response(self, load_learned_assignments())
+            return
+        if parsed.path == "/api/uart/verifications":
+            json_response(self, load_uart_verifications())
             return
         if parsed.path == "/api/export":
             json_response(self, {
@@ -2421,6 +2870,18 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 json_response(self, {"ok": True, "result": result})
                 return
             if parsed.path == "/api/learn/save":
+                bridge = payload.get("bridge") if isinstance(payload.get("bridge"), dict) else {}
+                if bridge:
+                    normalized_bridge = {
+                        "enabled": bridge.get("enabled") is not False,
+                        "mode": str(bridge.get("mode") or "explicit"),
+                        "semantic_key": str(bridge.get("semantic_key") or ""),
+                        "note": str(bridge.get("note") or ""),
+                    }
+                    for key in ("uart_hex_on", "uart_hex_off"):
+                        value = bridge.get(key) or ""
+                        normalized_bridge[key] = normalized_uart_hex_or_empty(value) if value else ""
+                    bridge = normalized_bridge
                 item = {
                     "saved_ms": now_ms(),
                     "action_id": payload.get("action_id"),
@@ -2429,11 +2890,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                     "note": payload.get("note", ""),
                     "verified": True,
                 }
+                if bridge:
+                    item["bridge"] = bridge
                 LEARNED_ASSIGNMENTS.parent.mkdir(parents=True, exist_ok=True)
                 with LEARNED_ASSIGNMENTS.open("a", encoding="utf-8") as fh:
                     fh.write(json.dumps(item, ensure_ascii=False, separators=(",", ":")) + "\n")
                 STATE.marker(f"saved {item['action_id']} -> {item.get('candidate', {}).get('id_hex', 'candidate')}")
-                json_response(self, {"ok": True, "path": str(LEARNED_ASSIGNMENTS)})
+                json_response(self, {"ok": True, "path": str(LEARNED_ASSIGNMENTS), "item": item})
                 return
             if parsed.path == "/api/lab/send":
                 command = str(payload.get("command") or "")
@@ -2442,6 +2905,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 else:
                     RUNNER.send_lab_line(command)
                     json_response(self, {"ok": True, "command": command})
+                return
+            if parsed.path == "/api/uart/verify":
+                json_response(self, save_uart_verification(payload))
                 return
             if parsed.path == "/api/send/display":
                 result = run_send_display(payload)

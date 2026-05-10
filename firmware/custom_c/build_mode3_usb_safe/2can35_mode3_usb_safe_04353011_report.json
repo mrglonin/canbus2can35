@@ -1,0 +1,24 @@
+{
+  "app_bin": "build_mode3_usb_safe/2can35_mode3_usb_safe.bin",
+  "out": "build_mode3_usb_safe/2can35_mode3_usb_safe_04353011_update.bin",
+  "uid": "37 FF DA 05 42 47 30 38 59 41 22 43",
+  "version": "04 35 30 11",
+  "app_size": 9284,
+  "app_padded_size": 9296,
+  "app_pad_len": 12,
+  "package_size": 9312,
+  "key_a": "0x04",
+  "key_b": "0x5b",
+  "sha256": "1d3174b267c0bd5f4054f8d7f42109f12d1ff35046772c1de701dc542f98f1cd",
+  "plain_sha256": "0c332fdb5b758067e73cf7cad0ddeea8ab0004c921b14ce53e3e095721501120",
+  "roundtrip_ok": true,
+  "meta": [
+    "ENABLE_CAN_HW=0",
+    "USE_STOCK_BEEP=0",
+    "ENABLE_REVERSE_OUT=0",
+    "ENABLE_TEYES_UART=0",
+    "TEYES_UART_BAUD=19200",
+    "CANBOX_HSE_MHZ=8"
+  ],
+  "warning": "CAN HW is compile-time controlled. Build with ENABLE_CAN_HW=1 only after bench validation."
+}

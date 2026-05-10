@@ -51,7 +51,12 @@ The v06 decoded data table now confirms the first TEYES/Raise UART path:
 
 ## UART Frame Format
 
-The Raise-side frame format decoded from v06 is:
+The Raise/RZC Korea frame format is now confirmed by both local v06/v08
+firmware work and public Android head-unit code (`CanBoxProtocol.java`,
+`RZC_KoreaSeriesProtocol.java`). The detailed command matrix lives in
+`../../../docs/RAISE_RZC_KOREA_UART_MATRIX.md`.
+
+The frame format is:
 
 ```text
 FD LL CC PP... HH LL
@@ -85,6 +90,46 @@ Body flags for command `0x05`, taken from the v06 body parser:
 | `0x08` | right rear door |
 | `0x10` | trunk |
 | `0x20` | hood |
+| `0x40` | sunroof open, experimental; derived from C-CAN `0x541 DATA[7] & 0x02` and needs TEYES/HU confirmation |
+
+Experimental sunroof UART frame:
+
+```text
+FD 05 05 40 00 4A
+```
+
+Important: public RZC Korea Android code decodes only door/trunk/hood bits
+`0x01..0x20` for command `0x05`. `0x40` is a local experiment, not confirmed as
+a stock TEYES sunroof UI event.
+
+Public RZC Korea command IDs:
+
+| Direction | Cmd | Meaning |
+|---|---:|---|
+| canbox -> HU | `0x01` | outside temperature |
+| canbox -> HU | `0x02` | steering wheel / panel key |
+| canbox -> HU | `0x03` | air conditioning display |
+| canbox -> HU | `0x04` | radar / parking sensors |
+| canbox -> HU | `0x05` | doors, trunk, hood |
+| canbox -> HU | `0x06` | climate key/status popup |
+| canbox -> HU | `0x07` | backlight |
+| canbox -> HU | `0x7F` | protocol version |
+| HU -> canbox | `0x04` | power/session start/end |
+| HU -> canbox | `0x05` | amplifier volume |
+| HU -> canbox | `0x06` | time sync |
+| HU -> canbox | `0x07` | amplifier balance/fade |
+| HU -> canbox | `0x08` | amplifier bass/mid/treble |
+| HU -> canbox | `0x09` | host media/source status |
+
+The WR-log frame from the head unit:
+
+```text
+FD 0A 09 16 00 00 00 00 02 00 2B
+```
+
+is `HU -> canbox`, command `0x09`, source `0x16` = USB media, track `0`,
+play time `2s`. It should be parsed and converted to M-CAN cluster/media frames;
+it is not itself an M-CAN frame.
 
 ## What We Must Implement
 

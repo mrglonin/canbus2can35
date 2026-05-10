@@ -1,0 +1,768 @@
+{
+  "source": "/Users/legion/Downloads/2CAN35_CANBOX_WORK_2026-05-08/gs_2can35.bin",
+  "source_size": 11644,
+  "source_sha256": "44ec1b79f7dc49a12beae622c33ac8cefb1f9b211419ee5e41451b208bad5609",
+  "output_original": "firmware/canlog/gs_2can35_uart_sideband_original.bin",
+  "output_original_size": 12160,
+  "output_original_sha256": "71b1672b1793064c2d2041d9d910aced6e48d1c61ce5e7a9483e3524ea7bc00e",
+  "output_relocated": "firmware/canlog/gs_2can35_uart_sideband_0x08009000.bin",
+  "output_relocated_size": 12160,
+  "output_relocated_sha256": "ec61db8ba19222de825b10f5e2da33f8d1215a38d50a1454c6b8d61043289b2b",
+  "hook_offset": "0x0cf2",
+  "hook_original": "00 24 da e7",
+  "hook_branch": "02 f0 43 b8",
+  "stub_offset": "0x2d7c",
+  "stub_size": 516,
+  "dispatcher_original_addr": "0x08002d7c",
+  "dispatcher_relocated_addr": "0x0800bd7c",
+  "usart2_vector_offset": "0x00d8",
+  "usart2_vector_old": "0x08001267",
+  "usart2_irq_original_addr": "0x08002f17",
+  "usart2_irq_relocated_addr": "0x0800bf17",
+  "bss_end_literal_offset": "0x12dc",
+  "bss_end_old": "0x200075c8",
+  "bss_end_new": "0x20008100",
+  "usb_identity": "unchanged gs_usb/budgetcan 1d50:606f endpoints 0x81/0x02",
+  "uart": {
+    "peripheral": "USART2",
+    "pins": "PA2 TX, PA3 RX",
+    "baud": 19200,
+    "control_requests": {
+      "0x70 IN": "UART status: bytes 'UART', init flag, rx_available, dropped",
+      "0x71 IN": "UART read, max 64 bytes",
+      "0x72 OUT": "UART raw write, max 64 bytes",
+      "0x73 OUT": "UART init",
+      "0x7f OUT": "system reset back to mode 1"
+    }
+  },
+  "relocation_count": 145,
+  "relocation_patches": [
+    {
+      "file_offset": "0x0004",
+      "old": "0x0800126d",
+      "new": "0x0800a26d"
+    },
+    {
+      "file_offset": "0x0008",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x000c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0010",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0014",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0018",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x002c",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x0030",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x0038",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x003c",
+      "old": "0x08000345",
+      "new": "0x08009345"
+    },
+    {
+      "file_offset": "0x0040",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0044",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0048",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x004c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0050",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0054",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0058",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x005c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0060",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0064",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0068",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x006c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0070",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0074",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0078",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x007c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0080",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0084",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0088",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x008c",
+      "old": "0x080007dd",
+      "new": "0x080097dd"
+    },
+    {
+      "file_offset": "0x0090",
+      "old": "0x080007e9",
+      "new": "0x080097e9"
+    },
+    {
+      "file_offset": "0x0094",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0098",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x009c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00a0",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00a4",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00a8",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00ac",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00b0",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00b4",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00b8",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00bc",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00c0",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00c4",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00c8",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00cc",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00d0",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00d4",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00d8",
+      "old": "0x08002f17",
+      "new": "0x0800bf17"
+    },
+    {
+      "file_offset": "0x00dc",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00e0",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00e4",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00e8",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00ec",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00f0",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00f4",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00f8",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x00fc",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0100",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0104",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0108",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x010c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0110",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0114",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0118",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x011c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0120",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0124",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0128",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x012c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0130",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0134",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0138",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x013c",
+      "old": "0x080007ed",
+      "new": "0x080097ed"
+    },
+    {
+      "file_offset": "0x0140",
+      "old": "0x080007f9",
+      "new": "0x080097f9"
+    },
+    {
+      "file_offset": "0x0144",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0148",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x014c",
+      "old": "0x080009f1",
+      "new": "0x080099f1"
+    },
+    {
+      "file_offset": "0x02f8",
+      "old": "0x08002b80",
+      "new": "0x0800bb80"
+    },
+    {
+      "file_offset": "0x09a0",
+      "old": "0x08002c04",
+      "new": "0x0800bc04"
+    },
+    {
+      "file_offset": "0x09a8",
+      "old": "0x08000871",
+      "new": "0x08009871"
+    },
+    {
+      "file_offset": "0x09ac",
+      "old": "0x0800088d",
+      "new": "0x0800988d"
+    },
+    {
+      "file_offset": "0x09b0",
+      "old": "0x080008c5",
+      "new": "0x080098c5"
+    },
+    {
+      "file_offset": "0x09b4",
+      "old": "0x0800089d",
+      "new": "0x0800989d"
+    },
+    {
+      "file_offset": "0x09b8",
+      "old": "0x080008ad",
+      "new": "0x080098ad"
+    },
+    {
+      "file_offset": "0x0ab4",
+      "old": "0x08000a15",
+      "new": "0x08009a15"
+    },
+    {
+      "file_offset": "0x0ab8",
+      "old": "0x08000ad5",
+      "new": "0x08009ad5"
+    },
+    {
+      "file_offset": "0x0abc",
+      "old": "0x08000bb5",
+      "new": "0x08009bb5"
+    },
+    {
+      "file_offset": "0x0ad0",
+      "old": "0x08000b5d",
+      "new": "0x08009b5d"
+    },
+    {
+      "file_offset": "0x0b18",
+      "old": "0x08002b30",
+      "new": "0x0800bb30"
+    },
+    {
+      "file_offset": "0x0b1c",
+      "old": "0x08000ac5",
+      "new": "0x08009ac5"
+    },
+    {
+      "file_offset": "0x0bac",
+      "old": "0x08002b39",
+      "new": "0x0800bb39"
+    },
+    {
+      "file_offset": "0x0bb0",
+      "old": "0x08002a3c",
+      "new": "0x0800ba3c"
+    },
+    {
+      "file_offset": "0x0d0c",
+      "old": "0x08002a30",
+      "new": "0x0800ba30"
+    },
+    {
+      "file_offset": "0x0d10",
+      "old": "0x08002a08",
+      "new": "0x0800ba08"
+    },
+    {
+      "file_offset": "0x12d0",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x12e4",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x12e8",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x12ec",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x12f0",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x12f4",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x12f8",
+      "old": "0x08002c38",
+      "new": "0x0800bc38"
+    },
+    {
+      "file_offset": "0x184c",
+      "old": "0x08002bf0",
+      "new": "0x0800bbf0"
+    },
+    {
+      "file_offset": "0x1940",
+      "old": "0x080021af",
+      "new": "0x0800b1af"
+    },
+    {
+      "file_offset": "0x1944",
+      "old": "0x08002211",
+      "new": "0x0800b211"
+    },
+    {
+      "file_offset": "0x1948",
+      "old": "0x08002295",
+      "new": "0x0800b295"
+    },
+    {
+      "file_offset": "0x27e4",
+      "old": "0x08002323",
+      "new": "0x0800b323"
+    },
+    {
+      "file_offset": "0x27e8",
+      "old": "0x080023b5",
+      "new": "0x0800b3b5"
+    },
+    {
+      "file_offset": "0x27ec",
+      "old": "0x080024bd",
+      "new": "0x0800b4bd"
+    },
+    {
+      "file_offset": "0x27f0",
+      "old": "0x0800240b",
+      "new": "0x0800b40b"
+    },
+    {
+      "file_offset": "0x27f4",
+      "old": "0x080022f9",
+      "new": "0x0800b2f9"
+    },
+    {
+      "file_offset": "0x281c",
+      "old": "0x08002763",
+      "new": "0x0800b763"
+    },
+    {
+      "file_offset": "0x2820",
+      "old": "0x080023d7",
+      "new": "0x0800b3d7"
+    },
+    {
+      "file_offset": "0x2824",
+      "old": "0x0800246d",
+      "new": "0x0800b46d"
+    },
+    {
+      "file_offset": "0x2858",
+      "old": "0x08002423",
+      "new": "0x0800b423"
+    },
+    {
+      "file_offset": "0x285c",
+      "old": "0x0800244d",
+      "new": "0x0800b44d"
+    },
+    {
+      "file_offset": "0x2860",
+      "old": "0x0800245d",
+      "new": "0x0800b45d"
+    },
+    {
+      "file_offset": "0x2b14",
+      "old": "0x08002aed",
+      "new": "0x0800baed"
+    },
+    {
+      "file_offset": "0x2b2c",
+      "old": "0x08002b0b",
+      "new": "0x0800bb0b"
+    },
+    {
+      "file_offset": "0x2c04",
+      "old": "0x080019f5",
+      "new": "0x0800a9f5"
+    },
+    {
+      "file_offset": "0x2c08",
+      "old": "0x08001ac9",
+      "new": "0x0800aac9"
+    },
+    {
+      "file_offset": "0x2c0c",
+      "old": "0x08001ae1",
+      "new": "0x0800aae1"
+    },
+    {
+      "file_offset": "0x2c10",
+      "old": "0x08001c0b",
+      "new": "0x0800ac0b"
+    },
+    {
+      "file_offset": "0x2c14",
+      "old": "0x08001c53",
+      "new": "0x0800ac53"
+    },
+    {
+      "file_offset": "0x2c18",
+      "old": "0x08001ceb",
+      "new": "0x0800aceb"
+    },
+    {
+      "file_offset": "0x2c1c",
+      "old": "0x08001ccd",
+      "new": "0x0800accd"
+    },
+    {
+      "file_offset": "0x2c20",
+      "old": "0x08001d13",
+      "new": "0x0800ad13"
+    },
+    {
+      "file_offset": "0x2c24",
+      "old": "0x08001d5d",
+      "new": "0x0800ad5d"
+    },
+    {
+      "file_offset": "0x2c28",
+      "old": "0x08001dd3",
+      "new": "0x0800add3"
+    },
+    {
+      "file_offset": "0x2c2c",
+      "old": "0x08001fed",
+      "new": "0x0800afed"
+    },
+    {
+      "file_offset": "0x2ce8",
+      "old": "0x08002adb",
+      "new": "0x0800badb"
+    },
+    {
+      "file_offset": "0x2cf4",
+      "old": "0x08002ace",
+      "new": "0x0800bace"
+    },
+    {
+      "file_offset": "0x2cf8",
+      "old": "0x08000b21",
+      "new": "0x08009b21"
+    },
+    {
+      "file_offset": "0x2cfc",
+      "old": "0x08000af9",
+      "new": "0x08009af9"
+    },
+    {
+      "file_offset": "0x2d00",
+      "old": "0x08000a7d",
+      "new": "0x08009a7d"
+    },
+    {
+      "file_offset": "0x2d04",
+      "old": "0x080009f5",
+      "new": "0x080099f5"
+    },
+    {
+      "file_offset": "0x2d08",
+      "old": "0x08000a69",
+      "new": "0x08009a69"
+    },
+    {
+      "file_offset": "0x2d0c",
+      "old": "0x08000a05",
+      "new": "0x08009a05"
+    },
+    {
+      "file_offset": "0x2d10",
+      "old": "0x080009f9",
+      "new": "0x080099f9"
+    },
+    {
+      "file_offset": "0x2d14",
+      "old": "0x08000d19",
+      "new": "0x08009d19"
+    },
+    {
+      "file_offset": "0x2d38",
+      "old": "0x080029dc",
+      "new": "0x0800b9dc"
+    },
+    {
+      "file_offset": "0x2d3c",
+      "old": "0x080029e6",
+      "new": "0x0800b9e6"
+    },
+    {
+      "file_offset": "0x2d44",
+      "old": "0x080029f7",
+      "new": "0x0800b9f7"
+    },
+    {
+      "file_offset": "0x2f30",
+      "old": "0x08000cad",
+      "new": "0x08009cad"
+    },
+    {
+      "file_offset": "0x2ad7",
+      "old": "0x08002b20",
+      "new": "0x0800bb20",
+      "note": "packed USB config descriptor pointer"
+    }
+  ],
+  "nm": "00000000 T dispatcher\n00000016 t unknown_request\n0000001e t handled_request\n00000024 t return_to_gsusb\n00000028 t do_reset\n00000036 t uart_init_request\n0000003c t uart_status\n00000040 a UART_MAX_CTRL\n00000068 t uart_read\n000000a4 t uart_write\n000000cc t uart_init\n00000132 t uart_available\n00000140 t uart_drain\n0000015a t uart_write_byte\n00000176 t ring_put\n0000019a T usart2_irq\n05fa0004 a SYSRESETREQ\n20007f00 a UART_HEAD\n20007f02 a UART_TAIL\n20007f04 a UART_DROPPED\n20007f08 a UART_INIT\n20008000 a UART_BUF\n40004400 a USART2_SR\n40004404 a USART2_DR\n40004408 a USART2_BRR\n4000440c a USART2_CR1\n40004410 a USART2_CR2\n40004414 a USART2_CR3\n40010800 a GPIOA_CRL\n40021018 a RCC_APB2ENR\n4002101c a RCC_APB1ENR\ne000e104 a NVIC_ISER1\ne000ed0c a SCB_AIRCR\n"
+}

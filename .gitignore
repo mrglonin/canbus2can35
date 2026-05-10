@@ -20,8 +20,12 @@ firmware/custom_c/dist/
 
 # Local captures can grow fast. Curated examples may be force-added if needed.
 logs/*.tmp
+logs/dashboard_server_*.log
 logs/live_*.txt
 logs/live_*.log
+logs/live/*.txt
+logs/live/*.log
+logs/live/*.jsonl
 logs/session_*/full_*.txt
 
 # Local reverse-engineering decode/disassembly outputs.

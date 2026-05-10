@@ -3,6 +3,7 @@
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/cm3/systick.h>
+#include <libopencm3/stm32/f1/flash.h>
 #include <libopencm3/stm32/otg_fs.h>
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/stm32/rcc.h>
@@ -11,13 +12,43 @@ const uint8_t canbox_uid[CANBOX_UID_LEN] = {
 	0x37, 0xff, 0xda, 0x05, 0x42, 0x47, 0x30, 0x38, 0x59, 0x41, 0x22, 0x43,
 };
 
+#ifndef CANBOX_VERSION_B0
+#define CANBOX_VERSION_B0 0x04U
+#endif
+#ifndef CANBOX_VERSION_B1
+#define CANBOX_VERSION_B1 0x35U
+#endif
+#ifndef CANBOX_VERSION_B2
+#define CANBOX_VERSION_B2 0x10U
+#endif
+#ifndef CANBOX_VERSION_B3
+#define CANBOX_VERSION_B3 0x00U
+#endif
+
 const uint8_t canbox_version[CANBOX_VERSION_LEN] = {
-	0x04, 0x35, 0x10, 0x02,
+	CANBOX_VERSION_B0, CANBOX_VERSION_B1, CANBOX_VERSION_B2, CANBOX_VERSION_B3,
 };
 
 #define STK_CSR_REG    MMIO32(0xE000E010U)
 #define NVIC_ICER_BASE 0xE000E180U
 #define NVIC_ICPR_BASE 0xE000E280U
+#define SCB_AIRCR_REG  MMIO32(0xE000ED0CU)
+#define RCC_CR_REG     MMIO32(0x40021000U)
+#define RCC_CFGR_REG   MMIO32(0x40021004U)
+#define RCC_CFGR2_REG  MMIO32(0x4002102CU)
+#define RCC_APB1ENR_REG MMIO32(0x4002101CU)
+#define PWR_CR_REG      MMIO32(0x40007000U)
+#define BKP_DR1_REG     MMIO16(0x40006C04U)
+#define IWDG_KR_REG     MMIO32(0x40003000U)
+
+#define BOARD_RCC_APB1ENR_BKPEN (1U << 27)
+#define BOARD_RCC_APB1ENR_PWREN (1U << 28)
+#define BOARD_PWR_CR_DBP        (1U << 8)
+#define BOARD_SCB_AIRCR_VECTKEY (0x5FAU << 16)
+#define BOARD_SCB_AIRCR_PRIGROUP_MASK (7U << 8)
+#define BOARD_SCB_AIRCR_SYSRESETREQ (1U << 2)
+#define UPDATE_MAGIC            0xBEEFU
+#define IWDG_REFRESH_KEY        0xAAAAU
 
 #define STOCK_BEEP_INIT  ((void (*)(void))0x0800057d)
 #define STOCK_BEEP_START ((void (*)(void))0x0800064d)
@@ -33,13 +64,42 @@ static void delay_cycles(volatile uint32_t count)
 	}
 }
 
+static bool wait_reg_set(uint32_t addr, uint32_t mask)
+{
+	for (uint32_t i = 0; i < 1000000U; i++) {
+		if ((MMIO32(addr) & mask) == mask) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool wait_sysclk_source(uint32_t source)
+{
+	for (uint32_t i = 0; i < 1000000U; i++) {
+		if (((RCC_CFGR_REG & RCC_CFGR_SWS) >> RCC_CFGR_SWS_SHIFT) == source) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void sys_tick_handler(void)
 {
+	board_watchdog_kick();
 	ms_ticks++;
+}
+
+void board_watchdog_kick(void)
+{
+	IWDG_KR_REG = IWDG_REFRESH_KEY;
 }
 
 void board_runtime_sanitize(void)
 {
+	board_watchdog_kick();
 	__asm volatile ("cpsid i");
 	STK_CSR_REG = 0;
 	for (uint32_t i = 0; i < 3U; i++) {
@@ -52,13 +112,62 @@ void board_runtime_sanitize(void)
 
 void board_clock_setup(void)
 {
-#if CANBOX_HSE_MHZ == 16
-	rcc_clock_setup_in_hse_16mhz_out_72mhz();
-#elif CANBOX_HSE_MHZ == 8
-	rcc_clock_setup_in_hse_8mhz_out_72mhz();
+	board_watchdog_kick();
+	RCC_CR_REG |= RCC_CR_HSION;
+	if (!wait_reg_set(0x40021000U, RCC_CR_HSIRDY)) {
+		return;
+	}
+
+	rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
+	(void)wait_sysclk_source(RCC_CFGR_SWS_SYSCLKSEL_HSICLK);
+
+	RCC_CR_REG &= ~(RCC_CR_PLLON | RCC_CR_PLL2ON | RCC_CR_PLL3ON);
+	for (uint32_t i = 0; i < 100000U; i++) {
+		if ((RCC_CR_REG & (RCC_CR_PLLRDY | RCC_CR_PLL2RDY | RCC_CR_PLL3RDY)) == 0U) {
+			break;
+		}
+	}
+
+	RCC_CR_REG |= RCC_CR_HSEON;
+	if (!wait_reg_set(0x40021000U, RCC_CR_HSERDY)) {
+		return;
+	}
+
+	flash_prefetch_buffer_enable();
+	flash_set_ws(FLASH_ACR_LATENCY_2WS);
+
+	rcc_set_hpre(RCC_CFGR_HPRE_SYSCLK_NODIV);
+	rcc_set_adcpre(RCC_CFGR_ADCPRE_PCLK2_DIV8);
+	rcc_set_ppre1(RCC_CFGR_PPRE1_HCLK_DIV2);
+	rcc_set_ppre2(RCC_CFGR_PPRE2_HCLK_NODIV);
+
+	rcc_set_prediv1_source(RCC_CFGR2_PREDIV1SRC_HSE_CLK);
+#if CANBOX_HSE_MHZ == 8
+	rcc_set_prediv1(RCC_CFGR2_PREDIV_NODIV);
+#elif CANBOX_HSE_MHZ == 16
+	rcc_set_prediv1(RCC_CFGR2_PREDIV_DIV2);
 #else
 #error "Unsupported CANBOX_HSE_MHZ"
 #endif
+	rcc_set_pllxtpre(RCC_CFGR_PLLXTPRE_HSE_CLK);
+	rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL9);
+	rcc_set_pll_source(RCC_CFGR_PLLSRC_PREDIV1_CLK);
+	rcc_set_usbpre(RCC_CFGR_USBPRE_PLL_VCO_CLK_DIV3);
+
+	RCC_CFGR2_REG &= ~(RCC_CFGR2_PREDIV1SRC | RCC_CFGR2_PLL2MUL | RCC_CFGR2_PLL3MUL |
+	                   RCC_CFGR2_PREDIV2);
+
+	RCC_CR_REG |= RCC_CR_PLLON;
+	if (!wait_reg_set(0x40021000U, RCC_CR_PLLRDY)) {
+		return;
+	}
+
+	rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_PLLCLK);
+	(void)wait_sysclk_source(RCC_CFGR_SWS_SYSCLKSEL_PLLCLK);
+
+	rcc_ahb_frequency = 72000000U;
+	rcc_apb1_frequency = 36000000U;
+	rcc_apb2_frequency = 72000000U;
 }
 
 void board_systick_setup(void)
@@ -79,6 +188,7 @@ void board_delay_ms(uint32_t ms)
 	uint32_t start = board_millis();
 
 	while ((board_millis() - start) < ms) {
+		board_watchdog_kick();
 		__asm volatile ("nop");
 	}
 }
@@ -131,15 +241,26 @@ void board_beep(uint8_t count)
 
 void board_reboot(void)
 {
-	scb_reset_system();
+	__asm volatile ("dsb");
+	SCB_AIRCR_REG = BOARD_SCB_AIRCR_VECTKEY |
+	                (SCB_AIRCR_REG & BOARD_SCB_AIRCR_PRIGROUP_MASK) |
+	                BOARD_SCB_AIRCR_SYSRESETREQ;
+	__asm volatile ("dsb");
 	while (1) {
 	}
+}
+
+static void backup_domain_enable(void)
+{
+	RCC_APB1ENR_REG |= BOARD_RCC_APB1ENR_BKPEN | BOARD_RCC_APB1ENR_PWREN;
+	PWR_CR_REG |= BOARD_PWR_CR_DBP;
 }
 
 void board_enter_update_request(void)
 {
 	active_mode = BOARD_MODE_UPDATE;
-	board_beep(2);
+	backup_domain_enable();
+	BKP_DR1_REG = UPDATE_MAGIC;
 	board_reboot();
 }
 

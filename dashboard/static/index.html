@@ -57,7 +57,7 @@
         </section>
 
         <section class="view-tabs" role="tablist" aria-label="Рабочие вкладки">
-          <button class="active" data-view-tab="live" role="tab" aria-selected="true" aria-controls="tabLive">Динамика Live</button>
+          <button class="active" data-view-tab="live" role="tab" aria-selected="true" aria-controls="tabLive">Динамика</button>
           <button data-view-tab="learn" role="tab" aria-selected="false" aria-controls="tabLearn">Обучение CAN↔UART</button>
           <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan">CAN log / TX</button>
           <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart">UART Raise</button>
@@ -69,7 +69,7 @@
           <section class="car-stage panel">
             <div class="panel-head car-head">
               <div>
-                <h2>Динамика Live</h2>
+                <h2>Динамика</h2>
                 <p id="carSubtitle">Живые статусы по категориям</p>
               </div>
               <div class="bridge-state" id="bridgeState">bridge выкл</div>
@@ -214,10 +214,18 @@
             <section class="panel command-library">
               <div class="panel-head">
                 <div>
-                  <h2>Команды, которые уже знаем</h2>
-                  <p>Raise/RZC UART, HU → canbox и CAN-функции из нашей таблицы.</p>
+                  <h2>Проверка UART команд</h2>
+                  <p>Отправляй по одной, отмечай результат. Только отмеченные “работает” считаются рабочим списком.</p>
                 </div>
-                <input id="commandSearch" placeholder="поиск: 0x09, USB, люк, reverse" />
+                <input id="commandSearch" placeholder="поиск: FD, 2E, USB, люк, Simple" />
+              </div>
+              <div id="uartCandidateTable" class="uart-candidate-table"></div>
+            </section>
+
+            <section class="panel command-library">
+              <div class="panel-head compact">
+                <h2>Справочник</h2>
+                <span>профили, slots, CAN</span>
               </div>
               <div id="commandTable" class="command-table"></div>
             </section>

@@ -1,0 +1,103 @@
+{
+  "created_at": "2026-05-09 02:45:21 +0500",
+  "root": "/Users/legion/Downloads/2CAN35_CANBOX_WORK_2026-05-08/canbus2can35_repo",
+  "bundle": "/Users/legion/Downloads/2CAN35_CANBOX_WORK_2026-05-08/canbus2can35_repo/dist/2can35_sportage_handoff_latest",
+  "items": [
+    {
+      "path": "README.md",
+      "size": 22421,
+      "sha256": "6b0f2461f0881956503d072ea210b820dc14ae7f1fd568da8ce05f05082c31dc"
+    },
+    {
+      "path": "dashboard/README.md",
+      "size": 8513,
+      "sha256": "4e2a30f623cf7f2a83321d83562fb1108e71868208c12ef25fefd798b132655b"
+    },
+    {
+      "path": "docs/PROJECT_STATUS_FOR_AUTHOR.md",
+      "size": 7924,
+      "sha256": "0e8e6407991ab5d42c9fe1edc48e094a519f13a81469dd7b9602026df9ed623b"
+    },
+    {
+      "path": "docs/ARCHITECTURE_DECISION_CURRENT_BRANCH.md",
+      "size": 1845,
+      "sha256": "0b87ab4336c1da61e4fdad2ec58768835769865d2ec8ddb428543eae0c5f66dd"
+    },
+    {
+      "path": "docs/HARDWARE_WIRING_MOD_GUIDE.md",
+      "size": 10372,
+      "sha256": "d237ea6cbd8d4bdd427792f402f92b424915ddafa7a4342892e018544c444b4d"
+    },
+    {
+      "path": "docs/RAISE_RZC_KOREA_UART_MATRIX.md",
+      "size": 14411,
+      "sha256": "cac9f4bb197bac2ed7669db4c1f9990c6e806a3b350f3b8abf35d9f5f5e4f4c8"
+    },
+    {
+      "path": "docs/CAN_FUNCTION_MATRIX.md",
+      "size": 30424,
+      "sha256": "36a63e2fd80f60fa841b72407d50cc8dd865e3b3fd48d2bc2d136a23744fc3d2"
+    },
+    {
+      "path": "docs/HYUNDAI_KIA_MCAN_MEDIA_RESEARCH.md",
+      "size": 8690,
+      "sha256": "4d9c4da61b154bab8706503ef52e0db0bcdc57302c59072f6fa75869610ef87f"
+    },
+    {
+      "path": "docs/END_TO_END_RUNBOOK.md",
+      "size": 6822,
+      "sha256": "195153be9d68031a204738f3a96fb1ec4ee5761f2882c5d0e2b797196ce4e12d"
+    },
+    {
+      "path": "data/can_function_matrix.csv",
+      "size": 19121,
+      "sha256": "91c60c439f65e5d5a7380a5b7098c0fbc0fbc2fd625746def3f5c566d5b0371a"
+    },
+    {
+      "path": "data/raise_rzc_korea_uart_matrix.csv",
+      "size": 3739,
+      "sha256": "e084f925357c0edcac29681844f1e862958269702e5b6568deca7226c6f18aca"
+    },
+    {
+      "path": "logs/analysis_20260509/ANALYSIS_SUMMARY_20260509.md",
+      "size": 11188,
+      "sha256": "94327dc573b3151036a16d2150d4289d01c313898bda324f5d6a4ee41047275e"
+    },
+    {
+      "path": "logs/analysis_20260509/known_id_segment_candidates.csv",
+      "size": 108992,
+      "sha256": "99fc06545200df552a7a96437ba5b041602c911265572f8560747da7fd8d99e2"
+    },
+    {
+      "path": "logs/analysis_20260509/important_function_rows.csv",
+      "size": 3654,
+      "sha256": "8fb6552aff24a8cf63ceeb3e292ef379a5471be82d660c92a88f410c958ed2d2"
+    },
+    {
+      "path": "logs/analysis_20260509/firmware_build_summary.csv",
+      "size": 3145,
+      "sha256": "e10fb78ba6477845bb82248c8081174866b53fef447ebe47c3db7c331246cef7"
+    },
+    {
+      "path": "firmware/MANIFEST.md",
+      "size": 10254,
+      "sha256": "d1524e5b7122baa184806741523a2b7f0bc7817f99a24816b787fbe99b0944a0"
+    },
+    {
+      "path": "firmware/canlog/README.md",
+      "size": 6870,
+      "sha256": "4de5525c03dd40ad499ea3319a1122bd894cf20972bb6e44103aa91767a2093f"
+    },
+    {
+      "path": "firmware/canlog/2can35_04350008_mode3_lab_can_uart_usb.bin",
+      "size": 32176,
+      "sha256": "d17c2fb3fd8ead6d5086260e293eb3e6ddb638db4d7af8c92464fc6248f0c7c6"
+    },
+    {
+      "path": "firmware/canlog/2can35_04350008_mode3_lab_can_uart_usb.bin.report.json",
+      "size": 2679,
+      "sha256": "6354c163cd4712f67bd800058afc90764fcc045eaa0d506aa22dc34508ac813c"
+    }
+  ],
+  "missing": []
+}

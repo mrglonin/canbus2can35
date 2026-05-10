@@ -26,10 +26,20 @@ static void can_rx(can_bus_t bus, const can_frame_t *frame)
 static void apply_vehicle_outputs(void)
 {
 	const kia_vehicle_state_t *state = kia_profile_vehicle_state();
-	bool canbox_mode = board_get_mode() == BOARD_MODE_CANBOX;
+	bool active_mode = board_get_mode() == BOARD_MODE_CANBOX || board_get_mode() == BOARD_MODE_LAB;
 
-	board_reverse_output_set(canbox_mode && state->reverse);
-	teyes_raise_uart_poll(canbox_mode ? state : 0);
+	board_reverse_output_set(active_mode && state->reverse);
+	teyes_raise_uart_poll(active_mode ? state : 0);
+}
+
+static void poll_usb_for(uint32_t ms)
+{
+	uint32_t start = board_millis();
+
+	while ((board_millis() - start) < ms) {
+		board_watchdog_kick();
+		usb_cdc_poll();
+	}
 }
 
 int main(void)
@@ -37,19 +47,24 @@ int main(void)
 	board_runtime_sanitize();
 	board_clock_setup();
 	board_systick_setup();
-	board_set_mode(BOARD_MODE_CANBOX);
 	board_reverse_output_init();
 
 	kia_profile_init();
 	protocol_init(usb_write);
 	canbus_set_rx_callback(can_rx);
+	usb_cdc_init(usb_rx);
+	protocol_emit_text("\r\n2CAN35 custom-c lab USB up\r\n");
+	poll_usb_for(1500U);
+
+	board_set_mode(BOARD_MODE_LAB);
 	canbus_init();
 	teyes_raise_uart_init();
-	usb_cdc_init(usb_rx);
+	teyes_raise_uart_set_rx_callback(protocol_emit_uart_rx);
 
-	protocol_emit_text("\r\n2CAN35 custom-c boot\r\n");
+	protocol_emit_text("2CAN35 custom-c lab ready\r\n");
 
 	while (1) {
+		board_watchdog_kick();
 		usb_cdc_poll();
 		canbus_poll();
 		apply_vehicle_outputs();

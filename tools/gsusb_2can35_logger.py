@@ -24,6 +24,10 @@ GS_USB_BREQ_BITTIMING = 1
 GS_USB_BREQ_MODE = 2
 GS_USB_BREQ_BT_CONST = 4
 GS_USB_BREQ_DEVICE_CONFIG = 5
+GS_USB_BREQ_2CAN35_UART_STATUS = 0x70
+GS_USB_BREQ_2CAN35_UART_READ = 0x71
+GS_USB_BREQ_2CAN35_UART_WRITE = 0x72
+GS_USB_BREQ_2CAN35_UART_INIT = 0x73
 GS_USB_BREQ_2CAN35_EXIT_MODE1 = 0x7F
 
 GS_CAN_MODE_RESET = 0
@@ -128,6 +132,41 @@ def request_mode1_exit(dev) -> None:
         pass
 
 
+def uart_init(dev) -> None:
+    ctrl_out(dev, GS_USB_BREQ_2CAN35_UART_INIT, 0, b"")
+
+
+def uart_status(dev) -> dict:
+    raw = ctrl_in(dev, GS_USB_BREQ_2CAN35_UART_STATUS, 0, 12)
+    if len(raw) < 12 or raw[:4] != b"UART":
+        raise RuntimeError(f"unexpected UART status response: {raw.hex(' ')}")
+    return {
+        "init": bool(raw[4]),
+        "rx_available": struct.unpack_from("<H", raw, 6)[0],
+        "dropped": struct.unpack_from("<I", raw, 8)[0],
+    }
+
+
+def uart_read(dev, count: int = 64) -> bytes:
+    count = max(1, min(int(count), 64))
+    return ctrl_in(dev, GS_USB_BREQ_2CAN35_UART_READ, 0, count)
+
+
+def uart_write(dev, data: bytes) -> int:
+    if len(data) > 64:
+        raise ValueError("UART sideband writes are limited to 64 bytes per control transfer")
+    return ctrl_out(dev, GS_USB_BREQ_2CAN35_UART_WRITE, 0, data)
+
+
+def parse_hex_blob(value: str) -> bytes:
+    clean = value.replace(" ", "").replace(":", "").replace("-", "").strip()
+    if clean.startswith("0x"):
+        clean = clean[2:]
+    if len(clean) % 2:
+        raise ValueError("hex payload must contain full bytes")
+    return bytes.fromhex(clean) if clean else b""
+
+
 def format_frame(packet: bytes, monotonic_start: float) -> Optional[str]:
     if len(packet) < 20:
         return None
@@ -209,6 +248,11 @@ def send_can_frame(
 
 
 def send_tx_request(dev, write_lock: threading.Lock, request: dict, echo_seed: int) -> int:
+    if request.get("type") == "uart" or request.get("uart_hex") is not None:
+        data = parse_hex_blob(str(request.get("uart_hex", request.get("data", ""))))
+        with write_lock:
+            return uart_write(dev, data)
+
     frames = request.get("frames")
     if frames is None:
         frames = [request]
@@ -274,14 +318,20 @@ def start_tx_control_thread(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read CAN logs from 2CAN35 gs_usb scanner firmware")
     parser.add_argument("--libusb", type=Path, default=DEFAULT_LIBUSB)
-    parser.add_argument("--bitrate0", type=int, default=500000, help="channel 0 bitrate, default C-CAN 500 kbit/s")
-    parser.add_argument("--bitrate1", type=int, default=100000, help="channel 1 bitrate, default M-CAN 100 kbit/s")
+    parser.add_argument("--bitrate0", type=int, default=100000, help="channel 0 bitrate, default M-CAN 100 kbit/s")
+    parser.add_argument("--bitrate1", type=int, default=500000, help="channel 1 bitrate, default C-CAN 500 kbit/s")
     parser.add_argument("--seconds", type=float, default=0, help="stop after N seconds, 0 means forever")
     parser.add_argument("--outfile", type=Path)
     parser.add_argument("--exit-to-mode1", action="store_true", help="send the patched logger exit request and stop")
     parser.add_argument("--exit-on-complete", action="store_true", help="return to mode 1 after timed logging or Ctrl-C")
     parser.add_argument("--tx-enable", action="store_true", help="start CAN channels without listen-only")
     parser.add_argument("--tx-control", type=Path, help="tail JSONL control file and transmit requested CAN frames")
+    parser.add_argument("--uart-init", action="store_true", help="initialize the mode-3 USART2 sideband and exit")
+    parser.add_argument("--uart-status", action="store_true", help="read mode-3 USART2 sideband status and exit")
+    parser.add_argument("--uart-read", type=int, help="read up to N bytes from mode-3 USART2 sideband and exit")
+    parser.add_argument("--uart-write-hex", help="write raw hex bytes to mode-3 USART2 sideband and exit")
+    parser.add_argument("--uart-monitor", action="store_true", help="poll and print UART sideband bytes while logging")
+    parser.add_argument("--uart-monitor-interval", type=float, default=0.05)
     parser.add_argument("--send-frame", action="store_true", help="send one frame request and exit")
     parser.add_argument("--send-channel", type=int, default=0)
     parser.add_argument("--send-id", default="0x000")
@@ -309,6 +359,22 @@ def main() -> int:
         if args.exit_to_mode1:
             request_mode1_exit(dev)
             print("mode1 exit requested", flush=True)
+            return 0
+        if args.uart_init:
+            uart_init(dev)
+            print("uart init requested", flush=True)
+            return 0
+        if args.uart_status:
+            print(json.dumps(uart_status(dev), ensure_ascii=False), flush=True)
+            return 0
+        if args.uart_read is not None:
+            data = uart_read(dev, args.uart_read)
+            print(data.hex(" ").upper(), flush=True)
+            return 0
+        if args.uart_write_hex is not None:
+            data = parse_hex_blob(args.uart_write_hex)
+            written = uart_write(dev, data)
+            print(f"uart write bytes={written}", flush=True)
             return 0
 
         tx_mode = args.tx_enable or args.tx_control is not None or args.send_frame
@@ -342,9 +408,23 @@ def main() -> int:
             print(header, file=out, flush=True)
 
         started = time.monotonic()
+        last_uart_poll = 0.0
         while not stop:
             if args.seconds and time.monotonic() - started >= args.seconds:
                 break
+            if args.uart_monitor and (time.monotonic() - last_uart_poll) >= args.uart_monitor_interval:
+                last_uart_poll = time.monotonic()
+                try:
+                    status = uart_status(dev)
+                    if status["rx_available"]:
+                        data = uart_read(dev, min(64, status["rx_available"]))
+                        if data:
+                            line = f"{time.monotonic() - started:.6f} uart {data.hex(' ').upper()}"
+                            print(line, flush=True)
+                            if out:
+                                print(line, file=out, flush=True)
+                except Exception as exc:
+                    print(f"UART error: {exc}", flush=True)
             try:
                 packet = bytes(dev.read(EP_IN, 64, timeout=500))
             except usb.core.USBTimeoutError:
