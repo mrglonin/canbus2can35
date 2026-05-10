@@ -4,6 +4,10 @@ __pycache__/
 *.o
 *.elf
 *.map
+.gradle/
+build/
+android/2can35-lab/app/build/
+android/2can35-lab/.gradle/
 
 # Keep public repository clean. Put local binaries here when working locally,
 # but do not publish third-party APK/firmware without explicit rights.
