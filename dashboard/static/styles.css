@@ -72,6 +72,14 @@ button.danger {
   border-color: rgba(255, 113, 109, 0.6);
 }
 
+button.icon-action {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+  font-size: 19px;
+  line-height: 1;
+}
+
 input {
   min-height: 34px;
   min-width: 0;
@@ -327,8 +335,8 @@ code,
   min-height: 44px;
   margin-bottom: 10px;
   padding: 5px;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 5px;
   border: 1px solid var(--line);
@@ -338,11 +346,26 @@ code,
 }
 
 .view-tabs button {
+  flex: 1 1 0;
   min-width: 0;
   min-height: 32px;
   border-color: transparent;
   background: transparent;
   color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.view-tabs button span {
+  flex: 0 0 auto;
+  color: var(--green-2);
+  font-size: 12px;
+  opacity: 0.78;
 }
 
 .view-tabs button.active {
@@ -1527,12 +1550,11 @@ small {
 
   .view-tabs {
     width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-x: auto;
   }
 
   .view-tabs button {
-    min-width: 0;
+    flex: 0 0 132px;
   }
 
   .dynamic-live {

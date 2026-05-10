@@ -14,9 +14,9 @@
             <button id="startGsusb">Live CAN</button>
             <button id="startLab" class="primary">Live CAN+UART</button>
             <button id="toggleBridge">CAN→UART выкл</button>
-            <button id="resetLive">Сброс</button>
-            <button id="refreshStatus">Обновить</button>
-            <button id="stopLog" class="danger">Стоп</button>
+            <button id="resetLive" class="icon-action" title="Сброс live-экрана" aria-label="Сброс live-экрана">↺</button>
+            <button id="refreshStatus" class="icon-action" title="Обновить состояние" aria-label="Обновить состояние">↻</button>
+            <button id="stopLog" class="icon-action danger" title="Остановить лог" aria-label="Остановить лог">■</button>
           </div>
           <div class="header-right">
             <div class="control-group mode-controls" aria-label="Режимы адаптера">
@@ -57,13 +57,13 @@
         </section>
 
         <section class="view-tabs" role="tablist" aria-label="Рабочие вкладки">
-          <button class="active" data-view-tab="live" role="tab" aria-selected="true" aria-controls="tabLive">Динамика</button>
-          <button data-view-tab="learn" role="tab" aria-selected="false" aria-controls="tabLearn">Обучение</button>
-          <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan">CAN</button>
-          <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart">UART</button>
-          <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster">Приборка</button>
-          <button data-view-tab="export" role="tab" aria-selected="false" aria-controls="tabExport">Экспорт</button>
-          <button data-view-tab="settings" role="tab" aria-selected="false" aria-controls="tabSettings">Настройка</button>
+          <button class="active" data-view-tab="live" role="tab" aria-selected="true" aria-controls="tabLive"><span>●</span> Динамика</button>
+          <button data-view-tab="learn" role="tab" aria-selected="false" aria-controls="tabLearn"><span>◆</span> Обучение</button>
+          <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan"><span>▦</span> CAN</button>
+          <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart"><span>⇄</span> UART</button>
+          <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster"><span>▣</span> Приборка</button>
+          <button data-view-tab="export" role="tab" aria-selected="false" aria-controls="tabExport"><span>⇩</span> Экспорт</button>
+          <button data-view-tab="settings" role="tab" aria-selected="false" aria-controls="tabSettings"><span>⚙</span> Настройка</button>
         </section>
 
         <section id="tabLive" class="tab-panel active" data-tab-panel="live">
