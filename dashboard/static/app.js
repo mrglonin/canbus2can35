@@ -693,13 +693,37 @@ function renderObd() {
   $("obdLoadValue").textContent = load;
   $("obdVoltageValue").textContent = obd.voltage ? `${obd.voltage} V` : "-";
   $("obdSpeedSmallValue").textContent = `${speed} km/h`;
-  $("obdOutsideValue").textContent = obd.outside ? `${obd.outside} °C` : "-";
-  $("obdThrottleValue").textContent = `${throttle}%`;
-  $("obdDtcValue").textContent = obd.dtc;
+  $("obdRpmSmallValue").textContent = `${rpm} rpm`;
+  $("obdRuntimeValue").textContent = state.car.ignition ? "00:09:15" : "00:00:00";
+  const clock = $("obdClock");
+  if (clock) {
+    const now = new Date();
+    clock.textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  }
   $("obdSpeedFrame").src = `/obd/speed_${speedFrame}.png`;
   $("obdRpmFrame").src = `/obd/rpm_${rpmFrame}.png`;
   $("obdTempFrame").src = `/obd/${tempFrameName(coolant || 0)}`;
   $("obdLoadFrame").src = `/obd/engine_load_${loadFrame}.png`;
+  const stateGrid = $("obdStateGrid");
+  if (stateGrid) {
+    const cells = [
+      ["engine_runtime.png", "Время пути", state.car.ignition ? "00:09:15" : "00:00:00"],
+      ["item_img_fault_code.png", "Ошибки", `${obd.dtc} Codes`],
+      ["home_voltage.png", "Напряжение", obd.voltage ? `${obd.voltage} V` : "-"],
+      ["ic_intake_air_temperature.png", "Входная темп-ра", obd.outside ? `${obd.outside} °C` : "-"],
+      ["home_mileage.png", "Текущий пробег", "CAN"],
+      ["ic_engine_load.png", "Нагрузка двигателя", `${load}%`],
+      ["throttle_position.png", "Положение заслонки", `${throttle}%`],
+      ["item_img_temper.png", "Темп-ра антифриза", Number.isFinite(coolant) ? `${coolant} °C` : "-"],
+    ];
+    stateGrid.innerHTML = cells.map(([icon, label, value]) => `
+      <div class="obd-state-item">
+        <img src="/obd/${escapeHtml(icon)}" alt="" />
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </div>
+    `).join("");
+  }
 }
 
 function hasLearnedAction(...actionIds) {
@@ -1975,6 +1999,8 @@ function setupEvents() {
 }
 
 function setupActions() {
+  let obdTapCount = 0;
+  let obdTapTimer = 0;
   document.querySelectorAll("[data-view-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.viewTab));
   });
@@ -1986,6 +2012,29 @@ function setupActions() {
 
   const openObdButton = $("openObdView");
   if (openObdButton) openObdButton.addEventListener("click", () => switchTab("obd"));
+  const obdPanel = $("tabObd");
+  if (obdPanel) {
+    obdPanel.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      obdTapCount += 1;
+      window.clearTimeout(obdTapTimer);
+      obdTapTimer = window.setTimeout(() => {
+        obdTapCount = 0;
+      }, 560);
+      if (obdTapCount >= 3) {
+        obdTapCount = 0;
+        switchTab("live");
+      }
+    });
+  }
+  const obdDetailsButton = $("obdDetailsButton");
+  if (obdDetailsButton) {
+    obdDetailsButton.addEventListener("click", () => $("obdStatePage")?.classList.remove("hidden"));
+  }
+  const obdStateBack = $("obdStateBack");
+  if (obdStateBack) {
+    obdStateBack.addEventListener("click", () => $("obdStatePage")?.classList.add("hidden"));
+  }
   $("refreshStatus").addEventListener("click", () => refreshStatus().catch((error) => logAction(error.message)));
   $("startGsusb").addEventListener("click", async () => {
     stopDemo();

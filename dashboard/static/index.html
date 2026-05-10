@@ -84,6 +84,7 @@
             <div class="obd-canvas">
               <img class="obd-bg" src="/obd/background.png" alt="" />
               <img class="obd-brand" src="/obd/home_bottom_logo.png" alt="TEYES OBD" />
+              <div id="obdClock" class="obd-clock">--:--</div>
 
               <img id="obdRpmFrame" class="obd-rpm-frame" src="/obd/rpm_0.png" alt="" />
               <div class="obd-rpm-readout">
@@ -113,29 +114,30 @@
               <div class="obd-bottom">
                 <div class="obd-info">
                   <img src="/obd/home_voltage.png" alt="" />
-                  <span>Voltage</span>
                   <strong id="obdVoltageValue">-</strong>
                 </div>
                 <div class="obd-info">
                   <img src="/obd/home_mileage.png" alt="" />
-                  <span>Speed CAN</span>
                   <strong id="obdSpeedSmallValue">0 km/h</strong>
                 </div>
                 <div class="obd-info">
-                  <img src="/obd/item_img_temper.png" alt="" />
-                  <span>Outside</span>
-                  <strong id="obdOutsideValue">-</strong>
+                  <img src="/obd/fuel_consumption.png" alt="" />
+                  <strong id="obdRpmSmallValue">0 rpm</strong>
                 </div>
                 <div class="obd-info">
-                  <img src="/obd/throttle_position.png" alt="" />
-                  <span>Throttle</span>
-                  <strong id="obdThrottleValue">0%</strong>
+                  <img src="/obd/engine_runtime.png" alt="" />
+                  <strong id="obdRuntimeValue">00:00:00</strong>
                 </div>
-                <div class="obd-info">
-                  <img src="/obd/item_img_fault_code.png" alt="" />
-                  <span>DTC</span>
-                  <strong id="obdDtcValue">0</strong>
-                </div>
+                <button id="obdDetailsButton" class="obd-details-button" type="button" aria-label="Показать все состояния">
+                  <img src="/obd/vehicle_test.png" alt="" />
+                </button>
+              </div>
+
+              <div id="obdStatePage" class="obd-state-page hidden">
+                <img class="obd-bg" src="/obd/background.png" alt="" />
+                <button id="obdStateBack" class="obd-state-back" type="button" aria-label="Назад">↵</button>
+                <div id="obdStateGrid" class="obd-state-grid"></div>
+                <img class="obd-state-logo" src="/obd/home_bottom_logo.png" alt="TEYES OBD" />
               </div>
             </div>
             <div class="obd-service" aria-hidden="true">
