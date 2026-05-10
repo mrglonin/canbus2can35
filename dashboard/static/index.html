@@ -11,6 +11,7 @@
       <main class="workspace">
         <section class="control-strip">
           <div class="control-group primary-controls">
+            <button id="openObdView" class="obd-entry">OBD</button>
             <button id="startGsusb">Live CAN</button>
             <button id="startLab" class="primary">Live CAN+UART</button>
             <button id="toggleBridge">CAN→UART выкл</button>
@@ -75,6 +76,73 @@
               <div class="bridge-state" id="bridgeState">bridge выкл</div>
             </div>
             <div id="liveCategoryGrid" class="live-category-grid"></div>
+          </section>
+        </section>
+
+        <section id="tabObd" class="tab-panel" data-tab-panel="obd">
+          <section class="obd-panel">
+            <div class="obd-canvas">
+              <img class="obd-bg" src="/obd/background.png" alt="" />
+              <img class="obd-brand" src="/obd/home_bottom_logo.png" alt="TEYES OBD" />
+
+              <img id="obdRpmFrame" class="obd-rpm-frame" src="/obd/rpm_0.png" alt="" />
+              <div class="obd-rpm-readout">
+                <strong id="obdRpmValue">0</strong>
+                <span>rpm</span>
+              </div>
+
+              <img id="obdSpeedFrame" class="obd-speed-frame" src="/obd/speed_0.png" alt="" />
+              <div class="obd-speed-readout">
+                <strong id="obdSpeedValue">0</strong>
+                <span>km/h</span>
+              </div>
+
+              <img id="obdTempFrame" class="obd-temp-frame" src="/obd/temper_0.png" alt="" />
+              <div class="obd-temp-readout">
+                <strong id="obdCoolantValue">-</strong>
+                <span>°C</span>
+              </div>
+
+              <img id="obdLoadFrame" class="obd-load-frame" src="/obd/engine_load_0.png" alt="" />
+              <div class="obd-load-readout">
+                <strong id="obdLoadValue">0</strong>
+                <span>%</span>
+              </div>
+
+              <img class="obd-bottom-bg" src="/obd/home_bottom_bg.png" alt="" />
+              <div class="obd-bottom">
+                <div class="obd-info">
+                  <img src="/obd/home_voltage.png" alt="" />
+                  <span>Voltage</span>
+                  <strong id="obdVoltageValue">-</strong>
+                </div>
+                <div class="obd-info">
+                  <img src="/obd/home_mileage.png" alt="" />
+                  <span>Speed CAN</span>
+                  <strong id="obdSpeedSmallValue">0 km/h</strong>
+                </div>
+                <div class="obd-info">
+                  <img src="/obd/item_img_temper.png" alt="" />
+                  <span>Outside</span>
+                  <strong id="obdOutsideValue">-</strong>
+                </div>
+                <div class="obd-info">
+                  <img src="/obd/throttle_position.png" alt="" />
+                  <span>Throttle</span>
+                  <strong id="obdThrottleValue">0%</strong>
+                </div>
+                <div class="obd-info">
+                  <img src="/obd/item_img_fault_code.png" alt="" />
+                  <span>DTC</span>
+                  <strong id="obdDtcValue">0</strong>
+                </div>
+              </div>
+            </div>
+            <div class="obd-service" aria-hidden="true">
+              <input id="elmCommand" value="010C" />
+              <button id="sendElmCommand" tabindex="-1">ELM ответ</button>
+              <code id="elmResponse">ответ появится здесь</code>
+            </div>
           </section>
         </section>
 

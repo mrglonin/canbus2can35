@@ -2655,6 +2655,95 @@ def run_send_display(payload: dict) -> dict:
     return run_send_display_can(payload)
 
 
+def numeric_text(value, default: float = 0.0) -> float:
+    match = re.search(r"-?\d+(?:[\.,]\d+)?", str(value or ""))
+    if not match:
+        return default
+    try:
+        return float(match.group(0).replace(",", "."))
+    except ValueError:
+        return default
+
+
+def semantic_value(summary: dict, key: str, default: str = "-") -> str:
+    for item in summary.get("semantic", []):
+        if item.get("key") == key:
+            return str(item.get("value") or default)
+    return default
+
+
+def clamp_int(value: float, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, int(round(value))))
+
+
+def obd_snapshot(summary: dict | None = None) -> dict:
+    summary = summary or STATE.summary()
+    speed = clamp_int(numeric_text(semantic_value(summary, "speed_candidate", "0")), 0, 255)
+    rpm = clamp_int(numeric_text(semantic_value(summary, "rpm_316", "0")), 0, 16383)
+    coolant = clamp_int(numeric_text(semantic_value(summary, "engine_temp", "0")), -40, 215)
+    ambient = clamp_int(numeric_text(semantic_value(summary, "outside_temp", "0")), -40, 215)
+    voltage = max(0.0, min(65.535, numeric_text(semantic_value(summary, "battery_voltage", "0"))))
+    load = clamp_int((rpm / 8000) * 100 if rpm else 0, 0, 100)
+    throttle = clamp_int((rpm / 5000) * 100 if rpm else 0, 0, 100)
+    return {
+        "ok": True,
+        "source": "2CAN35 CAN snapshot",
+        "speed_kmh": speed,
+        "rpm": rpm,
+        "coolant_c": coolant,
+        "ambient_c": ambient,
+        "voltage_v": round(voltage, 2),
+        "engine_load_pct": load,
+        "throttle_pct": throttle,
+        "fuel_level_pct": None,
+        "dtc_count": 0,
+        "supported_pids": ["0100", "0104", "0105", "010C", "010D", "0111", "012F", "0142", "0146", "03"],
+        "note": "ELM/PID bridge is mapped from CAN, not from the OBD-II diagnostic connector.",
+    }
+
+
+def pid_byte_percent(value: float) -> int:
+    return clamp_int(float(value) * 255 / 100, 0, 255)
+
+
+def elm_obd_response(command: str, snapshot: dict | None = None) -> dict:
+    snapshot = snapshot or obd_snapshot()
+    clean = re.sub(r"[^0-9A-Za-z]", "", str(command or "")).upper()
+    if not clean:
+        return {"ok": False, "command": command, "response": "?", "error": "empty command"}
+    at_ok = {"ATE0", "ATE1", "ATL0", "ATL1", "ATS0", "ATS1", "ATH0", "ATH1", "ATSP0", "ATSP6", "ATAT1", "ATDPN"}
+    if clean == "ATZ":
+        return {"ok": True, "command": command, "response": "ELM327 v1.5 2CAN35"}
+    if clean in at_ok or clean.startswith("AT"):
+        response = "A6" if clean == "ATDPN" else "OK"
+        return {"ok": True, "command": command, "response": response}
+    if clean == "0100":
+        return {"ok": True, "command": command, "response": "41 00 BE 3E B8 13"}
+    if clean == "0104":
+        return {"ok": True, "command": command, "response": f"41 04 {pid_byte_percent(snapshot['engine_load_pct']):02X}"}
+    if clean == "0105":
+        return {"ok": True, "command": command, "response": f"41 05 {clamp_int(snapshot['coolant_c'] + 40, 0, 255):02X}"}
+    if clean == "010C":
+        raw = clamp_int(snapshot["rpm"] * 4, 0, 65535)
+        return {"ok": True, "command": command, "response": f"41 0C {(raw >> 8) & 0xFF:02X} {raw & 0xFF:02X}"}
+    if clean == "010D":
+        return {"ok": True, "command": command, "response": f"41 0D {clamp_int(snapshot['speed_kmh'], 0, 255):02X}"}
+    if clean == "0111":
+        return {"ok": True, "command": command, "response": f"41 11 {pid_byte_percent(snapshot['throttle_pct']):02X}"}
+    if clean == "012F":
+        if snapshot.get("fuel_level_pct") is None:
+            return {"ok": True, "command": command, "response": "NO DATA"}
+        return {"ok": True, "command": command, "response": f"41 2F {pid_byte_percent(snapshot['fuel_level_pct']):02X}"}
+    if clean == "0142":
+        raw = clamp_int(float(snapshot["voltage_v"]) * 1000, 0, 65535)
+        return {"ok": True, "command": command, "response": f"41 42 {(raw >> 8) & 0xFF:02X} {raw & 0xFF:02X}"}
+    if clean == "0146":
+        return {"ok": True, "command": command, "response": f"41 46 {clamp_int(snapshot['ambient_c'] + 40, 0, 255):02X}"}
+    if clean in {"03", "0300"}:
+        return {"ok": True, "command": command, "response": "43 00 00 00 00 00 00"}
+    return {"ok": True, "command": command, "response": "NO DATA"}
+
+
 class DashboardHandler(SimpleHTTPRequestHandler):
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store, max-age=0")
@@ -2759,6 +2848,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/summary":
             json_response(self, STATE.summary())
+            return
+        if parsed.path == "/api/obd/status":
+            json_response(self, obd_snapshot())
+            return
+        if parsed.path == "/api/obd/elm":
+            params = parse_qs(parsed.query)
+            command = (params.get("cmd") or params.get("command") or ["010C"])[0]
+            json_response(self, elm_obd_response(command))
             return
         super().do_GET()
 
@@ -2935,6 +3032,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 result = subprocess.run(cmd, cwd=str(ROOT), text=True, capture_output=True, timeout=8)
                 STATE.marker(f"mode {mode}: rc={result.returncode}")
                 json_response(self, {"ok": result.returncode == 0, "stdout": result.stdout, "stderr": result.stderr})
+                return
+            if parsed.path == "/api/obd/elm":
+                command = str(payload.get("command") or payload.get("cmd") or "")
+                json_response(self, elm_obd_response(command))
                 return
             json_response(self, {"ok": False, "error": "not found"}, HTTPStatus.NOT_FOUND)
         except Exception as exc:

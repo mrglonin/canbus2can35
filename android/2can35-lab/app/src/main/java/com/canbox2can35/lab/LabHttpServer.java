@@ -217,6 +217,12 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             case "/api/export/learned-table":
                 json(out, new JSONArray(uartEvents));
                 return;
+            case "/api/obd/status":
+                json(out, obdSnapshot());
+                return;
+            case "/api/obd/elm":
+                json(out, elmResponse(req.optString("command", req.optString("cmd", "010C"))));
+                return;
             case "/api/log/start":
                 running = true;
                 mode = req.optString("mode", "lab");
@@ -350,7 +356,53 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
         arr.put(semanticItem("ignition", "Зажигание", "ожидание", "android"));
         arr.put(semanticItem("media_source", "Источник данных", running ? "live" : "offline", "android"));
         arr.put(semanticItem("usb", "USB", usb.isOpen() ? usb.label() : "no USB", "android"));
+        JSONObject ems11 = latestCan(0x316);
+        if (ems11 != null) {
+            int[] data = canBytes(ems11);
+            if (data.length >= 8) {
+                arr.put(semanticItem("speed_candidate", "Скорость", data[6] + " км/ч", "0x316 EMS11"));
+                int rpmRaw = ((data[2] & 0xFF) << 8) | (data[3] & 0xFF);
+                arr.put(semanticItem("rpm_316", "Обороты двигателя", Math.round(rpmRaw / 4.0) + " rpm", "0x316 EMS11"));
+            }
+        }
+        JSONObject ems12 = latestCan(0x329);
+        if (ems12 != null) {
+            int[] data = canBytes(ems12);
+            if (data.length >= 2) arr.put(semanticItem("engine_temp", "Температура двигателя", (data[1] - 40) + " C", "0x329 EMS12"));
+        }
+        JSONObject datc11 = latestCan(0x044);
+        if (datc11 != null) {
+            int[] data = canBytes(datc11);
+            if (data.length >= 4) arr.put(semanticItem("outside_temp", "Наружная температура", ((data[3] / 2.0) - 40.0) + " C", "0x044 DATC11"));
+        }
+        JSONObject ems14 = latestCan(0x545);
+        if (ems14 != null) {
+            int[] data = canBytes(ems14);
+            if (data.length >= 4) arr.put(semanticItem("battery_voltage", "Напряжение АКБ", String.format(Locale.ROOT, "%.1f V", data[3] / 10.0), "0x545 EMS14"));
+        }
         return arr;
+    }
+
+    private JSONObject latestCan(int id) {
+        String wanted = String.format(Locale.ROOT, "0x%03X", id);
+        for (JSONObject event : canEvents) {
+            if (wanted.equalsIgnoreCase(event.optString("id_hex"))) return event;
+        }
+        return null;
+    }
+
+    private int[] canBytes(JSONObject event) {
+        String data = event.optString("data", "").replace(" ", "");
+        int count = data.length() / 2;
+        int[] out = new int[count];
+        for (int i = 0; i < count; i++) {
+            try {
+                out[i] = Integer.parseInt(data.substring(i * 2, i * 2 + 2), 16);
+            } catch (Exception ignored) {
+                out[i] = 0;
+            }
+        }
+        return out;
     }
 
     private JSONObject semanticItem(String key, String label, String value, String source) throws Exception {
@@ -398,6 +450,101 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             }
         }
         return state;
+    }
+
+    private JSONObject obdSnapshot() throws Exception {
+        JSONArray sem = semantic();
+        int speed = clampInt(numberFromSemantic(sem, "speed_candidate", 0), 0, 255);
+        int rpm = clampInt(numberFromSemantic(sem, "rpm_316", 0), 0, 16383);
+        int coolant = clampInt(numberFromSemantic(sem, "engine_temp", 0), -40, 215);
+        int ambient = clampInt(numberFromSemantic(sem, "outside_temp", 0), -40, 215);
+        double voltage = Math.max(0.0, Math.min(65.535, numberFromSemantic(sem, "battery_voltage", 0)));
+        int load = clampInt(rpm > 0 ? Math.round((rpm / 8000.0f) * 100.0f) : 0, 0, 100);
+        int throttle = clampInt(rpm > 0 ? Math.round((rpm / 5000.0f) * 100.0f) : 0, 0, 100);
+        JSONObject out = new JSONObject();
+        out.put("ok", true);
+        out.put("source", "2CAN35 Android CAN snapshot");
+        out.put("speed_kmh", speed);
+        out.put("rpm", rpm);
+        out.put("coolant_c", coolant);
+        out.put("ambient_c", ambient);
+        out.put("voltage_v", Math.round(voltage * 100.0) / 100.0);
+        out.put("engine_load_pct", load);
+        out.put("throttle_pct", throttle);
+        out.put("fuel_level_pct", JSONObject.NULL);
+        out.put("dtc_count", 0);
+        JSONArray pids = new JSONArray();
+        for (String pid : new String[]{"0100", "0104", "0105", "010C", "010D", "0111", "012F", "0142", "0146", "03"}) {
+            pids.put(pid);
+        }
+        out.put("supported_pids", pids);
+        return out;
+    }
+
+    private JSONObject elmResponse(String command) throws Exception {
+        JSONObject snap = obdSnapshot();
+        String clean = command == null ? "" : command.replaceAll("[^0-9A-Za-z]", "").toUpperCase(Locale.ROOT);
+        JSONObject out = new JSONObject();
+        out.put("ok", true);
+        out.put("command", command == null ? "" : command);
+        String response;
+        if ("ATZ".equals(clean)) {
+            response = "ELM327 v1.5 2CAN35";
+        } else if (clean.startsWith("AT")) {
+            response = "ATDPN".equals(clean) ? "A6" : "OK";
+        } else if ("0100".equals(clean)) {
+            response = "41 00 BE 3E B8 13";
+        } else if ("0104".equals(clean)) {
+            response = String.format(Locale.ROOT, "41 04 %02X", percentByte(snap.optDouble("engine_load_pct", 0)));
+        } else if ("0105".equals(clean)) {
+            response = String.format(Locale.ROOT, "41 05 %02X", clampInt(snap.optInt("coolant_c", 0) + 40, 0, 255));
+        } else if ("010C".equals(clean)) {
+            int raw = clampInt(snap.optInt("rpm", 0) * 4, 0, 65535);
+            response = String.format(Locale.ROOT, "41 0C %02X %02X", (raw >> 8) & 0xFF, raw & 0xFF);
+        } else if ("010D".equals(clean)) {
+            response = String.format(Locale.ROOT, "41 0D %02X", clampInt(snap.optInt("speed_kmh", 0), 0, 255));
+        } else if ("0111".equals(clean)) {
+            response = String.format(Locale.ROOT, "41 11 %02X", percentByte(snap.optDouble("throttle_pct", 0)));
+        } else if ("012F".equals(clean)) {
+            response = "NO DATA";
+        } else if ("0142".equals(clean)) {
+            int raw = clampInt((int) Math.round(snap.optDouble("voltage_v", 0) * 1000.0), 0, 65535);
+            response = String.format(Locale.ROOT, "41 42 %02X %02X", (raw >> 8) & 0xFF, raw & 0xFF);
+        } else if ("0146".equals(clean)) {
+            response = String.format(Locale.ROOT, "41 46 %02X", clampInt(snap.optInt("ambient_c", 0) + 40, 0, 255));
+        } else if ("03".equals(clean) || "0300".equals(clean)) {
+            response = "43 00 00 00 00 00 00";
+        } else {
+            response = "NO DATA";
+        }
+        out.put("response", response);
+        return out;
+    }
+
+    private double numberFromSemantic(JSONArray sem, String key, double fallback) {
+        for (int i = 0; i < sem.length(); i++) {
+            JSONObject item = sem.optJSONObject(i);
+            if (item == null || !key.equals(item.optString("key"))) continue;
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("-?\\d+(?:[\\.,]\\d+)?")
+                    .matcher(item.optString("value", ""));
+            if (matcher.find()) {
+                try {
+                    return Double.parseDouble(matcher.group(0).replace(",", "."));
+                } catch (Exception ignored) {
+                    return fallback;
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private int clampInt(double value, int min, int max) {
+        return Math.max(min, Math.min(max, (int) Math.round(value)));
+    }
+
+    private int percentByte(double pct) {
+        return clampInt(pct * 255.0 / 100.0, 0, 255);
     }
 
     private JSONObject androidPermissions() throws Exception {

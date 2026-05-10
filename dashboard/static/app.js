@@ -202,8 +202,11 @@ function semanticByKey(summary, key) {
 
 function switchTab(tab) {
   const requested = tab === "export" ? "settings" : tab;
-  const next = ["live", "learn", "can", "uart", "cluster", "settings"].includes(requested) ? requested : "live";
+  const next = ["live", "obd", "learn", "can", "uart", "cluster", "settings"].includes(requested) ? requested : "live";
   state.activeTab = next;
+  document.body.classList.toggle("obd-mode", next === "obd");
+  const obdButton = $("openObdView");
+  if (obdButton) obdButton.classList.toggle("active", next === "obd");
   document.querySelectorAll("[data-view-tab]").forEach((button) => {
     const active = button.dataset.viewTab === next;
     button.classList.toggle("active", active);
@@ -516,6 +519,7 @@ function renderSummary(summary) {
   renderBridge(summary.bridge || {});
 
   semanticToCar(summary);
+  renderObd(summary);
   renderLearnStatus(summary.learn || {});
   renderCarStatus();
   renderSemantic(summary.semantic || [], summary.semantic_events || []);
@@ -620,6 +624,82 @@ function renderCarStatus() {
   $("carSubtitle").textContent = `${state.car.source === "demo" ? "Демо" : "Live"} · ${state.car.lastLabel}`;
   renderLiveCategories();
   renderLearnedLive();
+}
+
+function numberFromText(value, fallback = 0) {
+  const match = String(value ?? "").replace(",", ".").match(/-?\d+(?:\.\d+)?/);
+  if (!match) return fallback;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function obdSnapshotFromCar() {
+  const speed = clamp(numberFromText(state.car.speed), 0, 240);
+  const rpm = clamp(numberFromText(state.car.rpm), 0, 8000);
+  const coolant = numberFromText(state.car.engineTemp, 0);
+  const outside = numberFromText(state.car.outsideTemp, 0);
+  const voltage = numberFromText(state.car.batteryVoltage, 0);
+  const load = state.car.ignition ? clamp(Math.round((rpm / 8000) * 100), 0, 100) : 0;
+  const throttle = state.car.ignition ? clamp(Math.round((rpm / 5000) * 100), 0, 100) : 0;
+  return {
+    speed,
+    rpm,
+    coolant,
+    outside,
+    voltage,
+    load,
+    throttle,
+    fuel: "-",
+    dtc: "0",
+    source: state.car.source || "live",
+  };
+}
+
+function setNeedle(id, value, max) {
+  const node = $(id);
+  if (!node) return;
+  const deg = -132 + clamp(value / max, 0, 1) * 264;
+  node.style.transform = `translateX(-50%) rotate(${deg}deg)`;
+}
+
+function nearestFrame(value, min, max, step) {
+  return clamp(Math.round(value / step) * step, min, max);
+}
+
+function tempFrameName(value) {
+  const frame = nearestFrame(value, -10, 100, 5);
+  return frame < 0 ? `temper__${Math.abs(frame)}.png` : `temper_${frame}.png`;
+}
+
+function renderObd() {
+  const speedValue = $("obdSpeedValue");
+  if (!speedValue) return;
+  const obd = obdSnapshotFromCar();
+  const speed = Math.round(obd.speed);
+  const rpm = Math.round(obd.rpm);
+  const coolant = Math.round(obd.coolant);
+  const load = Math.round(obd.load);
+  const throttle = Math.round(obd.throttle);
+  const speedFrame = nearestFrame(speed, 0, 180, 3);
+  const rpmFrame = nearestFrame(rpm, 0, 8000, 200);
+  const loadFrame = nearestFrame(load, 0, 100, 5);
+  speedValue.textContent = speed;
+  $("obdRpmValue").textContent = rpm;
+  $("obdCoolantValue").textContent = Number.isFinite(coolant) ? coolant : "-";
+  $("obdLoadValue").textContent = load;
+  $("obdVoltageValue").textContent = obd.voltage ? `${obd.voltage} V` : "-";
+  $("obdSpeedSmallValue").textContent = `${speed} km/h`;
+  $("obdOutsideValue").textContent = obd.outside ? `${obd.outside} °C` : "-";
+  $("obdThrottleValue").textContent = `${throttle}%`;
+  $("obdDtcValue").textContent = obd.dtc;
+  $("obdSpeedFrame").src = `/obd/speed_${speedFrame}.png`;
+  $("obdRpmFrame").src = `/obd/rpm_${rpmFrame}.png`;
+  $("obdTempFrame").src = `/obd/${tempFrameName(coolant || 0)}`;
+  $("obdLoadFrame").src = `/obd/engine_load_${loadFrame}.png`;
 }
 
 function hasLearnedAction(...actionIds) {
@@ -1904,6 +1984,8 @@ function setupActions() {
     switchTab(state.activeTab);
   }
 
+  const openObdButton = $("openObdView");
+  if (openObdButton) openObdButton.addEventListener("click", () => switchTab("obd"));
   $("refreshStatus").addEventListener("click", () => refreshStatus().catch((error) => logAction(error.message)));
   $("startGsusb").addEventListener("click", async () => {
     stopDemo();
@@ -2036,6 +2118,15 @@ function setupActions() {
     const result = await post("/api/can/sweep", payload);
     logAction(`CAN sweep: ${result.frames} кадров, queued ${result.queued}`);
   });
+  const elmButton = $("sendElmCommand");
+  if (elmButton) {
+    elmButton.addEventListener("click", async () => {
+      const command = $("elmCommand").value.trim();
+      const result = await post("/api/obd/elm", { command });
+      $("elmResponse").textContent = result.response || result.error || "-";
+      logAction(`ELM ${command}: ${result.response || result.error || "-"}`);
+    });
+  }
 }
 
 async function main() {
