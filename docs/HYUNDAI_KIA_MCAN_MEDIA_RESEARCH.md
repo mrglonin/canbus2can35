@@ -32,6 +32,13 @@ CAN ID, на которых надо фокусироваться в логах.
 - commaai/opendbc current project / data browser:
   - https://github.com/commaai/opendbc
   - https://commaai.github.io/opendbc-data/
+- Android `Location.getBearing()` official docs, for real compass heading while
+  moving:
+  - https://developer.android.com/reference/android/location/Location#getBearing()
+- Android motion/position sensor docs, for fallback azimuth/rotation-vector
+  compass when GPS bearing is unavailable:
+  - https://developer.android.com/develop/sensors-and-location/sensors/sensors_motion
+  - https://developer.android.com/develop/sensors-and-location/sensors/sensors_position
 
 ## Important M-CAN Media IDs
 
@@ -237,3 +244,164 @@ also breaks the shared status/scheduler state. The final fix should be narrower:
 - or send the right source-specific TP stream for FM/BT/Android instead of USB.
 
 We need logs to decide which one is true.
+
+## 2026-05-10: Navigation, Compass, And "USB Music" Cross-Check
+
+This section is the current working theory after re-checking public DBC data,
+our old programmer firmware notes, APK command analysis, and the failures we
+saw during in-car tests.
+
+### Confirmed public DBC facts
+
+The public Hyundai/Kia M-CAN DBC confirms that default compass/navigation is not
+a single UART command and not the same thing as text transport. The core M-CAN
+frames are:
+
+| CAN ID | DBC name | Role |
+|---:|---|---|
+| `0x114` | `HU_CLU_PE_01` | Main HU/source state: op state, nav on/off, track, play time, frequency. |
+| `0x115` | `HU_CLU_PE_02` | Turn-by-turn display type, direction, distance to turn, bar graph. |
+| `0x197` | `HU_CLU_PE_05` | HU/cluster UI status: mute, volume, nav display/status, distance unit, nav on/off. |
+| `0x1E5` | `HU_CLU_PE_11` | Speed limit / camera / speed trap. Keep disabled unless trim support is proven. |
+| `0x1E6` | `HU_CLU_PE_12` | Destination distance, ETA, and compass. |
+| `0x1E7` | `HU_CLU_PE_13` | Distances to next maneuver points. |
+| `0x49B` | `TP_HU_NAVI_CLU` | Navigation text transport. |
+| `0x4BB` | `TP_HU_TBT_CLU` | Turn-by-turn text transport. |
+| `0x490` | `TP_HU_USB_CLU` | USB/media text transport. |
+| `0x4E8` | `TP_HU_FM_CLU` | FM radio text transport. |
+| `0x4E6` | `TP_HU_MLT_CLU` | Generic multimedia/list transport. |
+| `0x4EE` | `TP_HU_IBOX_CLU` | iBox / Bluetooth candidate transport. |
+| `0x4F2` | `TP_HU_CARPLAY_CLU` | CarPlay transport. |
+| `0x4F4` | `TP_HU_ANDAUTO_CLU` | Android Auto transport on M-CAN; do not confuse with C-CAN `0x4F4` SPAS. |
+
+`0x1E6 HU_CLU_PE_12` contains `Navi_Compass`:
+
+```text
+Navi_Compass : 45|6@0+ (7.5,-7.5) [0|352.5] "Degree"
+```
+
+Practical encoding:
+
+```text
+raw = round((heading_degrees + 7.5) / 7.5) & 0x3F
+heading_degrees ~= raw * 7.5 - 7.5
+```
+
+So the "default compass" that the programmer firmware shows when there is no
+route is most likely a periodic `0x1E6` update with inactive/empty route fields
+and a valid `Navi_Compass` value, gated by valid status in `0x114` and `0x197`.
+
+### What the programmer APK/firmware path tells us
+
+Our decoded Sportage APK notes show these app-to-adapter commands:
+
+| APK command | Meaning in our notes | Expected M-CAN result |
+|---:|---|---|
+| `0x20` | FM/station text | `0x4E8` plus source/status frames. |
+| `0x21` | media/radio/source text | Source-specific TP plus `0x114/0x197`. |
+| `0x22` | track text | `0x490`, `0x4E6`, `0x4EE`, `0x4F2`, or `0x4F4` depending on actual source. |
+| `0x45` | navigation maneuver/TBT | `0x115` plus `0x4BB`, sometimes `0x49B`. |
+| `0x47` | ETA/distance to destination | `0x1E6` and possibly `0x1E7`. |
+| `0x48` | navigation on/off | `0x114`, `0x197`, and scheduler state for nav frames. |
+
+The important correction: these APK commands are not one-to-one raw CAN frames.
+The firmware has to keep a scheduler/state machine and repeat the correct status
+frames. A single injected TP frame is often invisible because the cluster was
+not put into the matching source/navigation state.
+
+### Why our earlier "remove USB music" patch broke more than USB
+
+The visible bug was repeated "USB Music", but the bad patch class removed or
+suppressed too broad a media path. The firmware appears to use the same
+source/media scheduler for:
+
+- default compass state;
+- HU source/status `0x114/0x197`;
+- source-specific text transport;
+- navigation/TBT repeat cadence.
+
+Therefore the correct fix is narrow:
+
+1. Keep the programmer v08 scheduler/state behavior.
+2. Suppress only false USB fallback display when the HU/app did not report USB.
+3. Do not remove `0x114`, `0x197`, `0x1E6`, `0x49B`, or `0x4BB` periodic output.
+4. Do not disable the media scheduler just because one source fallback is wrong.
+
+### Correct navigation output model
+
+For reliable cluster navigation output, treat it as a layered sequence:
+
+1. Status layer, repeated:
+   - `0x114 HU_CLU_PE_01`: source/op state and `HU_Navi_On_Off`.
+   - `0x197 HU_CLU_PE_05`: `HU_NaviDisp`, `HU_NaviStatus`,
+     `HU_DistanceUnit`, `HU_Navigation_On_Off`.
+2. Compass/ETA layer, repeated:
+   - `0x1E6 HU_CLU_PE_12`: always keep compass valid; route fields can be
+     empty/inactive when no route.
+   - `0x1E7 HU_CLU_PE_13`: only when route/maneuver points are valid.
+3. TBT layer, active route only:
+   - `0x115 HU_CLU_PE_02`: icon/direction/distance/bar graph.
+   - `0x4BB TP_HU_TBT_CLU`: TBT text transport.
+4. Street/name layer, active route only:
+   - `0x49B TP_HU_NAVI_CLU`: street/name transport.
+
+### Compass data source
+
+For real compass movement we need a heading source before packing `Navi_Compass`:
+
+| Source | Priority | Notes |
+|---|---:|---|
+| Android navigation bearing | 1 | Best source when route guidance is active. Use maneuver/location bearing from navigation app if exposed. |
+| Android fused/GPS bearing | 2 | Works while moving; bad when parked. |
+| Last valid bearing | 3 | Keep stable compass when no fresh GPS bearing exists. |
+| Demo rotation | test only | Useful in dashboard tests; do not use as production car behavior. |
+
+Do not rotate compass artificially in normal firmware. If no real heading is
+available, hold last heading or use a neutral fixed value.
+
+### Theories to test in-car
+
+1. `0x1E6` alone will probably not show the compass unless `0x114/0x197` say
+   navigation/cluster display is allowed.
+2. `0x49B`/`0x4BB` text alone will probably not show route text unless `0x115`
+   and nav status are also valid.
+3. Source text needs both source state and correct TP stream:
+   - FM: `0x114` + `0x4E8`.
+   - USB: `0x114` + `0x490`.
+   - Bluetooth/iBox: `0x114` + `0x4EE` or `0x485`.
+   - CarPlay: `0x114` + `0x4F2`.
+   - Android Auto: `0x114` + `0x4F4`.
+4. The TP reverse-direction frames (`0x497`, `0x48C`, `0x4AB`, etc.) may be
+   handshake/ack/session state. If cluster ignores repeated text, log these
+   pairs before changing firmware.
+5. `0x1E5` speed limit/camera should stay off until explicitly verified,
+   because the programmer also noted speed-limit output could break trims
+   without that function.
+
+### Target capture set for the next road test
+
+Capture M-CAN while only one state changes:
+
+| Test | Required IDs to watch |
+|---|---|
+| No route, compass visible | `0x114`, `0x197`, `0x1E6`; also check if `0x49B/0x4BB` are absent. |
+| Route active, next turn | `0x114`, `0x115`, `0x197`, `0x1E6`, `0x1E7`, `0x49B`, `0x4BB`. |
+| Route canceled | Same IDs; find what clears TBT while keeping compass. |
+| FM source | `0x114`, `0x197`, `0x4E8`, reverse `0x4E9`. |
+| USB source | `0x114`, `0x197`, `0x490`, reverse `0x497`. |
+| Bluetooth music | `0x114`, `0x197`, `0x4EE`, `0x485`, reverse `0x4EF`. |
+| CarPlay | `0x114`, `0x197`, `0x4F2`, reverse `0x4F3`. |
+| Android Auto | `0x114`, `0x197`, `0x4F4`, reverse `0x4F5`. |
+
+For each test, save a clean segment before/after the action. Known steady OBD
+signals and already-confirmed body/climate signals can be filtered out; do not
+filter the M-CAN HU IDs above.
+
+### Implementation rule for our firmware/dashboard
+
+- The dashboard "Приборка CAN" sender must send a bundle, not a single frame:
+  status (`0x114/0x197`) + content (`0x1E6` or TP frame) + repeat cadence.
+- The normal firmware should keep programmer v08 behavior as baseline and only
+  patch false fallback source selection.
+- The logger should mark these IDs as "do not hide as noise" even if they are
+  periodic, because periodicity is required for the cluster display.
