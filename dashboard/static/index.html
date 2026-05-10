@@ -62,7 +62,6 @@
           <button data-view-tab="can" role="tab" aria-selected="false" aria-controls="tabCan"><span>▦</span> CAN</button>
           <button data-view-tab="uart" role="tab" aria-selected="false" aria-controls="tabUart"><span>⇄</span> UART</button>
           <button data-view-tab="cluster" role="tab" aria-selected="false" aria-controls="tabCluster"><span>▣</span> Приборка</button>
-          <button data-view-tab="export" role="tab" aria-selected="false" aria-controls="tabExport"><span>⇩</span> Экспорт</button>
           <button data-view-tab="settings" role="tab" aria-selected="false" aria-controls="tabSettings"><span>⚙</span> Настройка</button>
         </section>
 
@@ -287,38 +286,6 @@
           </section>
         </section>
 
-        <section id="tabExport" class="tab-panel" data-tab-panel="export">
-          <section class="export-grid">
-            <section class="panel">
-              <div class="panel-head">
-                <div>
-                  <h2>Экспорт логов</h2>
-                  <p>Раздельные файлы: M-CAN, C-CAN, UART и полный пакет.</p>
-                </div>
-              </div>
-              <div class="export-actions">
-                <button data-export-path="/api/export/can/m" data-export-name="mcan_log">M-CAN JSON</button>
-                <button data-export-path="/api/export/can/c" data-export-name="ccan_log">C-CAN JSON</button>
-                <button data-export-path="/api/export/uart" data-export-name="uart_log">UART JSON</button>
-                <button data-export-path="/api/export" data-export-name="full_bundle">Весь пакет JSON</button>
-              </div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-head">
-                <div>
-                  <h2>Таблица для прошивки</h2>
-                  <p>Связки действия: CAN ID/байты/значения + UART-команда, если она уже известна.</p>
-                </div>
-              </div>
-              <div class="export-actions">
-                <button data-export-path="/api/export/learned-table" data-export-name="learned_can_uart_table">CAN↔UART table JSON</button>
-                <button data-export-path="/api/learned" data-export-name="learned_assignments">Только закреплённые JSON</button>
-              </div>
-            </section>
-          </section>
-        </section>
-
         <section id="tabSettings" class="tab-panel" data-tab-panel="settings">
           <section class="settings-grid">
             <section class="panel">
@@ -346,6 +313,34 @@
                 <span>сырьё для музыки/навигации</span>
               </div>
               <div id="androidNotificationList" class="notification-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Экспорт логов</h2>
+                  <p>Раздельные файлы: M-CAN, C-CAN, UART и полный пакет.</p>
+                </div>
+              </div>
+              <div class="export-actions">
+                <button data-export-path="/api/export/can/m" data-export-name="mcan_log">M-CAN JSON</button>
+                <button data-export-path="/api/export/can/c" data-export-name="ccan_log">C-CAN JSON</button>
+                <button data-export-path="/api/export/uart" data-export-name="uart_log">UART JSON</button>
+                <button data-export-path="/api/export" data-export-name="full_bundle">Весь пакет JSON</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Таблица для прошивки</h2>
+                  <p>Связки действия: CAN ID/байты/значения + UART-команда, если она уже известна.</p>
+                </div>
+              </div>
+              <div class="export-actions">
+                <button data-export-path="/api/export/learned-table" data-export-name="learned_can_uart_table">CAN↔UART table JSON</button>
+                <button data-export-path="/api/learned" data-export-name="learned_assignments">Только закреплённые JSON</button>
+              </div>
             </section>
           </section>
         </section>

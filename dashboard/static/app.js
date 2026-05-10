@@ -201,7 +201,8 @@ function semanticByKey(summary, key) {
 }
 
 function switchTab(tab) {
-  const next = ["live", "learn", "can", "uart", "cluster", "export", "settings"].includes(tab) ? tab : "live";
+  const requested = tab === "export" ? "settings" : tab;
+  const next = ["live", "learn", "can", "uart", "cluster", "settings"].includes(requested) ? requested : "live";
   state.activeTab = next;
   document.querySelectorAll("[data-view-tab]").forEach((button) => {
     const active = button.dataset.viewTab === next;
