@@ -66,6 +66,7 @@ LIBOPENCM3_OBJS := \
 	$(OPENCM3)/lib/usb/usb_f107.o
 
 SRC := \
+	src/startup_app.c \
 	src/board.c \
 	src/canbus.c \
 	src/kia_profile.c \

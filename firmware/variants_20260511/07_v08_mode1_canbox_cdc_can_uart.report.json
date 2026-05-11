@@ -1,0 +1,74 @@
+{
+  "name": "v08 mode1 stock canbox + stock CDC CAN/UART sideband",
+  "source": "/Users/legion/Downloads/2CAN35_CANBOX_WORK_2026-05-08/incoming/downloads_root_20260509/firmware/37FFDA054247303859412243_04350008.bin",
+  "source_size": 19464,
+  "source_sha256": "6b0f718f89e1bc1955dbeb03c0874d9ec83f1bf506cb1ce66920f7bca70d186f",
+  "output_usb": "firmware/variants_20260511/07_v08_mode1_canbox_cdc_can_uart_USB.bin",
+  "output_usb_size": 20324,
+  "output_usb_sha256": "8181f24282c515892bdd91df95e51f2989a1264fca04e5565ba39805ddb4c0d3",
+  "output_stlink": "firmware/variants_20260511/07_v08_mode1_canbox_cdc_can_uart_STLINK64K.bin",
+  "output_stlink_sha256": "b93082254532340e8971dd13f31d8652228f895bcc7fd0633b876a6725a7d7e3",
+  "vectors": {
+    "sp": "0x20010000",
+    "reset": "0x08006e3d",
+    "unchanged_reset_expected": "0x08006e3d"
+  },
+  "usb_identity": "unchanged stock CDC/proprietary canbox interface; no gs_usb",
+  "mode1_policy": "programmer canbox logic remains default and runs immediately",
+  "sideband_commands": {
+    "0x70": "CAN log start/stop; events returned as BB A1 41 16 70 02 bus flags id_le dlc data checksum",
+    "0x71": "UART mirrored RX status",
+    "0x72": "UART mirrored RX read",
+    "0x73": "UART raw TX through USART2 PA2",
+    "0x74": "CAN raw TX on CAN1/C-CAN or CAN2/M-CAN without changing USB interface"
+  },
+  "safety_notes": [
+    "UART RX is mirrored after stock USART2 RX byte read, so stock parser still receives bytes.",
+    "CAN RX hooks call the original CAN pop function before emitting USB copies.",
+    "CAN TX assumes stock firmware already initialized CAN1/CAN2 timings."
+  ],
+  "stub": {
+    "address": "0x08008bf8",
+    "size": 860,
+    "symbols": {
+      "dispatcher": "0x08008bf8",
+      "canlog0": "0x08008d26",
+      "canlog1": "0x08008d3e",
+      "uart_rx_mirror": "0x08008de4"
+    }
+  },
+  "patches": [
+    {
+      "address": "0x08005f2e",
+      "old": "FF F7 31 BA",
+      "new": "02 F0 63 BE"
+    },
+    {
+      "address": "0x08004826",
+      "old": "02 F0 B7 FD",
+      "new": "04 F0 7E FA"
+    },
+    {
+      "address": "0x08004946",
+      "old": "02 F0 27 FD",
+      "new": "04 F0 EE F9"
+    },
+    {
+      "address": "0x08004a70",
+      "old": "02 F0 92 FC",
+      "new": "04 F0 65 F9"
+    },
+    {
+      "address": "0x08004b7c",
+      "old": "02 F0 0C FC",
+      "new": "04 F0 DF F8"
+    },
+    {
+      "address": "0x08004ccc",
+      "old": "04 F1 38 00 FF F7 1D FB",
+      "new": "04 F0 8A B8 00 BF 00 BF"
+    }
+  ],
+  "nm": "00000000 T dispatcher\n00000028 t cmd_canlog\n0000005c t cmd_uart_status\n0000007e t cmd_uart_read\n000000ac t cmd_uart_write\n000000d2 t cmd_can_tx\n000000e2 t ack_ff\n000000ea t handled\n000000ec t send_ack\n000000f4 t send_response\n0000012e T canlog0\n00000146 T canlog1\n0000015e t canlog_common\n000001d2 t checksum\n000001ec T uart_rx_mirror\n00000208 t uart_init_once\n00000226 t uart_available\n00000234 t uart_pop\n00000254 t uart_ring_put\n00000278 t uart_write_byte\n00000292 t can_send_from_frame\n000002e4 t ext_id\n000002ea t id_done\n0000030c t can_fail\n0800430f a ORIG_UART_RX_PUT\n08004cd5 a UART_RX_CONTINUE\n08005395 a ORIG_USB_DISPATCH\n08005fa9 a ORIG_USB_SEND\n08007399 a ORIG_CAN_POP\n20000f00 a LOG_FLAG\n20000f08 a RESP_BUF\n20007f00 a UART_HEAD\n20007f02 a UART_TAIL\n20007f04 a UART_DROPPED\n20007f08 a UART_INIT_MAGIC\n20008000 a UART_BUF\n40004400 a USART2_SR\n40004404 a USART2_DR\n40006400 a CAN1_BASE\n40006800 a CAN2_BASE\n",
+  "roundtrip_ok": true
+}

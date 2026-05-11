@@ -1,0 +1,113 @@
+{
+  "name": "06_lab_mode1_gsusb_uart_immediate",
+  "purpose": "mode1/app slot is gs_usb + UART sideband immediately after power; no software switch to mode3 required",
+  "warning": "This replaces programmer canbox app logic in mode1. Use for lab CAN+UART/OBD testing, not for stock canbox behavior.",
+  "source": "firmware/canlog/gs_2can35_uart_sideband_original.bin",
+  "source_sha256": "71b1672b1793064c2d2041d9d910aced6e48d1c61ce5e7a9483e3524ea7bc00e",
+  "output_update": "firmware/variants_20260511/06_lab_mode1_gsusb_uart_immediate_USB.bin",
+  "output_update_size": 12176,
+  "output_update_sha256": "3239e286811500c9331f913082eae09203dc26a72ca3e7408506913580ba2fc0",
+  "output_stlink64k": "firmware/variants_20260511/06_lab_mode1_gsusb_uart_immediate_STLINK64K.bin",
+  "output_stlink64k_sha256": "10ef6763177a9652751a5b22672a68c555f71d81c41b51e51e08afb82fa330fb",
+  "uid": "37 FF DA 05 42 47 30 38 59 41 22 43",
+  "version": "04 35 20 01",
+  "app_base": "0x08004000",
+  "vector": {
+    "sp": "0x20010000",
+    "reset": "0x0800526d"
+  },
+  "usb_identity": "gs_usb/budgetcan 1d50:606f, channels=2",
+  "can_speeds_expected_by_tool": {
+    "M-CAN ch0": "100000",
+    "C-CAN ch1": "500000"
+  },
+  "uart_sideband": {
+    "USART2": "PA2 TX / PA3 RX, 19200",
+    "control": "vendor requests 0x70..0x73, reset 0x7f"
+  },
+  "update_mode": "software 2CAN35 updater commands are not available while gs_usb app is running; use physical/bootloader mode2 or ST-Link to replace this lab app",
+  "roundtrip_ok": true,
+  "relocation_count": 145,
+  "relocation_sample": [
+    {
+      "file_offset": "0x0004",
+      "old": "0x0800126d",
+      "new": "0x0800526d"
+    },
+    {
+      "file_offset": "0x0008",
+      "old": "0x08001269",
+      "new": "0x08005269"
+    },
+    {
+      "file_offset": "0x000c",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0010",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0014",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0018",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x002c",
+      "old": "0x08001269",
+      "new": "0x08005269"
+    },
+    {
+      "file_offset": "0x0030",
+      "old": "0x08001269",
+      "new": "0x08005269"
+    },
+    {
+      "file_offset": "0x0038",
+      "old": "0x08001269",
+      "new": "0x08005269"
+    },
+    {
+      "file_offset": "0x003c",
+      "old": "0x08000345",
+      "new": "0x08004345"
+    },
+    {
+      "file_offset": "0x0040",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0044",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0048",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x004c",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0050",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    },
+    {
+      "file_offset": "0x0054",
+      "old": "0x08001267",
+      "new": "0x08005267"
+    }
+  ]
+}

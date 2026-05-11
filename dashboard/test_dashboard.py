@@ -87,6 +87,39 @@ def assert_learning_flow(base_url: str) -> None:
     post_json(f"{base_url}/api/log/stop", {})
 
 
+def assert_display_flow(base_url: str) -> None:
+    usb = post_json(
+        f"{base_url}/api/send/display",
+        {
+            "transport": "usb",
+            "scenario": "full",
+            "dry_run": True,
+            "fm": "FM TEST 101.7",
+            "media": "USB MUSIC TEST",
+            "track": "TRACK / ARTIST TEST",
+            "meters": 120,
+            "eta": 124,
+        },
+    )
+    assert usb.get("ok") is True and usb.get("dry_run") is True, usb
+    frames = usb.get("frame_hex") or []
+    assert len(frames) == 6, usb
+    cmd_bytes = [int(frame.split()[4], 16) for frame in frames]
+    assert cmd_bytes == [0x48, 0x45, 0x47, 0x20, 0x21, 0x22], cmd_bytes
+    path = usb.get("firmware_path") or {}
+    assert path.get("0x20", "").endswith("0x4E8"), path
+    assert path.get("0x21", "").endswith("0x4F6"), path
+    assert path.get("0x22", "").endswith("0x490"), path
+
+    can = post_json(
+        f"{base_url}/api/send/display",
+        {"transport": "can", "scenario": "music", "bus": "mcan", "dry_run": True},
+    )
+    assert can.get("ok") is True and can.get("dry_run") is True, can
+    ids = {item["id"] for item in can.get("frame_hex", [])}
+    assert {"0x114", "0x197", "0x490", "0x4F6"}.issubset(ids), ids
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Dashboard API/static smoke tests")
     parser.add_argument("--url", default="http://127.0.0.1:8765")
@@ -99,6 +132,12 @@ def main() -> int:
     decoded = server.decode_raise_frame(bytes.fromhex("FD0A09160000000002002B"))
     assert decoded["valid"], decoded
     assert "USB music" in decoded["text"], decoded
+    decoded_fm = server.decode_raise_frame(bytes.fromhex("FD08090200654600BE"))
+    assert decoded_fm["valid"], decoded_fm
+    assert decoded_fm["fields"]["source_name"] == "радио", decoded_fm
+    assert decoded_fm["fields"]["frequency"] == "101.70", decoded_fm
+    full_cmds = [frame[4] for frame in server.display_frames("full", "FM TEST 101.7", "USB MUSIC TEST", "TRACK / ARTIST TEST", 120, 124, 1)]
+    assert full_cmds == [0x48, 0x45, 0x47, 0x20, 0x21, 0x22], full_cmds
     decoded_2e = server.decode_canbox_uart_frame(bytes.fromhex("2E20021401C8"))
     assert decoded_2e["valid"], decoded_2e
     assert decoded_2e["fields"]["protocol"] == "canbox_2e", decoded_2e
@@ -106,7 +145,7 @@ def main() -> int:
 
     assert_static_contract()
     assert_server_contract(base_url)
-    assert_learning_flow(base_url)
+    assert_display_flow(base_url)
     print("dashboard tests ok")
     return 0
 

@@ -24,6 +24,8 @@ firmware/custom_c/dist/
 
 # Local captures can grow fast. Curated examples may be force-added if needed.
 logs/*.tmp
+logs/dashboard_*.log
+logs/dashboard_server.log
 logs/dashboard_server_*.log
 logs/live_*.txt
 logs/live_*.log

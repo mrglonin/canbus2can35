@@ -530,14 +530,14 @@ DISPLAY_CAN_FRAME_SETS: dict[str, list[tuple[int, str, float]]] = {
         (0x197, "1000000000000000", 1.00),
         (0x490, "01001020000000", 0.10),
         (0x490, "01001040000000", 0.10),
-        (0x4E6, "49C4000083838B00", 0.10),
-        (0x4E6, "49C4000083838C00", 0.10),
+        (0x4F6, "49C4000083838B00", 0.10),
+        (0x4F6, "49C4000083838C00", 0.10),
     ],
     "track": [
         (0x114, "0B21FFFFFFFFE10F", 0.20),
         (0x197, "1000000000000000", 1.00),
-        (0x4E6, "49C4000083838B00", 0.10),
-        (0x4E6, "49C4000083838C00", 0.10),
+        (0x4F6, "49C4000083838B00", 0.10),
+        (0x4F6, "49C4000083838C00", 0.10),
     ],
     "fm": [
         (0x114, "0B21FFFFFFFFE10F", 0.20),
@@ -557,7 +557,7 @@ DISPLAY_CAN_FRAME_SETS: dict[str, list[tuple[int, str, float]]] = {
         (0x114, "0B21FFFFFFFFE10F", 0.20),
         (0x197, "1000000000000000", 0.50),
         (0x490, "00000820000000", 0.10),
-        (0x4E6, "8080000080800000", 0.10),
+        (0x4F6, "8080000080800000", 0.10),
     ],
 }
 DISPLAY_CAN_FRAME_SETS["full"] = (
@@ -565,6 +565,41 @@ DISPLAY_CAN_FRAME_SETS["full"] = (
     + DISPLAY_CAN_FRAME_SETS["fm"]
     + DISPLAY_CAN_FRAME_SETS["music"]
 )
+
+MCAN_PROBE_ALLOWED_IDS = {
+    0x114,
+    0x115,
+    0x197,
+    0x1E5,
+    0x1E6,
+    0x1E7,
+    0x485,
+    0x490,
+    0x49B,
+    0x4BB,
+    0x4E6,
+    0x4E8,
+    0x4EA,
+    0x4EE,
+    0x4F2,
+    0x4F4,
+    0x4F6,
+}
+
+MCAN_PROBE_PAYLOADS = {
+    "zero": "0000000000000000",
+    "idle_source": "0B21FFFFFFFFE10F",
+    "nav_status": "1000000000000000",
+    "usb_idle_1": "01001020000000",
+    "usb_idle_2": "01001040000000",
+    "usb_clear": "00000820000000",
+    "tp_text_a": "49C4000083838B00",
+    "tp_text_b": "49C4000083838C00",
+    "tp_clear": "8080000080800000",
+    "nav_tbt": "0100000000780000",
+    "nav_eta": "0000010001050000",
+    "nav_points": "007800F001680000",
+}
 
 
 def display_can_channels(bus: str) -> list[int]:
@@ -997,6 +1032,8 @@ def semantic_value_from_frame(frame: dict) -> list[tuple[str, str, str, str]]:
         values.append(("media_usb_490", "USB музыка raw", raw_data_text(data), "M-CAN ch0 STD 0x490 TP_HU_USB_CLU"))
     if ch == 0 and can_id == 0x4E8 and len(data) >= 1:
         values.append(("media_fm_4e8", "FM/AM текст raw", raw_data_text(data), "M-CAN ch0 STD 0x4E8"))
+    if ch == 0 and can_id == 0x4F6 and len(data) >= 1:
+        values.append(("media_source_4f6", "Media/source текст raw", raw_data_text(data), "M-CAN ch0 STD 0x4F6"))
     if ch == 0 and can_id == 0x49B and len(data) >= 1:
         values.append(("media_nav_text_49b", "Навигация текст raw", raw_data_text(data), "M-CAN ch0 STD 0x49B"))
     if ch == 0 and can_id == 0x4BB and len(data) >= 1:
@@ -1033,6 +1070,17 @@ def should_keep_learning_frame(frame: dict, semantic_updates: list[tuple[str, st
     if profile:
         return False, False
     return True, False
+
+
+def semantic_matches_learning_profile(state_key: str, label: str, profile: dict | None) -> bool:
+    """Only explicit semantic profiles may advance the repeat counter."""
+    if not profile:
+        return False
+    profile_keys = set((profile or {}).get("keys") or set())
+    profile_labels = set((profile or {}).get("labels") or set())
+    if not profile_keys and not profile_labels:
+        return False
+    return state_key in profile_keys or label in profile_labels
 
 
 def channel_label(frame: dict) -> str:
@@ -1166,15 +1214,24 @@ def analyze_learning(action_id: str, action_name: str, started_ms, frames: list[
     transitions = []
     profile_keys = set((profile or {}).get("keys") or set())
     profile_ids = set((profile or {}).get("ids") or set())
+    previous_transition_ms: dict[str, int] = {}
     previous_values: dict[str, str] = {}
     for row in frames:
+        if not profile:
+            continue
         if profile_ids and int(row.get("id", 0)) not in profile_ids:
             continue
         for state_key, label, value, source in semantic_value_from_frame(row):
-            if profile_keys and state_key not in profile_keys:
+            if not semantic_matches_learning_profile(state_key, label, profile):
                 continue
             previous = previous_values.get(state_key)
             if previous is not None and previous != value:
+                row_ms = int(row.get("seen_ms") or 0)
+                last_ms = previous_transition_ms.get(state_key, 0)
+                if row_ms and last_ms and row_ms - last_ms < 150:
+                    previous_values[state_key] = value
+                    continue
+                previous_transition_ms[state_key] = row_ms
                 transitions.append({
                     "key": state_key,
                     "label": label,
@@ -1250,6 +1307,7 @@ class DashboardState:
             "target_repeats": LEARN_TARGET_REPEATS,
             "capture_closed": False,
             "detected_events": [],
+            "last_detected": {},
         }
         self.bridge = {
             "enabled": False,
@@ -1303,6 +1361,7 @@ class DashboardState:
                 "target_repeats": LEARN_TARGET_REPEATS,
                 "capture_closed": False,
                 "detected_events": [],
+                "last_detected": {},
             })
             self.session = {"running": True, "mode": mode, "note": note}
         self.broadcast({"type": "summary", "summary": self.summary()})
@@ -1352,6 +1411,7 @@ class DashboardState:
                 "target_repeats": LEARN_TARGET_REPEATS,
                 "capture_closed": False,
                 "detected_events": [],
+                "last_detected": {},
             })
             self.session = session
             self.bridge = bridge
@@ -1433,9 +1493,12 @@ class DashboardState:
                     })
                 if self.learn.get("active") and not self.learn.get("capture_closed") and previous is not None and previous != value:
                     profile = ACTION_PROFILES.get(str(self.learn.get("action_id")))
-                    profile_keys = set((profile or {}).get("keys") or set())
-                    profile_labels = set((profile or {}).get("labels") or set())
-                    if (not profile_keys and not profile_labels) or state_key in profile_keys or label in profile_labels:
+                    if semantic_matches_learning_profile(state_key, label, profile):
+                        last_detected = self.learn.setdefault("last_detected", {})
+                        last_item = last_detected.get(state_key, {})
+                        last_ms = int(last_item.get("ms") or 0)
+                        if last_ms and frame["seen_ms"] - last_ms < 150:
+                            continue
                         event = {
                             "key": state_key,
                             "label": label,
@@ -1443,6 +1506,7 @@ class DashboardState:
                             "source": source,
                             "ms": frame["seen_ms"],
                         }
+                        last_detected[state_key] = {"value": value, "ms": frame["seen_ms"]}
                         self.learn["detected_events"].append(event)
                         self.learn["detected_changes"] = int(self.learn.get("detected_changes", 0)) + 1
                         if int(self.learn.get("detected_changes", 0)) >= int(self.learn.get("target_repeats", LEARN_TARGET_REPEATS)):
@@ -1626,6 +1690,7 @@ class DashboardState:
                 "target_repeats": LEARN_TARGET_REPEATS,
                 "capture_closed": False,
                 "detected_events": [],
+                "last_detected": {},
                 "raw_frames_seen": 0,
                 "known_noise_hidden": 0,
             }
@@ -2082,8 +2147,10 @@ def append_tx_request(request: dict) -> Path:
     with RUNNER.lock:
         path = RUNNER.tx_control_path
         running = RUNNER.proc is not None and RUNNER.proc.poll() is None
-    if path is None or not running:
-        raise RuntimeError("start Live GS USB first; TX is sent through the active mode3 gs_usb session")
+    session = STATE.summary().get("session", {})
+    session_running = session.get("running") is True and str(session.get("mode") or "") in {"gsusb", "gsusb_uart", "lab"}
+    if path is None or not running or not session_running:
+        raise RuntimeError("TX не активен: сначала запусти Live CAN или Live CAN+UART в mode3 gs_usb")
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")
         fh.flush()
@@ -2578,11 +2645,6 @@ def command_catalog() -> dict:
 
 
 def run_send_display_usb(payload: dict) -> dict:
-    if serial is None:
-        raise RuntimeError("pyserial is not available")
-    port = payload.get("port") or auto_cdc_port()
-    if not port:
-        raise RuntimeError("no CDC port found")
     seconds = max(0.2, min(float(payload.get("seconds", 5.0)), 30.0))
     scenario = payload.get("scenario", "full")
     default_gap = 0.08 if str(scenario).startswith("nav") else 0.04
@@ -2595,6 +2657,32 @@ def run_send_display_usb(payload: dict) -> dict:
     icon = int(payload.get("icon", 1))
 
     frames = display_frames(scenario, fm, media, track, meters, eta, icon)
+    frame_hex = [packet.hex(" ").upper() for packet in frames]
+    firmware_path = {
+        "0x20": "FM/station text -> firmware M-CAN 0x4E8",
+        "0x21": "media/source text -> firmware M-CAN 0x4F6",
+        "0x22": "track text -> firmware M-CAN 0x490",
+        "0x45": "navigation maneuver/TBT",
+        "0x47": "navigation ETA/distance",
+        "0x48": "navigation active flag",
+    }
+    if payload.get("dry_run"):
+        return {
+            "ok": True,
+            "dry_run": True,
+            "transport": "usb",
+            "scenario": scenario,
+            "sent": 0,
+            "frames": len(frames),
+            "frame_hex": frame_hex,
+            "firmware_path": firmware_path,
+        }
+
+    if serial is None:
+        raise RuntimeError("pyserial is not available")
+    port = payload.get("port") or auto_cdc_port()
+    if not port:
+        raise RuntimeError("no CDC port found")
 
     sent = 0
     with serial.Serial(port, 19200, timeout=0.05, write_timeout=1) as ser:
@@ -2609,7 +2697,16 @@ def run_send_display_usb(payload: dict) -> dict:
                 sent += 1
                 time.sleep(gap)
     STATE.marker(f"sent {scenario}: {sent} frames to {port}")
-    return {"ok": True, "port": port, "scenario": scenario, "sent": sent}
+    return {
+        "ok": True,
+        "port": port,
+        "transport": "usb",
+        "scenario": scenario,
+        "sent": sent,
+        "frames": len(frames),
+        "frame_hex": frame_hex,
+        "firmware_path": firmware_path,
+    }
 
 
 def run_send_display_can(payload: dict) -> dict:
@@ -2620,6 +2717,19 @@ def run_send_display_can(payload: dict) -> dict:
     seconds = max(0.2, min(float(payload.get("seconds", 5.0)), 30.0))
     gap = max(0.01, min(float(payload.get("gap", 0.035)), 0.5))
     frames = DISPLAY_CAN_FRAME_SETS[scenario]
+    frame_hex = [{"id": f"0x{can_id:X}", "data": data_hex, "period": period} for can_id, data_hex, period in frames]
+    if payload.get("dry_run"):
+        return {
+            "ok": True,
+            "dry_run": True,
+            "transport": "can",
+            "bus": str(payload.get("bus", "mcan")),
+            "channels": channels,
+            "scenario": scenario,
+            "sent": 0,
+            "frames": len(frames),
+            "frame_hex": frame_hex,
+        }
     deadline = time.monotonic() + seconds
     sent = 0
     while time.monotonic() < deadline:
@@ -2646,6 +2756,8 @@ def run_send_display_can(payload: dict) -> dict:
         "channels": channels,
         "scenario": scenario,
         "sent": sent,
+        "frames": len(frames),
+        "frame_hex": frame_hex,
     }
 
 
@@ -2653,6 +2765,44 @@ def run_send_display(payload: dict) -> dict:
     if str(payload.get("transport", "can")).lower() == "usb":
         return run_send_display_usb(payload)
     return run_send_display_can(payload)
+
+
+def run_mcan_probe(payload: dict) -> dict:
+    can_id = parse_can_id(payload.get("id", payload.get("can_id", "0")))
+    if can_id not in MCAN_PROBE_ALLOWED_IDS:
+        allowed = ", ".join(f"0x{item:X}" for item in sorted(MCAN_PROBE_ALLOWED_IDS))
+        raise ValueError(f"M-CAN probe allows only media/nav candidate ids: {allowed}")
+    preset = str(payload.get("preset") or "").strip()
+    data_hex = MCAN_PROBE_PAYLOADS.get(preset, str(payload.get("data") or ""))
+    data_hex = clean_hex(data_hex)
+    if not data_hex:
+        raise ValueError("M-CAN probe data is required")
+    seconds = max(0.2, min(float(payload.get("seconds", 2.0)), 10.0))
+    interval = max(0.02, min(float(payload.get("interval", 0.08)), 0.5))
+    count = max(1, min(int(seconds / interval), 250))
+    frame = {
+        "channel": 0,
+        "id": f"0x{can_id:X}",
+        "data": data_hex,
+        "count": count,
+        "interval": interval,
+        "extended": False,
+    }
+    path = append_tx_request(frame)
+    STATE.marker(f"M-CAN probe ch0 0x{can_id:X} {data_hex} {seconds:.1f}s")
+    return {
+        "ok": True,
+        "transport": "can",
+        "bus": "mcan",
+        "channel": 0,
+        "id": f"0x{can_id:X}",
+        "data": data_hex,
+        "preset": preset,
+        "seconds": seconds,
+        "interval": interval,
+        "frames": count,
+        "tx_control": str(path),
+    }
 
 
 def numeric_text(value, default: float = 0.0) -> float:
@@ -3008,6 +3158,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 return
             if parsed.path == "/api/send/display":
                 result = run_send_display(payload)
+                json_response(self, result)
+                return
+            if parsed.path == "/api/send/mcan-probe":
+                result = run_mcan_probe(payload)
                 json_response(self, result)
                 return
             if parsed.path == "/api/can/send":

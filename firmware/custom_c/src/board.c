@@ -64,28 +64,6 @@ static void delay_cycles(volatile uint32_t count)
 	}
 }
 
-static bool wait_reg_set(uint32_t addr, uint32_t mask)
-{
-	for (uint32_t i = 0; i < 1000000U; i++) {
-		if ((MMIO32(addr) & mask) == mask) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool wait_sysclk_source(uint32_t source)
-{
-	for (uint32_t i = 0; i < 1000000U; i++) {
-		if (((RCC_CFGR_REG & RCC_CFGR_SWS) >> RCC_CFGR_SWS_SHIFT) == source) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void sys_tick_handler(void)
 {
 	board_watchdog_kick();
@@ -110,64 +88,18 @@ void board_runtime_sanitize(void)
 	__asm volatile ("cpsie i");
 }
 
-void board_clock_setup(void)
+bool board_clock_setup(void)
 {
 	board_watchdog_kick();
-	RCC_CR_REG |= RCC_CR_HSION;
-	if (!wait_reg_set(0x40021000U, RCC_CR_HSIRDY)) {
-		return;
-	}
-
-	rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
-	(void)wait_sysclk_source(RCC_CFGR_SWS_SYSCLKSEL_HSICLK);
-
-	RCC_CR_REG &= ~(RCC_CR_PLLON | RCC_CR_PLL2ON | RCC_CR_PLL3ON);
-	for (uint32_t i = 0; i < 100000U; i++) {
-		if ((RCC_CR_REG & (RCC_CR_PLLRDY | RCC_CR_PLL2RDY | RCC_CR_PLL3RDY)) == 0U) {
-			break;
-		}
-	}
-
-	RCC_CR_REG |= RCC_CR_HSEON;
-	if (!wait_reg_set(0x40021000U, RCC_CR_HSERDY)) {
-		return;
-	}
-
-	flash_prefetch_buffer_enable();
-	flash_set_ws(FLASH_ACR_LATENCY_2WS);
-
-	rcc_set_hpre(RCC_CFGR_HPRE_SYSCLK_NODIV);
-	rcc_set_adcpre(RCC_CFGR_ADCPRE_PCLK2_DIV8);
-	rcc_set_ppre1(RCC_CFGR_PPRE1_HCLK_DIV2);
-	rcc_set_ppre2(RCC_CFGR_PPRE2_HCLK_NODIV);
-
-	rcc_set_prediv1_source(RCC_CFGR2_PREDIV1SRC_HSE_CLK);
 #if CANBOX_HSE_MHZ == 8
-	rcc_set_prediv1(RCC_CFGR2_PREDIV_NODIV);
+	rcc_clock_setup_in_hse_8mhz_out_72mhz();
 #elif CANBOX_HSE_MHZ == 16
-	rcc_set_prediv1(RCC_CFGR2_PREDIV_DIV2);
+	rcc_clock_setup_in_hse_16mhz_out_72mhz();
 #else
 #error "Unsupported CANBOX_HSE_MHZ"
 #endif
-	rcc_set_pllxtpre(RCC_CFGR_PLLXTPRE_HSE_CLK);
-	rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL9);
-	rcc_set_pll_source(RCC_CFGR_PLLSRC_PREDIV1_CLK);
-	rcc_set_usbpre(RCC_CFGR_USBPRE_PLL_VCO_CLK_DIV3);
-
-	RCC_CFGR2_REG &= ~(RCC_CFGR2_PREDIV1SRC | RCC_CFGR2_PLL2MUL | RCC_CFGR2_PLL3MUL |
-	                   RCC_CFGR2_PREDIV2);
-
-	RCC_CR_REG |= RCC_CR_PLLON;
-	if (!wait_reg_set(0x40021000U, RCC_CR_PLLRDY)) {
-		return;
-	}
-
-	rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_PLLCLK);
-	(void)wait_sysclk_source(RCC_CFGR_SWS_SYSCLKSEL_PLLCLK);
-
-	rcc_ahb_frequency = 72000000U;
-	rcc_apb1_frequency = 36000000U;
-	rcc_apb2_frequency = 72000000U;
+	board_watchdog_kick();
+	return true;
 }
 
 void board_systick_setup(void)

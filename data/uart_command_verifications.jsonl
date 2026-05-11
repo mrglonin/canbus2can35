@@ -1,0 +1,87 @@
+{"saved_ms":1778410779229,"command_id":"fd_body_00","verdict":"works","name":"кузов все закрыто","frame":"FD 05 05 00 00 0A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410789284,"command_id":"fd_body_01","verdict":"works","name":"дверь LF","frame":"FD 05 05 01 00 0B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410794224,"command_id":"fd_body_02","verdict":"works","name":"дверь RF","frame":"FD 05 05 02 00 0C","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410797503,"command_id":"fd_body_04","verdict":"works","name":"дверь LR","frame":"FD 05 05 04 00 0E","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410801655,"command_id":"fd_body_08","verdict":"works","name":"дверь RR","frame":"FD 05 05 08 00 12","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410805478,"command_id":"fd_body_10","verdict":"works","name":"багажник","frame":"FD 05 05 10 00 1A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410809181,"command_id":"fd_body_20","verdict":"works","name":"капот","frame":"FD 05 05 20 00 2A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410821898,"command_id":"fd_body_3f","verdict":"works","name":"двери+багажник+капот","frame":"FD 05 05 3F 00 49","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410827474,"command_id":"fd_body_7f","verdict":"works","name":"кузов все flags bit0..6","frame":"FD 05 05 7F 00 89","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410866275,"command_id":"fd_key_10_press","verdict":"works","name":"mute","frame":"FD 06 02 10 01 00 19","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410874282,"command_id":"fd_key_11_press","verdict":"works","name":"source/mode","frame":"FD 06 02 11 01 00 1A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410882881,"command_id":"fd_key_12_press","verdict":"works","name":"seek up","frame":"FD 06 02 12 01 00 1B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410889702,"command_id":"fd_key_13_press","verdict":"works","name":"seek down","frame":"FD 06 02 13 01 00 1C","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410903347,"command_id":"fd_key_14_press","verdict":"works","name":"volume up","frame":"FD 06 02 14 01 00 1D","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410912533,"command_id":"fd_key_15_press","verdict":"works","name":"volume down","frame":"FD 06 02 15 01 00 1E","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410925540,"command_id":"fd_key_16_press","verdict":"works","name":"phone accept","frame":"FD 06 02 16 01 00 1F","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410932768,"command_id":"fd_key_17_press","verdict":"works","name":"phone hangup","frame":"FD 06 02 17 01 00 20","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410940891,"command_id":"fd_key_18_press","verdict":"works","name":"panel power","frame":"FD 06 02 18 01 00 21","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410952762,"command_id":"fd_key_19_press","verdict":"works","name":"panel volume up","frame":"FD 06 02 19 01 00 22","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410962621,"command_id":"fd_key_1a_press","verdict":"works","name":"panel volume down","frame":"FD 06 02 1A 01 00 23","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410966221,"command_id":"fd_key_19_release","verdict":"works","name":"panel volume up release","frame":"FD 06 02 19 00 00 21","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410980789,"command_id":"fd_key_1a_release","verdict":"works","name":"panel volume down release","frame":"FD 06 02 1A 00 00 22","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410988816,"command_id":"fd_key_1b_press","verdict":"works","name":"panel FM/AM","frame":"FD 06 02 1B 01 00 24","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778410997628,"command_id":"fd_key_1c_press","verdict":"works","name":"panel media","frame":"FD 06 02 1C 01 00 25","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411003931,"command_id":"fd_key_1d_press","verdict":"works","name":"panel phone","frame":"FD 06 02 1D 01 00 26","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411020776,"command_id":"fd_key_1d_release","verdict":"no_effect","name":"panel phone release","frame":"FD 06 02 1D 00 00 25","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411025985,"command_id":"fd_key_1c_release","verdict":"no_effect","name":"panel media release","frame":"FD 06 02 1C 00 00 24","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411027602,"command_id":"fd_key_1b_release","verdict":"no_effect","name":"panel FM/AM release","frame":"FD 06 02 1B 00 00 23","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411033449,"command_id":"fd_body_40","verdict":"no_effect","name":"люк candidate bit6","frame":"FD 05 05 40 00 4A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411034831,"command_id":"fd_body_80","verdict":"no_effect","name":"люк/доп bit7 candidate","frame":"FD 05 05 80 00 8A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411035560,"command_id":"fd_body_0f","verdict":"no_effect","name":"все двери","frame":"FD 05 05 0F 00 19","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411037729,"command_id":"fd_body_4000","verdict":"no_effect","name":"люк candidate 2-byte 40 00","frame":"FD 06 05 40 00 00 4B","protocol":"raise_rzc_fd","profile":"","note":"Дубликат quick-команд для проверки люка."}
+{"saved_ms":1778411039437,"command_id":"fd_body_0040","verdict":"no_effect","name":"люк candidate 2-byte 00 40","frame":"FD 06 05 00 40 00 4B","protocol":"raise_rzc_fd","profile":"","note":"Дубликат quick-команд для проверки люка."}
+{"saved_ms":1778411040373,"command_id":"fd_key_00_press","verdict":"no_effect","name":"release","frame":"FD 06 02 00 01 00 09","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411042347,"command_id":"fd_key_01_press","verdict":"no_effect","name":"source/mode candidate","frame":"FD 06 02 01 01 00 0A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411043247,"command_id":"fd_key_01_release","verdict":"no_effect","name":"source/mode candidate release","frame":"FD 06 02 01 00 00 09","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411044858,"command_id":"fd_key_02_press","verdict":"no_effect","name":"mute candidate","frame":"FD 06 02 02 01 00 0B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411045612,"command_id":"fd_key_02_release","verdict":"no_effect","name":"mute candidate release","frame":"FD 06 02 02 00 00 0A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411048706,"command_id":"fd_key_10_release","verdict":"no_effect","name":"mute release","frame":"FD 06 02 10 00 00 18","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411050550,"command_id":"fd_key_11_release","verdict":"no_effect","name":"source/mode release","frame":"FD 06 02 11 00 00 19","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411052910,"command_id":"fd_key_12_release","verdict":"no_effect","name":"seek up release","frame":"FD 06 02 12 00 00 1A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411055393,"command_id":"fd_key_13_release","verdict":"no_effect","name":"seek down release","frame":"FD 06 02 13 00 00 1B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411056625,"command_id":"fd_key_14_release","verdict":"no_effect","name":"volume up release","frame":"FD 06 02 14 00 00 1C","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411059415,"command_id":"fd_key_15_release","verdict":"no_effect","name":"volume down release","frame":"FD 06 02 15 00 00 1D","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411061982,"command_id":"fd_key_16_release","verdict":"no_effect","name":"phone accept release","frame":"FD 06 02 16 00 00 1E","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411063978,"command_id":"fd_key_17_release","verdict":"no_effect","name":"phone hangup release","frame":"FD 06 02 17 00 00 1F","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411066543,"command_id":"fd_key_18_release","verdict":"no_effect","name":"panel power release","frame":"FD 06 02 18 00 00 20","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411073511,"command_id":"fd_key_1e_press","verdict":"works","name":"panel display","frame":"FD 06 02 1E 01 00 27","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411080037,"command_id":"fd_key_1e_release","verdict":"no_effect","name":"panel display release","frame":"FD 06 02 1E 00 00 26","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411083414,"command_id":"fd_key_1f_press","verdict":"works","name":"panel seek up","frame":"FD 06 02 1F 01 00 28","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411089546,"command_id":"fd_key_1f_release","verdict":"no_effect","name":"panel seek up release","frame":"FD 06 02 1F 00 00 27","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411093887,"command_id":"fd_key_20_press","verdict":"works","name":"panel seek down","frame":"FD 06 02 20 01 00 29","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411097881,"command_id":"fd_key_20_release","verdict":"no_effect","name":"panel seek down release","frame":"FD 06 02 20 00 00 28","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411103989,"command_id":"fd_key_release","verdict":"no_effect","name":"key release","frame":"FD 06 02 00 00 00 08","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411109197,"command_id":"fd_climate_off","verdict":"works","name":"климат выкл","frame":"FD 08 03 00 00 00 00 00 0B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411124016,"command_id":"fd_climate_popup_22","verdict":"works","name":"климат 22/22 fan3","frame":"FD 08 03 16 16 03 24 00 5E","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411129111,"command_id":"fd_climate_auto","verdict":"works","name":"AUTO candidate","frame":"FD 08 03 16 16 03 20 00 5A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411136752,"command_id":"fd_climate_ac","verdict":"works","name":"A/C candidate","frame":"FD 08 03 16 16 03 04 00 3E","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411149581,"command_id":"fd_climate_rear_defog","verdict":"no_effect","name":"задний обогрев candidate","frame":"FD 08 03 16 16 03 80 00 BA","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411150799,"command_id":"fd_climate_front_defog","verdict":"no_effect","name":"обдув лобового candidate","frame":"FD 08 03 16 16 04 40 00 7B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411179768,"command_id":"fd_out_temp_m20","verdict":"works","name":"наружная -20C","frame":"FD 05 01 94 00 9A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411183490,"command_id":"fd_out_temp_m5","verdict":"works","name":"наружная -5C","frame":"FD 05 01 85 00 8B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411187371,"command_id":"fd_out_temp_0","verdict":"works","name":"наружная 0C","frame":"FD 05 01 00 00 06","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411192549,"command_id":"fd_out_temp_19","verdict":"works","name":"наружная 19C","frame":"FD 05 01 13 00 19","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411196485,"command_id":"fd_out_temp_21","verdict":"works","name":"наружная 21C","frame":"FD 05 01 15 00 1B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411199546,"command_id":"fd_out_temp_35","verdict":"works","name":"наружная 35C","frame":"FD 05 01 23 00 29","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411204358,"command_id":"fd_backlight_0","verdict":"no_effect","name":"подсветка 0","frame":"FD 05 07 00 00 0C","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411207860,"command_id":"fd_backlight_20","verdict":"no_effect","name":"подсветка 20","frame":"FD 05 07 14 00 20","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411219677,"command_id":"fd_radar_55_00","verdict":"no_effect","name":"перед близко","frame":"FD 06 04 55 00 00 5F","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411220709,"command_id":"fd_radar_55_00","verdict":"works","name":"перед близко","frame":"FD 06 04 55 00 00 5F","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411226792,"command_id":"fd_radar_00_00","verdict":"works","name":"парктроники clear","frame":"FD 06 04 00 00 00 0A","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411238218,"command_id":"fd_radar_55_55","verdict":"works","name":"перед+зад близко","frame":"FD 06 04 55 55 00 B4","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411243744,"command_id":"fd_radar_aa_aa","verdict":"works","name":"зоны pattern AA","frame":"FD 06 04 AA AA 01 5E","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411247875,"command_id":"fd_reverse_02","verdict":"works","name":"задний ход on","frame":"FD 06 7D 06 02 00 8B","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411251447,"command_id":"fd_reverse_00","verdict":"works","name":"задний ход off","frame":"FD 06 7D 06 00 00 89","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778411258379,"command_id":"fd_ac_status_00","verdict":"no_effect","name":"climate status 00","frame":"FD 05 06 00 00 0B","protocol":"raise_rzc_fd","profile":"","note":"Покрывает строку matrix ac_climate_status 0x06."}
+{"saved_ms":1778411265024,"command_id":"fd_ac_status_01","verdict":"works","name":"climate status 01","frame":"FD 05 06 01 00 0C","protocol":"raise_rzc_fd","profile":"","note":"Покрывает строку matrix ac_climate_status 0x06."}
+{"saved_ms":1778411269855,"command_id":"fd_ac_status_24","verdict":"no_effect","name":"climate status 24","frame":"FD 05 06 24 00 2F","protocol":"raise_rzc_fd","profile":"","note":"Покрывает строку matrix ac_climate_status 0x06."}
+{"saved_ms":1778411276284,"command_id":"fd_time_06_44_1","verdict":"no_effect","name":"time 06:44 mode1","frame":"FD 07 06 2C 06 01 00 40","protocol":"raise_rzc_fd","profile":"","note":"TEYES -> canbox time_info."}
+{"saved_ms":1778411279751,"command_id":"fd_time_12_00_1","verdict":"no_effect","name":"time 12:00 mode1","frame":"FD 07 06 00 0C 01 00 1A","protocol":"raise_rzc_fd","profile":"","note":"TEYES -> canbox time_info."}
+{"saved_ms":1778411284617,"command_id":"fd_hu_power_00","verdict":"no_effect","name":"HU power/session start","frame":"FD 05 04 00 00 09","protocol":"raise_rzc_fd","profile":"","note":"cmd 0x04 с 1 байтом декодируется как HU power, с 2 байтами как radar."}
+{"saved_ms":1778411299816,"command_id":"fd_hu_volume_05","verdict":"no_effect","name":"volume adjust 5","frame":"FD 05 05 05 00 0F","protocol":"raise_rzc_fd","profile":"","note":"cmd 0x05 len1 конфликтует с body flags; проверять осторожно."}
+{"saved_ms":1778411307425,"command_id":"fd_audio_balance_07_07","verdict":"no_effect","name":"balance center","frame":"FD 06 07 07 07 00 1B","protocol":"raise_rzc_fd","profile":"","note":"TEYES -> canbox audio_balance."}
+{"saved_ms":1778412726151,"command_id":"fd_radar_00_55","verdict":"no_effect","name":"зад близко","frame":"FD 06 04 00 55 00 5F","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778412730520,"command_id":"fd_backlight_100","verdict":"no_effect","name":"подсветка 100","frame":"FD 05 07 64 00 70","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778412731682,"command_id":"fd_backlight_80","verdict":"no_effect","name":"подсветка 80","frame":"FD 05 07 50 00 5C","protocol":"raise_rzc_fd","profile":"","note":""}
+{"saved_ms":1778412733795,"command_id":"fd_backlight_50","verdict":"no_effect","name":"подсветка 50","frame":"FD 05 07 32 00 3E","protocol":"raise_rzc_fd","profile":"","note":""}

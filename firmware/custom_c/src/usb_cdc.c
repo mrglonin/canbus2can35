@@ -244,20 +244,27 @@ void usb_cdc_init(usb_rx_fn_t rx_fn)
 	rx_callback = rx_fn;
 	ringbuf_init(&tx_rb);
 
+#if USE_STOCK_BEEP
+	board_beep(1);
+#endif
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_AFIO);
 	rcc_periph_clock_enable(RCC_OTGFS);
 	rcc_periph_reset_pulse(RST_OTGFS);
+	usb_startup_delay();
 
 	board_usb_force_connect();
 	usbdev = usbd_init(&otgfs_usb_driver, &dev_descr, &config,
 			   usb_strings, 3, usbd_control_buffer,
 			   sizeof(usbd_control_buffer));
 	usbd_register_set_config_callback(usbdev, set_config);
+	board_usb_force_connect();
 	usbd_disconnect(usbdev, true);
 	usb_startup_delay();
 	usbd_disconnect(usbdev, false);
-	board_usb_force_connect();
+#if USE_STOCK_BEEP
+	board_beep(2);
+#endif
 }
 
 void usb_cdc_poll(void)

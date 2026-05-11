@@ -462,6 +462,7 @@ function semanticToCar(summary) {
     media197: rawValueWithAge(summary, "0x197", 0),
     media490: rawValueWithAge(summary, "0x490", 0),
     media4e8: rawValueWithAge(summary, "0x4E8", 0),
+    media4f6: rawValueWithAge(summary, "0x4F6", 0),
     media49b: rawValueWithAge(summary, "0x49B", 0),
     media4bb: rawValueWithAge(summary, "0x4BB", 0),
   };
@@ -515,6 +516,7 @@ function renderSummary(summary) {
   const badge = $("connectionBadge");
   badge.textContent = `${session.mode || "idle"} ${session.running ? "running" : "stopped"}`;
   badge.className = `status-pill ${session.running ? "live" : ""}`;
+  renderDisplayTxStatus(summary);
   renderModeButtons(session);
   renderBridge(summary.bridge || {});
 
@@ -529,6 +531,18 @@ function renderSummary(summary) {
   renderRecent(summary.recent || []);
   const result = summary.learn?.result;
   if (result) renderCandidates(result);
+}
+
+function renderDisplayTxStatus(summary) {
+  const node = $("displayTxStatus");
+  const button = $("sendDisplay");
+  if (!node || !button) return;
+  const session = summary?.session || {};
+  const mode = String(session.mode || "");
+  const running = session.running === true;
+  const canTx = running && ["gsusb", "gsusb_uart", "lab"].includes(mode);
+  node.textContent = canTx ? "Mode3 CAN TX готов" : "TX не активен";
+  node.className = canTx ? "tx-ready" : "tx-off";
 }
 
 function renderModeButtons(session) {
@@ -879,6 +893,7 @@ function liveGroups() {
         ["HU nav 0x197", car.raw.media197, isRealValue(car.raw.media197), false],
         ["USB текст 0x490", car.raw.media490, isRealValue(car.raw.media490), false],
         ["FM/AM текст 0x4E8", car.raw.media4e8, isRealValue(car.raw.media4e8), false],
+        ["Media/source 0x4F6", car.raw.media4f6, isRealValue(car.raw.media4f6), false],
         ["Нави текст 0x49B", car.raw.media49b, isRealValue(car.raw.media49b), false],
         ["Нави TBT 0x4BB", car.raw.media4bb, isRealValue(car.raw.media4bb), false],
         ["Кнопки руля raw 0x523", car.raw.buttons523, isRealValue(car.raw.buttons523), false],
@@ -2115,7 +2130,7 @@ function setupActions() {
   });
   $("sendDisplay").addEventListener("click", async () => {
     const payload = {
-      transport: "can",
+      transport: $("displayTransport").value,
       bus: $("displayBus").value,
       scenario: $("displayScenario").value,
       seconds: Number($("displaySeconds").value),
@@ -2125,17 +2140,47 @@ function setupActions() {
       meters: Number($("displayMeters").value),
       eta: Number($("displayEta").value),
     };
-    const result = await post("/api/send/display", payload);
-    state.car = deepMerge({ ...state.car, doors: { ...state.car.doors }, source: "manual TX" }, {
-      media: payload.media,
-      nav: payload.scenario.includes("nav") || payload.scenario === "full" ? `${payload.meters} м, ETA ${payload.eta / 10} км` : state.car.nav,
-      lastLabel: `display ${payload.scenario}`,
-    });
-    state.demo.events.unshift({ ms: Date.now(), label: `display TX ${payload.scenario}: ${result.sent} frames`, scenario: "manual TX" });
-    state.demo.events = state.demo.events.slice(0, 80);
-    renderCarStatus();
-    renderSemantic(state.summary?.semantic || [], state.summary?.semantic_events || []);
-    logAction(`display CAN TX: ${payload.scenario}, ${payload.bus}, ${result.sent} кадров`);
+    try {
+      const result = await post("/api/send/display", payload);
+      state.car = deepMerge({ ...state.car, doors: { ...state.car.doors }, source: "manual TX" }, {
+        media: payload.media,
+        nav: payload.scenario.includes("nav") || payload.scenario === "full" ? `${payload.meters} м, ETA ${payload.eta / 10} км` : state.car.nav,
+        lastLabel: `display ${payload.scenario}`,
+      });
+      state.demo.events.unshift({ ms: Date.now(), label: `display TX ${payload.scenario}: ${result.sent} frames`, scenario: "manual TX" });
+      state.demo.events = state.demo.events.slice(0, 80);
+      renderCarStatus();
+      renderSemantic(state.summary?.semantic || [], state.summary?.semantic_events || []);
+      logAction(`display ${payload.transport.toUpperCase()} TX: ${payload.scenario}, ${payload.bus}, ${result.sent} кадров`);
+    } catch (error) {
+      logAction(`display TX ошибка: ${error.message}`);
+      const node = $("displayTxStatus");
+      if (node) {
+        node.textContent = error.message;
+        node.className = "tx-error";
+      }
+    }
+  });
+  $("sendMcanProbe").addEventListener("click", async () => {
+    const preset = $("probePreset").value;
+    const payload = {
+      id: $("probeCanId").value,
+      preset,
+      data: preset === "manual" ? $("probeData").value : "",
+      seconds: Number($("probeSeconds").value),
+      interval: Number($("probeInterval").value),
+    };
+    const status = $("probeStatus");
+    try {
+      const result = await post("/api/send/mcan-probe", payload);
+      status.textContent = `Отправлено M-CAN ch0 ${result.id} ${result.data} · ${result.frames} кадров`;
+      status.className = "probe-ok";
+      logAction(`M-CAN probe: ${result.id} ${result.data} ${result.seconds}s`);
+    } catch (error) {
+      status.textContent = `M-CAN probe ошибка: ${error.message}`;
+      status.className = "probe-error";
+      logAction(`M-CAN probe ошибка: ${error.message}`);
+    }
   });
   $("sendCanFrame").addEventListener("click", async () => {
     const payload = {

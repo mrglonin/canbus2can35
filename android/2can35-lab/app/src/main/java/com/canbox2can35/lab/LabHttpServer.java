@@ -97,8 +97,8 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
                     JSONObject event = parseSlcanLine(line, ms);
                     if (event != null) {
                         int ch = event.optInt("channel", 0);
-                        if (ch == 0) ccanFrames++;
-                        if (ch == 1) mcanFrames++;
+                        if (ch == 0) mcanFrames++;
+                        if (ch == 1) ccanFrames++;
                         push(canEvents, event, 160);
                     }
                 }
@@ -125,7 +125,7 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             JSONObject out = new JSONObject();
             out.put("ms", ms);
             out.put("channel", channel);
-            out.put("bus", channel == 1 ? "M-CAN" : "C-CAN");
+            out.put("bus", channel == 0 ? "M-CAN" : "C-CAN");
             out.put("id_hex", String.format(Locale.ROOT, "0x%03X", id));
             out.put("dlc", dlc);
             out.put("data", spaced(data));
@@ -194,7 +194,7 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
             case "/api/status":
                 response.put("summary", summary());
                 response.put("auto_port", "/dev/ttyACM0");
-                response.put("gsusb_present", false);
+                response.put("gsusb_present", usb.isGsUsb());
                 json(out, response);
                 return;
             case "/api/commands":
@@ -729,7 +729,7 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
     }
 
     private boolean sendCan(JSONObject req) throws Exception {
-        int channel = req.optInt("channel", 1);
+        int channel = req.optInt("channel", 0);
         String idText = req.optString("id", "0x114").replace("0x", "").replace("0X", "");
         String data = req.optString("data", "").replace(" ", "");
         int id = Integer.parseInt(idText, 16);
@@ -739,7 +739,7 @@ public class LabHttpServer implements UsbCdcManager.LineListener {
     }
 
     private int sendDisplayBundle(JSONObject req) throws Exception {
-        int channel = "c".equalsIgnoreCase(req.optString("bus")) ? 0 : 1;
+        int channel = "c".equalsIgnoreCase(req.optString("bus")) ? 1 : 0;
         String scenario = req.optString("scenario", "full");
         int count = 0;
         count += sendFrame(channel, 0x114, "0B 21 FF FF FF FF E1 0F") ? 1 : 0;

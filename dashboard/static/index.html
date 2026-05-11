@@ -308,11 +308,17 @@
               <div class="panel-head">
                 <div>
                   <h2>Приборка CAN</h2>
-                  <p>Прямой TX в CAN для медиа, источников, FM и навигации. Основной канал для Sportage: M-CAN 100k.</p>
+                  <p>Mode3 direct CAN пока тестовый. Надёжный путь для прошивки прогера - Mode1 USB firmware.</p>
                 </div>
-                <span>mode3 gs_usb TX</span>
+                <span id="displayTxStatus">TX не активен</span>
               </div>
               <div class="display-form">
+                <label>Транспорт
+                  <select id="displayTransport">
+                    <option value="usb">Mode1 USB firmware</option>
+                    <option value="can">Mode3 direct CAN</option>
+                  </select>
+                </label>
                 <label>CAN канал
                   <select id="displayBus">
                     <option value="mcan">M-CAN 100k / ch0</option>
@@ -337,20 +343,57 @@
                 <label>Трек<input id="displayTrack" value="TRACK / ARTIST TEST" /></label>
                 <label>Маневр, м<input id="displayMeters" value="120" type="number" min="0" max="9999" /></label>
                 <label>ETA, 0.1 км<input id="displayEta" value="124" type="number" min="0" max="9999" /></label>
-                <button id="sendDisplay" class="primary">Отправить в CAN</button>
+                <button id="sendDisplay" class="primary">Отправить</button>
               </div>
             </section>
 
             <section class="panel">
               <div class="panel-head compact">
-                <h2>Что отправляется</h2>
-                <span>M-CAN кандидаты</span>
+                <h2>Подбор M-CAN</h2>
+                <span>только ch0 100k</span>
               </div>
-              <div class="cluster-help">
-                <div><strong>Статус</strong><span>0x114, 0x197</span></div>
-                <div><strong>USB/медиа</strong><span>0x490, 0x4E6</span></div>
-                <div><strong>FM</strong><span>0x4E8</span></div>
-                <div><strong>Навигация</strong><span>0x115, 0x4BB, 0x49B, 0x1E6, 0x1E7</span></div>
+              <div class="mcan-probe">
+                <label>ID
+                  <select id="probeCanId">
+                    <option value="0x114">0x114</option>
+                    <option value="0x197">0x197</option>
+                    <option value="0x490">0x490</option>
+                    <option value="0x4E6">0x4E6</option>
+                    <option value="0x4E8">0x4E8</option>
+                    <option value="0x4EA">0x4EA</option>
+                    <option value="0x4EE">0x4EE</option>
+                    <option value="0x4F2">0x4F2</option>
+                    <option value="0x4F4">0x4F4</option>
+                    <option value="0x4F6">0x4F6</option>
+                    <option value="0x115">0x115</option>
+                    <option value="0x49B">0x49B</option>
+                    <option value="0x4BB">0x4BB</option>
+                    <option value="0x1E6">0x1E6</option>
+                    <option value="0x1E7">0x1E7</option>
+                  </select>
+                </label>
+                <label>Payload
+                  <select id="probePreset">
+                    <option value="idle_source">0B 21 FF FF FF FF E1 0F</option>
+                    <option value="nav_status">10 00 00 00 00 00 00 00</option>
+                    <option value="usb_idle_1">01 00 10 20 00 00 00</option>
+                    <option value="usb_idle_2">01 00 10 40 00 00 00</option>
+                    <option value="usb_clear">00 00 08 20 00 00 00</option>
+                    <option value="tp_text_a">49 C4 00 00 83 83 8B 00</option>
+                    <option value="tp_text_b">49 C4 00 00 83 83 8C 00</option>
+                    <option value="tp_clear">80 80 00 00 80 80 00 00</option>
+                    <option value="nav_tbt">01 00 00 00 00 78 00 00</option>
+                    <option value="nav_eta">00 00 01 00 01 05 00 00</option>
+                    <option value="nav_points">00 78 00 F0 01 68 00 00</option>
+                    <option value="zero">00 00 00 00 00 00 00 00</option>
+                    <option value="manual">ручной payload ниже</option>
+                  </select>
+                </label>
+                <label>Ручной payload<input id="probeData" value="" placeholder="8 байт hex, если выбран manual" /></label>
+                <label>Секунд<input id="probeSeconds" value="2" type="number" min="0.2" max="10" step="0.2" /></label>
+                <label>Интервал<input id="probeInterval" value="0.08" type="number" min="0.02" max="0.5" step="0.01" /></label>
+                <button id="sendMcanProbe" class="primary">Отправить M-CAN ch0</button>
+                <p id="probeStatus">Подбор идёт только в M-CAN ch0. Если на приборке что-то появилось - говори ID и payload.</p>
               </div>
             </section>
           </section>

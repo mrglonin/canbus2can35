@@ -1,0 +1,70 @@
+{
+  "source": "/Users/legion/Downloads/2CAN35_CANBOX_WORK_2026-05-08/gs_2can35.bin",
+  "source_sha256": "44ec1b79f7dc49a12beae622c33ac8cefb1f9b211419ee5e41451b208bad5609",
+  "output": "firmware/canlog/gs_2can35_pure_0x08009000.bin",
+  "output_sha256": "7a210122e62b24f4a487657d5204b935969e06f7e810bdad2fcfabdbadeafeba",
+  "output_size": 11644,
+  "relocation_count": 144,
+  "relocation_patches_head": [
+    {
+      "file_offset": "0x0004",
+      "old": "0x0800126d",
+      "new": "0x0800a26d"
+    },
+    {
+      "file_offset": "0x0008",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x000c",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0010",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0014",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0018",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x002c",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x0030",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x0038",
+      "old": "0x08001269",
+      "new": "0x0800a269"
+    },
+    {
+      "file_offset": "0x003c",
+      "old": "0x08000345",
+      "new": "0x08009345"
+    },
+    {
+      "file_offset": "0x0040",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    },
+    {
+      "file_offset": "0x0044",
+      "old": "0x08001267",
+      "new": "0x0800a267"
+    }
+  ]
+}

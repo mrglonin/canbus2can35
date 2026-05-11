@@ -45,7 +45,15 @@ static void poll_usb_for(uint32_t ms)
 int main(void)
 {
 	board_runtime_sanitize();
-	board_clock_setup();
+	if (!board_clock_setup()) {
+		while (1) {
+			board_watchdog_kick();
+			board_beep(5);
+			for (volatile uint32_t i = 0; i < 2000000U; i++) {
+				__asm volatile ("nop");
+			}
+		}
+	}
 	board_systick_setup();
 	board_reverse_output_init();
 
