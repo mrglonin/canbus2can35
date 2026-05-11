@@ -13,6 +13,10 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
         AppService.start(context);
+        if (AppPrefs.backgroundAutoStart(context)) {
+            AppLog.line(context, "Автозапуск: фоновый режим без открытия экрана");
+            return;
+        }
         try {
             Intent open = new Intent(context, MainActivity.class);
             open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);

@@ -29,6 +29,8 @@ final class SidebandDebugState {
     private static int cFrameCounter;
     private static long lastMAt;
     private static long lastCAt;
+    private static long lastMPreviewAt;
+    private static long lastCPreviewAt;
     private static long lastCanBroadcastAt;
     private static String lastSaved = "";
 
@@ -53,11 +55,10 @@ final class SidebandDebugState {
         broadcast(context);
     }
 
-    static synchronized void can(Context context, CanSideband.Frame frame, String text) {
+    static synchronized void can(Context context, CanSideband.Frame frame) {
         if (frame == null) return;
         boolean isM = frame.bus == 1;
         ArrayDeque<String> target = isM ? canM : canC;
-        String name = isM ? "M-CAN" : "C-CAN";
         long now = System.currentTimeMillis();
         if (isM) {
             lastMAt = now;
@@ -66,7 +67,15 @@ final class SidebandDebugState {
             lastCAt = now;
             cFrameCounter++;
         }
-        line(target, stamp() + " " + name + " " + text);
+
+        boolean previewDue = isM ? now - lastMPreviewAt > 300L : now - lastCPreviewAt > 300L;
+        if (!canRecording && !previewDue) return;
+
+        if (isM) lastMPreviewAt = now;
+        else lastCPreviewAt = now;
+
+        String name = isM ? "M-CAN" : "C-CAN";
+        line(target, stamp() + " " + name + " " + frame.text());
         if (canRecording || now - lastCanBroadcastAt > 500L) {
             lastCanBroadcastAt = now;
             broadcast(context);

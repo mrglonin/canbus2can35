@@ -54,6 +54,7 @@ public class CanbusSettingsActivity extends Activity {
     private TextView sourceValue;
     private TextView updateValue;
     private TextView vehicleStatusValue;
+    private TextView blindSpotStatusValue;
     private TextView mediaValue;
     private TextView mediaDebugValue;
     private TextView usbValue;
@@ -129,6 +130,7 @@ public class CanbusSettingsActivity extends Activity {
         filter.addAction(TpmsState.ACTION_STATE);
         filter.addAction(AppLog.ACTION_STATE);
         filter.addAction(SidebandDebugState.ACTION_STATE);
+        filter.addAction(BlindSpotState.ACTION_STATE);
         filter.addAction(CanbusControl.ACTION_FRAME_RECEIVED);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -302,6 +304,7 @@ public class CanbusSettingsActivity extends Activity {
         sourceValue = null;
         updateValue = null;
         vehicleStatusValue = null;
+        blindSpotStatusValue = null;
         mediaValue = null;
         mediaDebugValue = null;
         usbValue = null;
@@ -355,11 +358,6 @@ public class CanbusSettingsActivity extends Activity {
         tempMetric = metric(metrics, "Охлаждение", "--");
         dtcMetric = metric(metrics, "Ошибки DTC", "--");
         runtimeMetric = metric(metrics, "Время пути", "--");
-
-        LinearLayout state = card();
-        content.addView(state, cardLp());
-        addCardTitle(state, "Состояние");
-        vehicleStatusValue = infoRow(state, "Доступ к CAN", "");
 
         LinearLayout display = card();
         content.addView(display, cardLp());
@@ -501,6 +499,30 @@ public class CanbusSettingsActivity extends Activity {
             savedToast();
         }));
 
+        LinearLayout blindSpot = card();
+        content.addView(blindSpot, cardLp());
+        addCardTitle(blindSpot, "Слепые зоны / RCTA");
+        blindSpotStatusValue = infoRow(blindSpot, "Состояние", "");
+        blindSpot.addView(check("Система предупреждения при заднем ходе", AppPrefs.blindSpotEnabled(this), (button, checked) -> {
+            AppPrefs.setBlindSpotEnabled(this, checked);
+            if (checked) CanbusControl.startCanStream(this);
+            else if (!AppPrefs.obdEnabled(this) && !AppPrefs.debugCan(this)) CanbusControl.stopCanStream(this);
+            AppLog.line(this, "RCTA: система " + yes(checked));
+            AppService.refreshOverlays(this);
+            savedToast();
+            refresh();
+        }));
+        blindSpot.addView(check("Overlay: жёлтые стрелки слева/справа", AppPrefs.blindSpotOverlay(this), (button, checked) -> {
+            AppPrefs.setBlindSpotOverlay(this, checked);
+            if (checked && !PermissionHelper.canDrawOverlays(this)) {
+                Toast.makeText(this, "Разрешите показ поверх других окон", Toast.LENGTH_SHORT).show();
+                PermissionHelper.openOverlaySettings(this);
+            }
+            AppService.refreshOverlays(this);
+            savedToast();
+            refresh();
+        }));
+
         LinearLayout sas = card();
         content.addView(sas, cardLp());
         addCardTitle(sas, "SAS Ratio");
@@ -600,7 +622,7 @@ public class CanbusSettingsActivity extends Activity {
                 if (AppPrefs.debugCan(this)) CanbusControl.startCanStream(this);
             }
             savedToast();
-            selectTab(TAB_SETTINGS);
+            selectTab(checked ? TAB_OBD : firstAvailableTab());
         }));
         app.addView(check("Включить раздел TPMS", AppPrefs.tpmsEnabled(this), (button, checked) -> {
             AppPrefs.setTpmsEnabled(this, checked);
@@ -611,11 +633,16 @@ public class CanbusSettingsActivity extends Activity {
                 TpmsState.status(this, "TPMS: раздел выключен в настройках", false);
             }
             savedToast();
-            selectTab(TAB_SETTINGS);
+            selectTab(!AppPrefs.obdEnabled(this) && checked ? TAB_TPMS : firstAvailableTab());
         }));
         app.addView(check("Автозапуск приложения", AppPrefs.autoStart(this), (button, checked) -> {
             AppPrefs.setAutoStart(this, checked);
             AppLog.line(this, "Настройки: автозапуск " + yes(checked));
+            savedToast();
+        }));
+        app.addView(check("Фоновый автозапуск без открытия экрана", AppPrefs.backgroundAutoStart(this), (button, checked) -> {
+            AppPrefs.setBackgroundAutoStart(this, checked);
+            AppLog.line(this, "Настройки: фоновый автозапуск " + yes(checked));
             savedToast();
         }));
         app.addView(check("Скрывать приложение после запуска", AppPrefs.autoHide(this), (button, checked) -> {
@@ -756,6 +783,7 @@ public class CanbusSettingsActivity extends Activity {
         CanbusControl.Snapshot can = CanbusControl.snapshot();
         VehicleDisplayState.Snapshot vehicle = VehicleDisplayState.snapshot();
         TpmsState.Snapshot tpms = TpmsState.snapshot();
+        BlindSpotState.Snapshot blind = BlindSpotState.snapshot();
 
         if (statusValue != null) {
             String last = can.lastFrameAt == 0 ? "" : "ответ " + ageText(System.currentTimeMillis() - can.lastFrameAt) + " назад";
@@ -766,6 +794,8 @@ public class CanbusSettingsActivity extends Activity {
         if (sourceValue != null) sourceValue.setText(vehicle.source);
         if (updateValue != null) updateValue.setText(can.updateStatus);
         if (vehicleStatusValue != null) vehicleStatusValue.setText(cleanVehicleStatus(vehicle));
+        if (blindSpotStatusValue != null) blindSpotStatusValue.setText(blind.statusText()
+                + " | overlay " + yes(AppPrefs.blindSpotOverlay(this)));
         if (tpmsStatusValue != null) tpmsStatusValue.setText(tpms.status + " | " + (tpms.connected ? "подключено" : "нет подключения"));
         if (tpmsDataValue != null) tpmsDataValue.setText(tpms.connected || hasTpmsData(tpms) ? "данные подключено" : "данные не получены");
         if (appVersionValue != null) appVersionValue.setText(versionText());
@@ -1254,30 +1284,40 @@ public class CanbusSettingsActivity extends Activity {
     }
 
     private View check(String text, boolean checked, CompoundButton.OnCheckedChangeListener listener) {
+        FrameLayout wrap = new FrameLayout(this);
+        wrap.setPadding(0, dp(4), 0, dp(4));
+
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(4), 0, dp(4));
+        row.setPadding(dp(16), 0, dp(12), 0);
+        row.setBackground(roundedStroke(0xfff7f9fc, 14, 0xffdfe5ef));
+        row.setClickable(true);
+        wrap.addView(row, new FrameLayout.LayoutParams(-1, dp(58)));
 
         TextView label = new TextView(this);
         label.setText(text);
         label.setTextColor(0xff1f2430);
-        label.setTextSize(15);
+        label.setTextSize(15.5f);
+        label.setTypeface(Typeface.DEFAULT_BOLD);
         label.setGravity(Gravity.CENTER_VERTICAL);
         label.setSingleLine(false);
-        row.addView(label, new LinearLayout.LayoutParams(0, dp(48), 1));
+        row.addView(label, new LinearLayout.LayoutParams(0, -1, 1));
 
         Switch toggle = new Switch(this);
         toggle.setShowText(false);
         toggle.setText(null);
         toggle.setMinWidth(dp(60));
         toggle.setPadding(dp(8), 0, 0, 0);
+        toggle.setScaleX(1.06f);
+        toggle.setScaleY(1.06f);
         tintSwitch(toggle);
         toggle.setChecked(checked);
         toggle.setOnCheckedChangeListener(listener);
-        row.addView(toggle, new LinearLayout.LayoutParams(dp(74), dp(48)));
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(76), dp(52)));
+        row.setOnClickListener(v -> toggle.setChecked(!toggle.isChecked()));
         label.setOnClickListener(v -> toggle.setChecked(!toggle.isChecked()));
-        return row;
+        return wrap;
     }
 
     private void tintSwitch(Switch toggle) {

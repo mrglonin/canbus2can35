@@ -12,6 +12,7 @@ final class ObdState {
     static final String ACTION_STATE = "com.sorento.navi.OBD_STATE";
 
     private static Snapshot state = new Snapshot();
+    private static long lastTouchBroadcastAt;
 
     private ObdState() {
     }
@@ -39,6 +40,12 @@ final class ObdState {
         touch(context);
     }
 
+    static synchronized void powertrain(Context context, int speedKmh, int rpm) {
+        state.speedKmh = clamp(speedKmh, 0, 260);
+        state.rpm = clamp(rpm, 0, 8000);
+        touch(context);
+    }
+
     static synchronized void runtime(Context context, int seconds) {
         state.runtimeSeconds = Math.max(0, seconds);
         touch(context);
@@ -46,6 +53,7 @@ final class ObdState {
 
     static synchronized void voltage(Context context, float value) {
         state.voltage = Math.max(0f, value);
+        state.voltageKnown = true;
         touch(context);
     }
 
@@ -99,6 +107,7 @@ final class ObdState {
         state.rpm = clamp(rpm, 0, 8000);
         state.runtimeSeconds = Math.max(0, runtimeSeconds);
         state.voltage = Math.max(0f, voltage);
+        state.voltageKnown = true;
         state.coolantTemp = clamp(coolantTemp, -40, 140);
         state.engineLoad = clamp(engineLoad, 0, 100);
         state.throttle = clamp(throttle, 0, 100);
@@ -114,8 +123,11 @@ final class ObdState {
 
     private static void touch(Context context) {
         if (context != null && !AppPrefs.obdEnabled(context)) return;
-        state.status = state.connected ? "Kia Canbus: подключено, данные обновляются" : state.status;
+        state.connected = true;
+        state.status = "Kia Canbus: подключено, данные обновляются";
         state.updatedAt = System.currentTimeMillis();
+        if (state.updatedAt - lastTouchBroadcastAt < 50L) return;
+        lastTouchBroadcastAt = state.updatedAt;
         VehicleDisplayState.updateFromObd(context, state);
         broadcast(context);
     }
@@ -138,6 +150,7 @@ final class ObdState {
         int rpm;
         int runtimeSeconds;
         float voltage = 12.2f;
+        boolean voltageKnown;
         int coolantTemp;
         int engineLoad;
         int throttle;
@@ -158,6 +171,7 @@ final class ObdState {
             rpm = other.rpm;
             runtimeSeconds = other.runtimeSeconds;
             voltage = other.voltage;
+            voltageKnown = other.voltageKnown;
             coolantTemp = other.coolantTemp;
             engineLoad = other.engineLoad;
             throttle = other.throttle;
@@ -177,6 +191,7 @@ final class ObdState {
         }
 
         String voltageText() {
+            if (!voltageKnown) return "--";
             return String.format(java.util.Locale.US, "%.1fV", voltage);
         }
     }

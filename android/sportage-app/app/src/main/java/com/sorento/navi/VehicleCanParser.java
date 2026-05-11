@@ -8,8 +8,6 @@ final class VehicleCanParser {
     private static String lastReverse = "";
     private static String lastParking = "";
     private static String lastClimate = "";
-    private static String lastStatus = "";
-    private static long lastStatusAt;
 
     private VehicleCanParser() {
     }
@@ -20,27 +18,22 @@ final class VehicleCanParser {
         int id = frame.canId;
 
         if (id == 0x316 && d.length >= 8) {
-            ObdState.speed(context, d[6] & 0xff);
             int rpmRaw = (d[2] & 0xff) | ((d[3] & 0xff) << 8);
-            ObdState.rpm(context, rpmRaw / 4);
-            status(context, "OBD: raw CAN 0x76: скорость/обороты");
+            ObdState.powertrain(context, d[6] & 0xff, rpmRaw / 4);
             return;
         }
         if (id == 0x329 && d.length >= 2) {
             int temp = Math.round(((d[1] & 0xff) - 0x40) * 0.75f);
             ObdState.coolant(context, temp);
-            status(context, "OBD: raw CAN 0x76: температура двигателя");
             return;
         }
         if (id == 0x044 && d.length >= 4) {
             int outside = Math.round(((d[3] & 0xff) - 0x52) / 2f);
             ObdState.intake(context, outside);
-            status(context, "OBD: raw CAN 0x76: наружная температура");
             return;
         }
         if (id == 0x545 && d.length >= 4) {
             ObdState.voltage(context, (d[3] & 0xff) / 10f);
-            status(context, "OBD: raw CAN 0x76: напряжение АКБ");
             return;
         }
         if (id == 0x541 && d.length >= 8) {
@@ -72,6 +65,7 @@ final class VehicleCanParser {
         }
         if (id == 0x169 && d.length >= 1) {
             boolean reverse = (d[0] & 0x0f) == 0x07;
+            BlindSpotState.reverse(context, reverse);
             String text = reverse ? "вкл" : "выкл";
             if (!text.equals(lastReverse)) {
                 lastReverse = text;
@@ -87,21 +81,16 @@ final class VehicleCanParser {
             }
             return;
         }
+        if (id == 0x58B && d.length >= 8) {
+            BlindSpotState.fromCan(context, id, d);
+            return;
+        }
         if ((id == 0x4F4 || id == 0x2B0) && d.length > 0) {
             String text = "0x" + Integer.toHexString(id).toUpperCase() + " " + CanbusControl.hex(d);
             if (!text.equals(lastParking)) {
                 lastParking = text;
                 AppLog.line(context, "CAN парковка/руль raw: " + text);
             }
-        }
-    }
-
-    private static void status(Context context, String value) {
-        long now = System.currentTimeMillis();
-        if (!value.equals(lastStatus) || now - lastStatusAt > 5000L) {
-            lastStatus = value;
-            lastStatusAt = now;
-            ObdState.status(context, value, true);
         }
     }
 }

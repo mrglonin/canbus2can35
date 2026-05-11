@@ -13,6 +13,7 @@ import android.hardware.usb.UsbManager;
 import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.view.Gravity;
@@ -41,6 +42,7 @@ public class AppService extends Service {
     private static final int FTDI_CANBOX_PRODUCT_ID = 24577;
     private static final int STM_VENDOR_ID = 1155;
     private static final int STM_CDC_PRODUCT_ID = 22336;
+    private static final int RAW_CAN_BURST = 6;
     private static final Queue<byte[]> PENDING = new ArrayDeque<>();
 
     private UsbManager usbManager;
@@ -48,14 +50,18 @@ public class AppService extends Service {
     private UsbSerialPort port;
     private Thread readThread;
     private volatile boolean readRunning;
+    private volatile boolean serviceRunning;
     private long lastDebugCanStartAt;
     private long lastOverlayPermissionLogAt;
     private long lastQuietConnectAt;
     private UartOverlayView systemUartOverlay;
     private MusicOverlayView systemMusicOverlay;
     private NavOverlayView systemNavOverlay;
+    private BlindSpotOverlayView systemBlindSpotOverlay;
     private final ByteArrayOutputStream incoming = new ByteArrayOutputStream();
     private final Handler debugHandler = new Handler(Looper.getMainLooper());
+    private HandlerThread ioThread;
+    private Handler ioHandler;
     private final Runnable debugPoll = new Runnable() {
         @Override
         public void run() {
@@ -67,11 +73,17 @@ public class AppService extends Service {
     private final Runnable rawCanPoll = new Runnable() {
         @Override
         public void run() {
-            boolean needed = AppPrefs.obdEnabled(AppService.this) || AppPrefs.debugCan(AppService.this);
+            if (!serviceRunning) return;
+            boolean needed = AppPrefs.obdEnabled(AppService.this)
+                    || AppPrefs.debugCan(AppService.this)
+                    || AppPrefs.blindSpotEnabled(AppService.this);
             if (needed) {
-                writeOrQueue(sidebandPacket(0x76, null), true);
+                for (int i = 0; i < RAW_CAN_BURST; i++) {
+                    writeOrQueue(sidebandPacket(0x76, null), true);
+                }
             }
-            debugHandler.postDelayed(this, needed ? 20L : 500L);
+            Handler handler = ioHandler == null ? debugHandler : ioHandler;
+            handler.postDelayed(this, needed ? 12L : 500L);
         }
     };
 
@@ -128,6 +140,7 @@ public class AppService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        serviceRunning = true;
         usbManager = (UsbManager) getSystemService(USB_SERVICE);
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         AppPrefs.setObdEmulation(this, false);
@@ -135,12 +148,15 @@ public class AppService extends Service {
         startForeground(NOTIFICATION_ID, notification("Запуск подключения"));
         MediaMonitor.start(this);
         ObdMonitor.start(this);
+        ioThread = new HandlerThread("kia-canbox-io");
+        ioThread.start();
+        ioHandler = new Handler(ioThread.getLooper());
         ensureDebugCanStream();
         TpmsMonitor.start(this);
         connectUsb();
         refreshSystemOverlays();
         debugHandler.postDelayed(debugPoll, 300L);
-        debugHandler.postDelayed(rawCanPoll, 100L);
+        ioHandler.postDelayed(rawCanPoll, 100L);
     }
 
     @Override
@@ -169,8 +185,15 @@ public class AppService extends Service {
 
     @Override
     public void onDestroy() {
+        serviceRunning = false;
         debugHandler.removeCallbacks(debugPoll);
+        if (ioHandler != null) ioHandler.removeCallbacks(rawCanPoll);
         debugHandler.removeCallbacks(rawCanPoll);
+        if (ioThread != null) {
+            ioThread.quitSafely();
+            ioThread = null;
+            ioHandler = null;
+        }
         removeSystemOverlays();
         closePort();
         MediaMonitor.stop();
@@ -204,7 +227,7 @@ public class AppService extends Service {
     }
 
     private void ensureDebugCanStream() {
-        if (!AppPrefs.debugCan(this) && !AppPrefs.obdEnabled(this)) return;
+        if (!AppPrefs.debugCan(this) && !AppPrefs.obdEnabled(this) && !AppPrefs.blindSpotEnabled(this)) return;
         long now = System.currentTimeMillis();
         if (now - lastDebugCanStartAt < 5000L) return;
         lastDebugCanStartAt = now;
@@ -215,13 +238,16 @@ public class AppService extends Service {
         boolean uart = AppPrefs.debugUart(this) && AppPrefs.uartOverlay(this);
         boolean music = AppPrefs.mediaOverlay(this);
         boolean nav = AppPrefs.navOverlay(this);
+        boolean blind = AppPrefs.blindSpotEnabled(this) && AppPrefs.blindSpotOverlay(this);
         if (!uart) removeOverlay(systemUartOverlay);
         if (!music) removeOverlay(systemMusicOverlay);
         if (!nav) removeOverlay(systemNavOverlay);
+        if (!blind) removeOverlay(systemBlindSpotOverlay);
         if (!uart) systemUartOverlay = null;
         if (!music) systemMusicOverlay = null;
         if (!nav) systemNavOverlay = null;
-        if (!uart && !music && !nav) return;
+        if (!blind) systemBlindSpotOverlay = null;
+        if (!uart && !music && !nav && !blind) return;
 
         if (!PermissionHelper.canDrawOverlays(this)) {
             long now = System.currentTimeMillis();
@@ -243,9 +269,14 @@ public class AppService extends Service {
             systemNavOverlay = new NavOverlayView(this);
             addOverlay(systemNavOverlay);
         }
+        if (blind && systemBlindSpotOverlay == null) {
+            systemBlindSpotOverlay = new BlindSpotOverlayView(this);
+            addOverlay(systemBlindSpotOverlay);
+        }
         if (systemUartOverlay != null) systemUartOverlay.invalidate();
         if (systemMusicOverlay != null) systemMusicOverlay.invalidate();
         if (systemNavOverlay != null) systemNavOverlay.invalidate();
+        if (systemBlindSpotOverlay != null) systemBlindSpotOverlay.invalidate();
     }
 
     private void addOverlay(View view) {
@@ -275,9 +306,11 @@ public class AppService extends Service {
         removeOverlay(systemUartOverlay);
         removeOverlay(systemMusicOverlay);
         removeOverlay(systemNavOverlay);
+        removeOverlay(systemBlindSpotOverlay);
         systemUartOverlay = null;
         systemMusicOverlay = null;
         systemNavOverlay = null;
+        systemBlindSpotOverlay = null;
     }
 
     private void removeOverlay(View view) {
@@ -288,7 +321,7 @@ public class AppService extends Service {
         }
     }
 
-    private void connectUsb() {
+    private synchronized void connectUsb() {
         if (port != null || usbManager == null) return;
         try {
             List<UsbSerialDriver> drivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
@@ -355,7 +388,7 @@ public class AppService extends Service {
         writeOrQueue(data, false);
     }
 
-    private void writeOrQueue(byte[] data, boolean quiet) {
+    private synchronized void writeOrQueue(byte[] data, boolean quiet) {
         if (data == null) return;
         if (port == null) {
             if (quiet) {
@@ -404,7 +437,7 @@ public class AppService extends Service {
         }
     }
 
-    private void closePort() {
+    private synchronized void closePort() {
         readRunning = false;
         if (readThread != null) {
             readThread.interrupt();

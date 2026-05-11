@@ -10,8 +10,8 @@ android {
         applicationId "com.sorento.navi"
         minSdk 29
         targetSdk 35
-        versionCode 73
-        versionName "9.3-raw-can-logger"
+        versionCode 74
+        versionName "9.4-obd-bsm-polish"
     }
 }
 

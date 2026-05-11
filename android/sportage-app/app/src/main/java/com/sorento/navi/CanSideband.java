@@ -43,9 +43,8 @@ final class CanSideband {
 
     static void apply(Context context, Frame frame) {
         if (frame == null) return;
-        String text = frame.text();
-        SidebandDebugState.can(context, frame, text);
-        if (context != null && AppPrefs.obdEnabled(context)) {
+        SidebandDebugState.can(context, frame);
+        if (context != null && (AppPrefs.obdEnabled(context) || AppPrefs.blindSpotEnabled(context))) {
             VehicleCanParser.apply(context, frame);
         }
     }

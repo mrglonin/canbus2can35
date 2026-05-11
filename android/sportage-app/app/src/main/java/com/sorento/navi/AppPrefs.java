@@ -7,6 +7,7 @@ final class AppPrefs {
     private static final String NAME = "SportageClean";
     private static final String KEY_DEBUG = "debug";
     private static final String KEY_AUTO_START = "auto_start";
+    private static final String KEY_BACKGROUND_AUTO_START = "background_auto_start";
     private static final String KEY_AUTO_HIDE = "auto_hide";
     private static final String KEY_AUTO_HIDE_DELAY = "auto_hide_delay";
     private static final String KEY_NAV_TEXT_MODE = "nav_text_mode";
@@ -33,6 +34,8 @@ final class AppPrefs {
     private static final String KEY_DEBUG_UART = "debug_uart";
     private static final String KEY_UART_OVERLAY = "uart_overlay";
     private static final String KEY_CAN_LOG_MODE = "can_log_mode";
+    private static final String KEY_BLIND_SPOT_ENABLED = "blind_spot_enabled";
+    private static final String KEY_BLIND_SPOT_OVERLAY = "blind_spot_overlay";
 
     private AppPrefs() {
     }
@@ -55,6 +58,14 @@ final class AppPrefs {
 
     static void setAutoStart(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_AUTO_START, value).apply();
+    }
+
+    static boolean backgroundAutoStart(Context context) {
+        return prefs(context).getBoolean(KEY_BACKGROUND_AUTO_START, false);
+    }
+
+    static void setBackgroundAutoStart(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_BACKGROUND_AUTO_START, value).apply();
     }
 
     static boolean autoHide(Context context) {
@@ -289,6 +300,22 @@ final class AppPrefs {
 
     static void setCanLogMode(Context context, int value) {
         prefs(context).edit().putInt(KEY_CAN_LOG_MODE, clamp(value, 0, 2)).apply();
+    }
+
+    static boolean blindSpotEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_BLIND_SPOT_ENABLED, true);
+    }
+
+    static void setBlindSpotEnabled(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_BLIND_SPOT_ENABLED, value).apply();
+    }
+
+    static boolean blindSpotOverlay(Context context) {
+        return prefs(context).getBoolean(KEY_BLIND_SPOT_OVERLAY, true);
+    }
+
+    static void setBlindSpotOverlay(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_BLIND_SPOT_OVERLAY, value).apply();
     }
 
     private static int clamp(int value, int min, int max) {

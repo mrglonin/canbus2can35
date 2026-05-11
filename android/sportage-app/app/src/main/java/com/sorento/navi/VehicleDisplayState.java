@@ -61,7 +61,10 @@ final class VehicleDisplayState {
         if (extras.containsKey(EXTRA_SPEED_KMH)) state.speedKmh = clamp(intent.getIntExtra(EXTRA_SPEED_KMH, state.speedKmh), 0, 260);
         if (extras.containsKey(EXTRA_RPM)) state.rpm = clamp(intent.getIntExtra(EXTRA_RPM, state.rpm), 0, 8000);
         if (extras.containsKey(EXTRA_RUNTIME_SECONDS)) state.runtimeSeconds = Math.max(0, intent.getIntExtra(EXTRA_RUNTIME_SECONDS, state.runtimeSeconds));
-        if (extras.containsKey(EXTRA_VOLTAGE)) state.voltage = Math.max(0f, intent.getFloatExtra(EXTRA_VOLTAGE, state.voltage));
+        if (extras.containsKey(EXTRA_VOLTAGE)) {
+            state.voltage = Math.max(0f, intent.getFloatExtra(EXTRA_VOLTAGE, state.voltage));
+            state.voltageKnown = true;
+        }
         if (extras.containsKey(EXTRA_COOLANT_C)) state.coolantTemp = clamp(intent.getIntExtra(EXTRA_COOLANT_C, state.coolantTemp), -40, 140);
         if (extras.containsKey(EXTRA_ENGINE_LOAD)) state.engineLoad = clamp(intent.getIntExtra(EXTRA_ENGINE_LOAD, state.engineLoad), 0, 100);
         if (extras.containsKey(EXTRA_THROTTLE)) state.throttle = clamp(intent.getIntExtra(EXTRA_THROTTLE, state.throttle), 0, 100);
@@ -95,6 +98,7 @@ final class VehicleDisplayState {
         target.rpm = obd.rpm;
         target.runtimeSeconds = obd.runtimeSeconds;
         target.voltage = obd.voltage;
+        target.voltageKnown = obd.voltageKnown;
         target.coolantTemp = obd.coolantTemp;
         target.engineLoad = obd.engineLoad;
         target.throttle = obd.throttle;
@@ -125,6 +129,7 @@ final class VehicleDisplayState {
         int rpm;
         int runtimeSeconds;
         float voltage = 12.2f;
+        boolean voltageKnown;
         int coolantTemp;
         int engineLoad;
         int throttle;
@@ -146,6 +151,7 @@ final class VehicleDisplayState {
             rpm = other.rpm;
             runtimeSeconds = other.runtimeSeconds;
             voltage = other.voltage;
+            voltageKnown = other.voltageKnown;
             coolantTemp = other.coolantTemp;
             engineLoad = other.engineLoad;
             throttle = other.throttle;
@@ -177,6 +183,7 @@ final class VehicleDisplayState {
         }
 
         String voltageText() {
+            if (!voltageKnown) return "--";
             return String.format(Locale.US, "%.1fV", voltage);
         }
 

@@ -224,8 +224,15 @@ public class MainActivity extends Activity {
     }
 
     private boolean blockDisabledUsbAutostart(Intent intent, boolean finishScreen) {
-        if (intent == null || AppPrefs.autoStart(this)) return false;
+        if (intent == null) return false;
         if (!"android.hardware.usb.action.USB_DEVICE_ATTACHED".equals(intent.getAction())) return false;
+        if (AppPrefs.autoStart(this) && AppPrefs.backgroundAutoStart(this)) {
+            AppLog.line(this, "USB автозапуск: фоновый режим без открытия экрана");
+            AppService.start(this);
+            if (finishScreen) finish();
+            return true;
+        }
+        if (AppPrefs.autoStart(this)) return false;
         AppLog.line(this, "USB автозапуск: выключен в настройках");
         if (finishScreen) finish();
         return true;
