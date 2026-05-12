@@ -77,7 +77,6 @@ public class CanbusSettingsActivity extends Activity {
     private TextView rpmMetric;
     private TextView voltageMetric;
     private TextView tempMetric;
-    private TextView dtcMetric;
     private TextView runtimeMetric;
     private TextView canDebugStatusValue;
     private TextView canLogPreviewValue;
@@ -327,7 +326,6 @@ public class CanbusSettingsActivity extends Activity {
         rpmMetric = null;
         voltageMetric = null;
         tempMetric = null;
-        dtcMetric = null;
         runtimeMetric = null;
         canDebugStatusValue = null;
         canLogPreviewValue = null;
@@ -356,7 +354,6 @@ public class CanbusSettingsActivity extends Activity {
         rpmMetric = metric(metrics, "Обороты", "--");
         voltageMetric = metric(metrics, "Напряжение", "--");
         tempMetric = metric(metrics, "Охлаждение", "--");
-        dtcMetric = metric(metrics, "Ошибки DTC", "--");
         runtimeMetric = metric(metrics, "Время пути", "--");
 
         LinearLayout display = card();
@@ -819,7 +816,6 @@ public class CanbusSettingsActivity extends Activity {
         if (rpmMetric != null) rpmMetric.setText(vehicle.rpm + " rpm");
         if (voltageMetric != null) voltageMetric.setText(vehicle.voltageText());
         if (tempMetric != null) tempMetric.setText(vehicle.tempText(this, vehicle.coolantTemp));
-        if (dtcMetric != null) dtcMetric.setText(String.valueOf(vehicle.dtcCodes == null ? 0 : vehicle.dtcCodes.size()));
         if (runtimeMetric != null) runtimeMetric.setText(vehicle.runtimeText());
         if (speedButton != null) speedButton.setText("Скорость: " + AppPrefs.speedUnitLabel(this));
         if (tempButton != null) tempButton.setText("Температура: " + (AppPrefs.tempUnit(this) == 1 ? "°F" : "°C"));

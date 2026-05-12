@@ -3,11 +3,6 @@ package com.sorento.navi;
 import android.content.Context;
 import android.content.Intent;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 final class ObdState {
     static final String ACTION_STATE = "com.sorento.navi.OBD_STATE";
 
@@ -92,15 +87,10 @@ final class ObdState {
         touch(context);
     }
 
-    static synchronized void dtc(Context context, List<String> codes) {
-        state.dtcCodes = codes == null ? Collections.emptyList() : new ArrayList<>(codes);
-        touch(context);
-    }
-
     static synchronized void emulation(Context context, int speedKmh, int rpm, int runtimeSeconds,
                                        float voltage, int coolantTemp, int engineLoad, int throttle,
                                        int intakeTemp, float fuelRate, double currentMileageKm,
-                                       double totalMileageKm, String[] dtcCodes) {
+                                       double totalMileageKm) {
         state.status = "OBD: данные эмуляции";
         state.connected = true;
         state.speedKmh = clamp(speedKmh, 0, 260);
@@ -115,7 +105,6 @@ final class ObdState {
         state.fuelRate = Math.max(0f, fuelRate);
         state.currentMileageKm = Math.max(0d, currentMileageKm);
         state.totalMileageKm = Math.max(0d, totalMileageKm);
-        state.dtcCodes = dtcCodes == null ? Collections.emptyList() : new ArrayList<>(Arrays.asList(dtcCodes));
         state.updatedAt = System.currentTimeMillis();
         VehicleDisplayState.updateFromObd(context, state);
         broadcast(context);
@@ -159,7 +148,6 @@ final class ObdState {
         double currentMileageKm;
         double totalMileageKm;
         long updatedAt;
-        List<String> dtcCodes = Collections.emptyList();
 
         Snapshot() {
         }
@@ -180,7 +168,6 @@ final class ObdState {
             currentMileageKm = other.currentMileageKm;
             totalMileageKm = other.totalMileageKm;
             updatedAt = other.updatedAt;
-            dtcCodes = new ArrayList<>(other.dtcCodes);
         }
 
         String runtimeText() {

@@ -12,8 +12,6 @@ import android.os.SystemClock;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -27,7 +25,6 @@ final class ObdMonitor {
 
     private static Thread worker;
     private static volatile boolean stop;
-    private static volatile boolean clearDtc;
     private static volatile int generation;
 
     private ObdMonitor() {
@@ -86,19 +83,6 @@ final class ObdMonitor {
     static void restart(Context context) {
         stop();
         start(context);
-    }
-
-    static void clearDtc(Context context) {
-        if (context != null && !AppPrefs.obdEmulation(context)) {
-            clearDtc = false;
-            ObdState.dtc(context, new ArrayList<>());
-            ObdState.status(context, "DTC: список ошибок очищен локально", true);
-            AppLog.line(context, "DTC: локальная очистка; ECU clear через CAN sideband пока не задан протоколом");
-            return;
-        }
-        clearDtc = true;
-        start(context);
-        ObdState.status(context, "Kia Canbus: команда очистки ошибок поставлена в очередь", false);
     }
 
     private static boolean active(int token) {
@@ -190,14 +174,6 @@ final class ObdMonitor {
         parseThrottle(context, command(socket, "0111", 900));
         parseIntake(context, command(socket, "010F", 900));
         parseFuelRate(context, command(socket, "015E", 900));
-        if (clearDtc) {
-            clearDtc = false;
-            command(socket, "04", 1200);
-            ObdState.dtc(context, new ArrayList<>());
-            AppLog.line(context, "Kia Canbus: команда очистки DTC отправлена");
-        } else if (cycle % 8 == 0) {
-            parseDtc(context, command(socket, "03", 1200));
-        }
     }
 
     private static String command(BluetoothSocket socket, String value, int timeoutMs) throws IOException {
@@ -281,20 +257,6 @@ final class ObdMonitor {
         if (a >= 0 && b >= 0) ObdState.fuelRate(context, ((a * 256) + b) / 20f);
     }
 
-    private static void parseDtc(Context context, String response) {
-        String hex = hexOnly(response);
-        int idx = hex.indexOf("43");
-        if (idx < 0) return;
-        List<String> codes = new ArrayList<>();
-        for (int i = idx + 2; i + 3 < hex.length(); i += 4) {
-            int a = parseByte(hex, i);
-            int b = parseByte(hex, i + 2);
-            if (a <= 0 && b <= 0) break;
-            codes.add(toDtc(a, b));
-        }
-        ObdState.dtc(context, codes);
-    }
-
     private static int byteAfter(String response, String marker, int offset) {
         String hex = hexOnly(response);
         int idx = hex.indexOf(marker);
@@ -302,31 +264,6 @@ final class ObdMonitor {
         int pos = idx + marker.length() + offset * 2;
         if (pos + 2 > hex.length()) return -1;
         return parseByte(hex, pos);
-    }
-
-    private static String toDtc(int first, int second) {
-        char family;
-        switch ((first & 0xC0) >> 6) {
-            case 1:
-                family = 'C';
-                break;
-            case 2:
-                family = 'B';
-                break;
-            case 3:
-                family = 'U';
-                break;
-            default:
-                family = 'P';
-                break;
-        }
-        int d1 = (first & 0x30) >> 4;
-        int d2 = first & 0x0F;
-        int d3 = (second & 0xF0) >> 4;
-        int d4 = second & 0x0F;
-        return "" + family + d1 + Integer.toHexString(d2).toUpperCase(Locale.US)
-                + Integer.toHexString(d3).toUpperCase(Locale.US)
-                + Integer.toHexString(d4).toUpperCase(Locale.US);
     }
 
     private static int parseByte(String hex, int pos) {

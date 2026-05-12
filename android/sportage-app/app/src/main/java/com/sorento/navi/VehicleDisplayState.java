@@ -4,9 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Locale;
 
 final class VehicleDisplayState {
@@ -28,7 +25,6 @@ final class VehicleDisplayState {
     static final String EXTRA_FUEL_RATE = "fuel_rate";
     static final String EXTRA_CURRENT_MILEAGE_KM = "current_mileage_km";
     static final String EXTRA_TOTAL_MILEAGE_KM = "total_mileage_km";
-    static final String EXTRA_DTC_CODES = "dtc_codes";
 
     private static Snapshot state = new Snapshot();
 
@@ -72,12 +68,6 @@ final class VehicleDisplayState {
         if (extras.containsKey(EXTRA_FUEL_RATE)) state.fuelRate = Math.max(0f, intent.getFloatExtra(EXTRA_FUEL_RATE, state.fuelRate));
         if (extras.containsKey(EXTRA_CURRENT_MILEAGE_KM)) state.currentMileageKm = Math.max(0d, intent.getDoubleExtra(EXTRA_CURRENT_MILEAGE_KM, state.currentMileageKm));
         if (extras.containsKey(EXTRA_TOTAL_MILEAGE_KM)) state.totalMileageKm = Math.max(0d, intent.getDoubleExtra(EXTRA_TOTAL_MILEAGE_KM, state.totalMileageKm));
-        String[] codes = intent.getStringArrayExtra(EXTRA_DTC_CODES);
-        if (codes != null) {
-            ArrayList<String> list = new ArrayList<>();
-            Collections.addAll(list, codes);
-            state.dtcCodes = list;
-        }
         if (state.source == null || state.source.length() == 0) state.source = "API";
         if (state.status == null || state.status.length() == 0) {
             state.status = state.source + ": данные получены";
@@ -107,7 +97,6 @@ final class VehicleDisplayState {
         target.currentMileageKm = obd.currentMileageKm;
         target.totalMileageKm = obd.totalMileageKm;
         target.updatedAt = obd.updatedAt;
-        target.dtcCodes = new ArrayList<>(obd.dtcCodes);
     }
 
     private static void broadcast(Context context) {
@@ -138,7 +127,6 @@ final class VehicleDisplayState {
         double currentMileageKm;
         double totalMileageKm;
         long updatedAt;
-        List<String> dtcCodes = Collections.emptyList();
 
         Snapshot() {
         }
@@ -160,7 +148,6 @@ final class VehicleDisplayState {
             currentMileageKm = other.currentMileageKm;
             totalMileageKm = other.totalMileageKm;
             updatedAt = other.updatedAt;
-            dtcCodes = new ArrayList<>(other.dtcCodes);
         }
 
         int displaySpeed(Context context) {

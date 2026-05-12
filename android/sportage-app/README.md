@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia Sportage CANBOX integration.
 
 Current package: `com.sorento.navi`
 
-Current app version: `9.5-freeze-fix` (`versionCode 75`)
+Current app version: `9.6-obd-clean` (`versionCode 76`)
 
 Main protocol notes:
 

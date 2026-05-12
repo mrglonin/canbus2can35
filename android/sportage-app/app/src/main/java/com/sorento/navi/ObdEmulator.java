@@ -53,8 +53,7 @@ final class ObdEmulator {
         float voltage = 13.7f + (float) (Math.sin(elapsed / 8.0d) * 0.2d);
         float fuel = 0.8f + speed / 18f;
 
-        String[] codes = elapsed % 40L < 10L ? new String[]{"P0000"} : new String[0];
         ObdState.emulation(context, speed, rpm, (int) elapsed, voltage, coolant, load, throttle,
-                28, fuel, elapsed * speed / 3600d, 128450d + elapsed * speed / 3600d, codes);
+                28, fuel, elapsed * speed / 3600d, 128450d + elapsed * speed / 3600d);
     }
 }

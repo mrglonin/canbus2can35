@@ -1,7 +1,6 @@
 package com.sorento.navi;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -31,7 +30,6 @@ public class VehicleInfoActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final SimpleDateFormat time = new SimpleDateFormat("HH:mm", Locale.US);
     private InfoCell runtimeCell;
-    private InfoCell dtcCell;
     private InfoCell voltageCell;
     private InfoCell intakeCell;
     private InfoCell loadCell;
@@ -94,14 +92,6 @@ public class VehicleInfoActivity extends Activity {
         backLp.setMargins(0, dp(18), dp(22), 0);
         root.addView(back, backLp);
 
-        Button dtc = button("DTC");
-        dtc.setText("");
-        dtc.setBackgroundResource(R.drawable.btn_dtc_detail);
-        dtc.setOnClickListener(v -> startActivity(new Intent(this, TroubleCodeActivity.class)));
-        FrameLayout.LayoutParams dtcLp = new FrameLayout.LayoutParams(dp(140), dp(60), Gravity.RIGHT | Gravity.TOP);
-        dtcLp.setMargins(0, dp(28), dp(118), 0);
-        root.addView(dtc, dtcLp);
-
         TableLayout table = new TableLayout(this);
         table.setStretchAllColumns(true);
         table.setShrinkAllColumns(false);
@@ -113,18 +103,19 @@ public class VehicleInfoActivity extends Activity {
         row1.setMinimumHeight(dp(160));
         table.addView(row1, new TableLayout.LayoutParams(-1, dp(160)));
         runtimeCell = cell(row1, "Время пути", "00:00:00", R.mipmap.item_img_time);
-        dtcCell = cell(row1, "Ошибки", "0Codes", R.mipmap.item_img_fault_code);
         voltageCell = cell(row1, "Напряжение", "0.0V", R.mipmap.item_img_voltage);
         intakeCell = cell(row1, "Входная темп-ра", "0", R.mipmap.ic_intake_air_temperature);
+        tempCell = cell(row1, "Темп-ра антифриза", "0", R.mipmap.item_img_temper);
 
         TableRow row2 = new TableRow(this);
         row2.setMinimumHeight(dp(160));
         table.addView(row2, new TableLayout.LayoutParams(-1, dp(160)));
         loadCell = cell(row2, "Нагрузка двигателя", "0%", R.mipmap.ic_engine_load);
         throttleCell = cell(row2, "Положение заслонки", "0%", R.mipmap.throttle_position);
-        tempCell = cell(row2, "Темп-ра антифриза", "0", R.mipmap.item_img_temper);
-        InfoCell empty = cell(row2, "", "", R.mipmap.item_img_driving_time);
-        empty.setVisibility(View.INVISIBLE);
+        for (int i = 0; i < 2; i++) {
+            InfoCell empty = cell(row2, "", "", R.mipmap.item_img_driving_time);
+            empty.setVisibility(View.INVISIBLE);
+        }
 
         TableRow row3 = new TableRow(this);
         row3.setMinimumHeight(dp(160));
@@ -159,9 +150,7 @@ public class VehicleInfoActivity extends Activity {
 
     private void updateValues() {
         VehicleDisplayState.Snapshot s = VehicleDisplayState.snapshot();
-        int count = s.dtcCodes == null ? 0 : s.dtcCodes.size();
         runtimeCell.setValue(s.runtimeText());
-        dtcCell.setValue(count + "Codes");
         voltageCell.setValue(s.voltageText());
         intakeCell.setValue(s.tempText(this, s.intakeTemp));
         loadCell.setValue(s.engineLoad + "%");
