@@ -23,4 +23,15 @@ Build:
 gradle assembleRelease
 ```
 
+TEYES sandbox emulator:
+
+```bash
+scripts/run_teyes_sandbox.sh
+```
+
+The target TEYES screen is `2000x1200`. The sandbox launches at `1000x600` by
+default: half size, same 5:3 aspect ratio, so it does not take the full desktop.
+Use `SPORTAGE_EMULATOR_WIDTH=2000 SPORTAGE_EMULATOR_HEIGHT=1200` when a full
+logical-resolution run is needed.
+
 The repository intentionally does not track generated APK files, build folders or local Android SDK settings.
