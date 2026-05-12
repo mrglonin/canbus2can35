@@ -42,7 +42,7 @@ public class AppService extends Service {
     private static final int FTDI_CANBOX_PRODUCT_ID = 24577;
     private static final int STM_VENDOR_ID = 1155;
     private static final int STM_CDC_PRODUCT_ID = 22336;
-    private static final int RAW_CAN_BURST = 6;
+    private static final int RAW_CAN_BURST = 3;
     private static final Queue<byte[]> PENDING = new ArrayDeque<>();
 
     private UsbManager usbManager;
@@ -83,7 +83,7 @@ public class AppService extends Service {
                 }
             }
             Handler handler = ioHandler == null ? debugHandler : ioHandler;
-            handler.postDelayed(this, needed ? 12L : 500L);
+            handler.postDelayed(this, needed ? 20L : 500L);
         }
     };
 

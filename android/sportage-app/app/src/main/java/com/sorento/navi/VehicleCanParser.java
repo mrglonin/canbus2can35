@@ -8,6 +8,8 @@ final class VehicleCanParser {
     private static String lastReverse = "";
     private static String lastParking = "";
     private static String lastClimate = "";
+    private static long lastParkingLogAt;
+    private static long lastClimateLogAt;
 
     private VehicleCanParser() {
     }
@@ -74,9 +76,12 @@ final class VehicleCanParser {
             return;
         }
         if ((id == 0x131 || id == 0x132 || id == 0x134) && d.length > 0) {
+            if (!AppPrefs.debugCan(context)) return;
             String text = "0x" + Integer.toHexString(id).toUpperCase() + " " + CanbusControl.hex(d);
-            if (!text.equals(lastClimate)) {
+            long now = System.currentTimeMillis();
+            if (!text.equals(lastClimate) && now - lastClimateLogAt > 1000L) {
                 lastClimate = text;
+                lastClimateLogAt = now;
                 AppLog.line(context, "CAN климат raw: " + text);
             }
             return;
@@ -86,9 +91,12 @@ final class VehicleCanParser {
             return;
         }
         if ((id == 0x4F4 || id == 0x2B0) && d.length > 0) {
+            if (!AppPrefs.debugCan(context)) return;
             String text = "0x" + Integer.toHexString(id).toUpperCase() + " " + CanbusControl.hex(d);
-            if (!text.equals(lastParking)) {
+            long now = System.currentTimeMillis();
+            if (!text.equals(lastParking) && now - lastParkingLogAt > 1000L) {
                 lastParking = text;
+                lastParkingLogAt = now;
                 AppLog.line(context, "CAN парковка/руль raw: " + text);
             }
         }
