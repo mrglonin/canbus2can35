@@ -6,6 +6,10 @@
 отдает APK и что уходит дальше в штатный parser/M-CAN. Это не DBC и не большая
 таблица Android-логики. Это рабочая карта для чистой прошивки адаптера.
 
+Следующий целевой вариант, где адаптер сам держит compass/nav hold и APK
+передает только события, описан отдельно:
+[FIRMWARE_ADAPTER_OWNED_LOGIC_TARGET.md](FIRMWARE_ADAPTER_OWNED_LOGIC_TARGET.md).
+
 ## Главная модель
 
 ```text
