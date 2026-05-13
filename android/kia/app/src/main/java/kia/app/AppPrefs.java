@@ -29,6 +29,7 @@ final class AppPrefs {
     private static final String KEY_TPMS_LOW_BAR_X10 = "tpms_low_bar_x10";
     private static final String KEY_TPMS_HIGH_BAR_X10 = "tpms_high_bar_x10";
     private static final String KEY_TPMS_AUTO_OPEN = "tpms_auto_open";
+    private static final String KEY_TPMS_ALERT_OVERLAY = "tpms_alert_overlay";
     private static final String KEY_TPMS_ALERT_SOUND = "tpms_alert_sound";
     private static final String KEY_TPMS_ALERT_SUPPRESSED_UNTIL = "tpms_alert_suppressed_until";
     private static final String KEY_DEBUG_CAN = "debug_can";
@@ -258,6 +259,15 @@ final class AppPrefs {
 
     static void setTpmsAutoOpen(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_TPMS_AUTO_OPEN, value).apply();
+    }
+
+    static boolean tpmsAlertOverlay(Context context) {
+        SharedPreferences prefs = prefs(context);
+        return prefs.getBoolean(KEY_TPMS_ALERT_OVERLAY, prefs.getBoolean(KEY_TPMS_AUTO_OPEN, true));
+    }
+
+    static void setTpmsAlertOverlay(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_TPMS_ALERT_OVERLAY, value).apply();
     }
 
     static boolean tpmsAlertSound(Context context) {

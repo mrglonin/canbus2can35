@@ -35,7 +35,7 @@ final class TpmsAlertManager {
 
         String message = warningMessage(snapshot, tire);
         showNotification(context, message);
-        if (AppPrefs.tpmsAutoOpen(context)) {
+        if (AppPrefs.tpmsAlertOverlay(context)) {
             AppService.start(context);
             AppService.refreshOverlays(context);
         }

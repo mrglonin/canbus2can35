@@ -433,8 +433,8 @@ public class CanbusSettingsActivity extends Activity {
         addCardTitle(alerts, "Предупреждения давления");
         tpmsLowValue = thresholdRow(alerts, "Низкое давление", AppPrefs.tpmsLowBar(this), -0.1f, 0.1f, true);
         tpmsHighValue = thresholdRow(alerts, "Высокое давление", AppPrefs.tpmsHighBar(this), -0.1f, 0.1f, false);
-        alerts.addView(check("Показывать TPMS поверх всех экранов", AppPrefs.tpmsAutoOpen(this), (button, checked) -> {
-            AppPrefs.setTpmsAutoOpen(this, checked);
+        alerts.addView(check("Overlay ошибки давления", AppPrefs.tpmsAlertOverlay(this), (button, checked) -> {
+            AppPrefs.setTpmsAlertOverlay(this, checked);
             AppService.refreshOverlays(this);
             AppLog.line(this, "TPMS: overlay " + yes(checked));
             savedToast();
@@ -979,7 +979,7 @@ public class CanbusSettingsActivity extends Activity {
 
     private void openTpmsOnAlert() {
         if (!AppPrefs.tpmsEnabled(this)) return;
-        if (!AppPrefs.tpmsAutoOpen(this)) return;
+        if (!AppPrefs.tpmsAlertOverlay(this)) return;
         if (TpmsAlertManager.isSuppressed(this)) return;
         if (TpmsAlertManager.alertMessage(TpmsState.snapshot()).length() == 0) return;
         AppService.refreshOverlays(this);

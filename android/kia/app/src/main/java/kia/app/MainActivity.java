@@ -692,7 +692,7 @@ public class MainActivity extends Activity {
 
     private void openTpmsOnAlert() {
         if (!AppPrefs.tpmsEnabled(this)) return;
-        if (!AppPrefs.tpmsAutoOpen(this)) return;
+        if (!AppPrefs.tpmsAlertOverlay(this)) return;
         if (TpmsAlertManager.isSuppressed(this)) return;
         if (TpmsAlertManager.alertMessage(TpmsState.snapshot()).length() == 0) return;
         AppService.refreshOverlays(this);

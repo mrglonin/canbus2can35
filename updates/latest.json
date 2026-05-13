@@ -2,13 +2,13 @@
   "schema": 1,
   "updated_at": "2026-05-13",
   "app": {
-    "version_name": "11.4-kia",
-    "version_code": 94,
-    "release_number": 114,
-    "asset_name": "kia_114.apk",
-    "size": 27551767,
-    "sha256": "6dacaaec4e13cddc28b7c3d11d35eaa168acc884d57cacf15a7b6330679738e5",
-    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_114.apk"
+    "version_name": "11.5-kia",
+    "version_code": 95,
+    "release_number": 115,
+    "asset_name": "kia_115.apk",
+    "size": 27551563,
+    "sha256": "65a96dad767601e382818ae15cc95ca7ac22c0477804b7b428dc975fb4c85110",
+    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_115.apk"
   },
   "firmware": {
     "version": "v20",
