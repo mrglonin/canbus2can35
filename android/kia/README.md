@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia CANBOX integration.
 
 Current package: `kia.app`
 
-Current app version: `12.0-kia` (`versionCode 100`)
+Current app version: `12.1-kia` (`versionCode 101`)
 
 Main protocol notes:
 
@@ -29,7 +29,7 @@ Build:
 Release APK name is kept short and stable:
 
 ```text
-/Volumes/SSD/canbus/release/kia_120.apk
+/Volumes/SSD/canbus/release/kia_121.apk
 ```
 
 The release build is signed with the local Android debug keystore
@@ -39,7 +39,7 @@ head unit. A production key can be added later without changing the output path.
 The local Gradle output uses the same filename:
 
 ```text
-app/build/outputs/apk/release/kia_120.apk
+app/build/outputs/apk/release/kia_121.apk
 ```
 
 TEYES sandbox emulator:

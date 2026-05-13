@@ -644,8 +644,11 @@ final class TabletDashboardView extends FrameLayout {
         row.addView(name, new LinearLayout.LayoutParams(dp(compactMode ? 62 : 76), -2));
 
         TextView text = text(value, compactMode ? 12 : 13, 0xff17191e, false);
-        text.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        text.setSingleLine(!compactMode);
+        text.setGravity(Gravity.LEFT | Gravity.TOP);
+        text.setSingleLine(false);
+        text.setMaxLines(compactMode ? 3 : 2);
+        text.setEllipsize(TextUtils.TruncateAt.END);
+        text.setLineSpacing(dp(1), 1f);
         row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
         return text;
     }
