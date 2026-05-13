@@ -1,41 +1,35 @@
 .DS_Store
+**/.DS_Store
 __pycache__/
 *.pyc
 *.o
 *.elf
 *.map
+
 .gradle/
 build/
-android/2can35-lab/app/build/
-android/2can35-lab/.gradle/
+local.properties
+.idea/
+android/**/.gradle/
+android/**/build/
+android/**/.idea/
 
-# Keep public repository clean. Put local binaries here when working locally,
-# but do not publish third-party APK/firmware without explicit rights.
-firmware/local/
-firmware/custom_c/build/
-firmware/custom_c/dist/
+# Generated outputs stay outside git. The clean public artifacts are copied to
+# /Volumes/SSD/canbus/release.
+release/
 *.apk
+
+# Keep random firmware dumps out of git. Only trusted, documented binaries are
+# allowed in firmware/trusted.
 *.bin
+!firmware/trusted/
+!firmware/trusted/**/*.bin
+firmware/local/
 
-# These are project artifacts intentionally published for our own CAN logging
-# work. Keep other random binaries ignored.
-!firmware/canlog/
-!firmware/canlog/*.bin
-
-# Local captures can grow fast. Curated examples may be force-added if needed.
-logs/*.tmp
-logs/dashboard_*.log
-logs/dashboard_server.log
-logs/dashboard_server_*.log
-logs/live_*.txt
-logs/live_*.log
-logs/live/*.txt
-logs/live/*.log
-logs/live/*.jsonl
-logs/session_*/full_*.txt
-
-# Local reverse-engineering decode/disassembly outputs.
+# Local captures and reverse-engineering workspaces are intentionally external.
+logs/
 re/
-
-# Local toolchains downloaded for APK builds.
+analysis/
+dist/
+samples/
 .tools/

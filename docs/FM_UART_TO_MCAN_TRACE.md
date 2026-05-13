@@ -1,4 +1,7 @@
-# FM UART -> M-CAN trace in programmer firmware
+# FM/Media UART -> M-CAN trace in programmer firmware
+
+Status: trusted. This document is based on the decoded programmer v08 firmware
+path, not on a DBC-only guess.
 
 Source firmware: `37FFDA054247303859412243_04350008.bin`, decoded app
 `re/04350008/37FFDA054247303859412243_04350008.decoded_app_stlink64k.bin`.
@@ -70,3 +73,7 @@ FM working in the programmer firmware is a two-layer flow:
 For tests, prefer the stock USB/API path (`0x20`, `0x21`, `0x22`) or replay the
 firmware-confirmed M-CAN IDs above. Sending random `0x114/0x197` payloads alone
 is not enough to reproduce the working FM behavior.
+
+Do not use this document as proof for unrelated IDs such as `0x114`, `0x197`,
+CarPlay, Android Auto, TPMS, RCTA, ADAS, or SVM. Those require separate firmware
+or live-log proof.

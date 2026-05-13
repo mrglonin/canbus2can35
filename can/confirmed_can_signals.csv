@@ -1,0 +1,14 @@
+category,function,bus,id_hex,dlc,signal,formula,status,source
+body,driver_door,C-CAN,0x541,8,DATA[1] bit0,1=open,confirmed,live_log_and_programmer_mapping
+body,passenger_door,C-CAN,0x541,8,DATA[4] bit3,1=open,confirmed,live_log_and_programmer_mapping
+body,trunk,C-CAN,0x541,8,DATA[1] bit4,1=open,confirmed,live_log_and_programmer_mapping
+body,hood,C-CAN,0x541,8,DATA[2] bit1,1=open,confirmed,live_log_and_programmer_mapping
+body,rear_left_door,C-CAN,0x553,8,DATA[3] bit0,1=open,confirmed,live_log_and_programmer_mapping
+body,rear_right_door,C-CAN,0x553,8,DATA[2] bit7,1=open,confirmed,live_log_and_programmer_mapping
+body,sunroof,C-CAN,0x541,8,DATA[7] bit1,1=open in our live log; TEYES Raise display not confirmed,confirmed_rx_only,live_log
+motion,reverse_gear,C-CAN,0x169,8,DATA[0] low nibble,DATA[0] & 0x0F == 0x07,confirmed,programmer_v05_v08_behavior
+motion,speed,C-CAN,0x316,8,DATA[6],km/h,confirmed,programmer_v08_and_v18_snapshot
+engine,rpm,C-CAN,0x316,8,DATA[2..3],(DATA[2] + DATA[3]*256) / 4,confirmed,programmer_v08_and_v18_snapshot
+engine,coolant_temp,C-CAN,0x329,8,DATA[1],(DATA[1] - 0x40) * 0.75,confirmed,programmer_v08_and_v18_snapshot
+body,outside_temp,C-CAN,0x044,8,DATA[3],(DATA[3] - 0x52) / 2,confirmed,programmer_v08_and_v18_snapshot
+power,voltage,C-CAN,0x545,8,DATA[3],DATA[3] * 100 mV,confirmed_in_v18_snapshot,firmware_v18

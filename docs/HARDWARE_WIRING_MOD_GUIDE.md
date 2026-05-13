@@ -8,8 +8,8 @@ Main source adapted here:
 - Drive2 article: https://www.drive2.ru/l/717368666034802531/
 
 Do not treat this file as a factory schematic. It is an installation/rework map
-based on the Drive2 guide, our board photos, firmware reverse work and the
-current `firmware/custom_c` pin map.
+based on the Drive2 guide, our board photos, firmware reverse work and
+verified behavior of the author's Sportage firmware.
 
 ## Target Architecture
 
@@ -40,10 +40,10 @@ Key idea:
 | `+12V ACC` | car -> adapter | ACC-switched 12 V | Main adapter power when installed in car | required |
 | `GND` | car/HU -> adapter | car ground and HU UART ground | Common reference for CAN/UART/12 V | required |
 | USB `VBUS/D+/D-/GND` | Mac/HU -> adapter | native micro-USB | update, logger, dashboard/lab commands | confirmed |
-| C-CAN H/L | car <-> adapter | main/body CAN, 500 kbit/s | body, reverse, speed, parking, climate candidates | confirmed speed |
-| M-CAN H/L | car <-> adapter | multimedia CAN, 100 kbit/s | cluster media/nav/status frames | confirmed speed |
+| C-CAN H/L | car <-> adapter | main/body CAN, 500 kbit/s | body, reverse, speed, temperatures, future research | confirmed bus |
+| M-CAN H/L | car <-> adapter | multimedia CAN, 100 kbit/s | штатная прошивка автора сама формирует нужные media/nav кадры | confirmed bus |
 | UART2 TX/RX | adapter <-> HU/Raise | STM32 USART2 `PA2/PA3`, 19200 8N1 | Raise protocol / future transparent button bridge | confirmed MCU pins, bridge not complete |
-| Reverse output control | adapter -> driver | `PC14` controls external transistor/relay path | +12 V reverse signal to HU | implemented in clean C, verify driver path |
+| Reverse output control | adapter -> driver | board driver path, exact MCU pin still requires meter confirmation | +12 V reverse signal to HU | confirmed by author firmware behavior, hardware path not fully traced |
 | ST-Link SWDIO/SWCLK | programmer <-> adapter | `PA13/PA14` | recovery/full flash | confirmed |
 | NRST | programmer -> adapter | MCU reset | connect-under-reset recovery | confirmed |
 | BOOT0 | programmer/user -> adapter | BOOT0 high when needed | system bootloader/recovery experiments | confirmed MCU pin |
@@ -176,23 +176,23 @@ Project rule:
 
 ## Reverse Output
 
-Our clean firmware uses `PC14` only as a logic control signal. Do not drive a
-12 V reverse input directly from `PC14`.
+The MCU must only drive the board's reverse-output driver path. Do not drive a
+12 V reverse input directly from an STM32 GPIO.
 
 Recommended path:
 
 ```mermaid
 flowchart LR
-  MCU["STM32 PC14\nlogic output"] --> D["transistor / MOSFET / relay driver"]
+  MCU["STM32 GPIO\nlogic output"] --> D["transistor / MOSFET / relay driver"]
   D --> R["+12V reverse signal"]
   R --> H["head unit reverse input"]
 ```
 
 Status:
 
-- reverse output control is implemented in `firmware/custom_c`;
-- exact board driver path must be verified with a meter;
-- physical reverse input pin is not confirmed yet.
+- reverse +12 V behavior is confirmed on the author's firmware line;
+- exact MCU GPIO and board driver path still must be verified with a meter;
+- physical reverse input pin should be treated as installation-specific until confirmed.
 
 ## Minimal Car Connection Checklist
 

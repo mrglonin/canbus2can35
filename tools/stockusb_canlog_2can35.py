@@ -21,7 +21,10 @@ CMD_MODE = 0x55
 CMD_UART_STATUS = 0x71
 CMD_UART_READ = 0x72
 CMD_UART_WRITE = 0x73
-CMD_CAN_TX = 0x74
+CMD_CAN_TX = 0x78
+CMD_CAN_CACHE = 0x75
+CMD_CAN_RING_READ = 0x76
+CMD_OBD_SNAPSHOT = 0x77
 
 
 def checksum(frame: bytes | bytearray) -> int:
@@ -122,6 +125,98 @@ def decode_uart_read(frame: bytes) -> str | None:
     return f"uart-rx {frame[6:6 + count].hex(' ').upper()}"
 
 
+def decode_can_cache(frame: bytes) -> str | None:
+    if len(frame) != 22 or frame[4] != CMD_CAN_CACHE:
+        return None
+    slot = frame[5]
+    bus = frame[6]
+    valid = frame[7]
+    can_id = struct.unpack_from("<I", frame, 8)[0]
+    dlc = min(frame[12], 8)
+    data = frame[13 : 13 + dlc].hex().upper()
+    bus_name = "C-CAN" if bus == 0 else "M-CAN"
+    return f"slot={slot:02d} {bus_name} valid={valid} id=0x{can_id:X} dlc={dlc} data={data}"
+
+
+def decode_can_ring(frame: bytes) -> str | None:
+    if len(frame) != 23 or frame[4] != CMD_CAN_RING_READ:
+        return None
+    status = frame[5]
+    if status == 0:
+        return None
+    bus = frame[6]
+    flags = frame[7]
+    dlc = min(frame[8], 8)
+    can_id = struct.unpack_from("<I", frame, 10)[0]
+    data = frame[14 : 14 + dlc].hex().upper()
+    ext = "x" if flags & 1 else "s"
+    rtr = "rtr" if flags & 2 else "data"
+    return f"{time.time():.6f} bus={bus} id=0x{can_id:X} {ext} {rtr} dlc={dlc} data={data}"
+
+
+KNOWN_FLAGS = [
+    ("speed", 0),
+    ("rpm", 1),
+    ("coolant_c", 2),
+    ("voltage_mv", 3),
+    ("throttle_pct", 4),
+    ("brake", 5),
+    ("gear", 6),
+    ("fuel_pct", 7),
+    ("fuel_rate_x10", 8),
+    ("odometer_km", 9),
+    ("outside_c", 10),
+]
+
+
+def _known_names(mask: int) -> list[str]:
+    return [name for name, bit in KNOWN_FLAGS if mask & (1 << bit)]
+
+
+def decode_obd_snapshot(frame: bytes) -> str | None:
+    if len(frame) != 36 or frame[4] != CMD_OBD_SNAPSHOT:
+        return None
+    payload = frame[5:-1]
+    status = payload[0]
+    known = payload[1] | (payload[2] << 8) | (payload[3] << 16)
+    counter = struct.unpack_from("<I", payload, 4)[0]
+    speed = struct.unpack_from("<H", payload, 8)[0]
+    rpm = struct.unpack_from("<H", payload, 10)[0]
+    coolant = struct.unpack_from("<h", payload, 12)[0]
+    voltage_mv = struct.unpack_from("<H", payload, 14)[0]
+    throttle = payload[16]
+    brake = payload[17]
+    gear = payload[18]
+    fuel = payload[19]
+    outside = struct.unpack_from("<h", payload, 20)[0]
+    fuel_rate = struct.unpack_from("<H", payload, 22)[0]
+    odometer = struct.unpack_from("<I", payload, 24)[0]
+    gear_text = {0: "unknown", 1: "P", 2: "R", 3: "N", 4: "D"}.get(gear, str(gear))
+    fields = {
+        "status": status,
+        "known": _known_names(known),
+        "counter": counter,
+        "speed_kmh": speed if known & 0x001 else None,
+        "rpm": rpm if known & 0x002 else None,
+        "coolant_c": coolant if known & 0x004 else None,
+        "voltage_v": round(voltage_mv / 1000, 2) if known & 0x008 else None,
+        "throttle_pct": throttle if known & 0x010 else None,
+        "brake": bool(brake) if known & 0x020 else None,
+        "gear": gear_text if known & 0x040 else None,
+        "fuel_pct": fuel if known & 0x080 else None,
+        "outside_c": outside if known & 0x400 else None,
+        "fuel_rate_lph": round(fuel_rate / 10, 1) if known & 0x100 else None,
+        "odometer_km": odometer if known & 0x200 else None,
+    }
+    return json_dumps_compact(fields)
+
+
+def json_dumps_compact(value: object) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
 def parse_can_tx(value: str) -> bytes:
     # bus,id,data ; bus: 0=C-CAN/CAN1, 1=M-CAN/CAN2, id is hex/dec, data is hex.
     try:
@@ -155,7 +250,11 @@ def main() -> int:
     parser.add_argument("--uart-status", action="store_true", help="read UART mirror status from mode1 sideband")
     parser.add_argument("--uart-read", type=int, metavar="N", help="read up to N mirrored UART bytes from mode1 sideband")
     parser.add_argument("--uart-write", type=parse_hex_bytes, metavar="HEX", help="write raw bytes to USART2 through mode1 sideband")
-    parser.add_argument("--can-tx", type=parse_can_tx, metavar="BUS,ID,HEX", help="send STD CAN frame through mode1 sideband, bus 0=C-CAN 1=M-CAN")
+    parser.add_argument("--can-tx", type=parse_can_tx, metavar="BUS,ID,HEX", help="send one STD CAN frame with CMD 0x78, bus 0=C-CAN 1=M-CAN")
+    parser.add_argument("--cache-slot", type=int, metavar="N", help="read one stock canbox cache slot through mode1 sideband")
+    parser.add_argument("--cache-all", action="store_true", help="read stock canbox cache slots 0..15 through mode1 sideband")
+    parser.add_argument("--poll-raw", action="store_true", help="poll raw CAN ring events with CMD 0x76 instead of waiting for async frames")
+    parser.add_argument("--snapshot", action="store_true", help="read decoded vehicle snapshot with CMD 0x77")
     args = parser.parse_args()
 
     port = args.port or auto_port()
@@ -189,6 +288,26 @@ def main() -> int:
             ack = read_frame(ser, 1.0)
             print(ack.hex(" ") if ack else "no ack")
             return 0
+        if args.cache_slot is not None:
+            slot = max(0, min(args.cache_slot, 15))
+            ser.write(make_frame(CMD_CAN_CACHE, bytes([slot])))
+            ser.flush()
+            ack = read_frame(ser, 1.0)
+            print(decode_can_cache(ack) if ack else "no ack")
+            return 0
+        if args.cache_all:
+            for slot in range(16):
+                ser.write(make_frame(CMD_CAN_CACHE, bytes([slot])))
+                ser.flush()
+                ack = read_frame(ser, 1.0)
+                print(decode_can_cache(ack) if ack else f"slot={slot:02d} no ack")
+            return 0
+        if args.snapshot:
+            ser.write(make_frame(CMD_OBD_SNAPSHOT))
+            ser.flush()
+            ack = read_frame(ser, 1.0)
+            print(decode_obd_snapshot(ack) if ack else "no ack")
+            return 0
         if args.stop:
             ser.write(make_frame(cmd, stop_value))
             ser.flush()
@@ -202,6 +321,15 @@ def main() -> int:
             print(f"ack: {ack.hex(' ') if ack else 'none'}")
         deadline = time.monotonic() + args.seconds if args.seconds else None
         while deadline is None or time.monotonic() < deadline:
+            if args.poll_raw:
+                ser.write(make_frame(CMD_CAN_RING_READ))
+                ser.flush()
+                frame = read_frame(ser, 0.2)
+                decoded = decode_can_ring(frame) if frame else None
+                if decoded:
+                    print(decoded)
+                    sys.stdout.flush()
+                continue
             frame = read_frame(ser, 0.2)
             if not frame:
                 continue

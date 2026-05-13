@@ -1,2 +1,0 @@
-$ node --check dashboard/static/app.js
-exit=0

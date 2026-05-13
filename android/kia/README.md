@@ -20,7 +20,23 @@ Main protocol notes:
 Build:
 
 ```bash
-gradle assembleRelease
+./gradlew assembleRelease
+```
+
+Release APK name is kept short and stable:
+
+```text
+/Volumes/SSD/canbus/release/kia_109.apk
+```
+
+The release build is signed with the local Android debug keystore
+(`~/.android/debug.keystore`) so it can be installed/tested immediately on the
+head unit. A production key can be added later without changing the output path.
+
+The local Gradle output uses the same filename:
+
+```text
+app/build/outputs/apk/release/kia_109.apk
 ```
 
 TEYES sandbox emulator:

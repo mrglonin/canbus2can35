@@ -1,2 +1,0 @@
-$ python3 -m py_compile dashboard/server.py dashboard/test_dashboard.py tools/raise_uart_logger.py
-exit=0
