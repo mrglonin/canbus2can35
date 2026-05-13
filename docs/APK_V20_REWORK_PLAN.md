@@ -256,7 +256,7 @@ can/confirmed_can_signals.csv
 4. Разделить selected source и playing source; hints не должны затирать playing MediaSession.
 5. Перевести RCTA на `0x4F4`, voltage на `0x132`.
 6. Убрать подтвержденные тесты из UI и оставить ADB-only QA receiver.
-7. Собрать `kia_118.apk`, подписать, поставить на TEYES.
+7. Собрать `kia_119.apk`, подписать, поставить на TEYES.
 8. Проверить на машине: V20 status, compass, nav text, media text, RCTA, raw stream без debug spam.
 
 ## Что не делать

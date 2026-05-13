@@ -4,15 +4,12 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.RectF;
-import android.graphics.Typeface;
 import android.os.SystemClock;
 import android.view.View;
 
 final class BlindSpotOverlayView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
-    private final RectF rect = new RectF();
 
     private final Runnable animationTick = new Runnable() {
         @Override
@@ -66,27 +63,11 @@ final class BlindSpotOverlayView extends View {
 
         boolean left = state.left || state.unknown;
         boolean right = state.right || state.unknown;
-        drawDim(canvas, w, h, left, right);
         if (left) drawSide(canvas, w, h, true, phase, pulse);
         if (right) drawSide(canvas, w, h, false, phase, pulse);
-        drawCenterWarning(canvas, w, h, state);
+        drawCenterWarning(canvas, w, h);
 
         postInvalidateOnAnimation();
-    }
-
-    private void drawDim(Canvas canvas, int w, int h, boolean left, boolean right) {
-        paint.setStyle(Paint.Style.FILL);
-        paint.setShader(null);
-        if (left) {
-            paint.setColor(0x33000000);
-            rect.set(0f, 0f, w * 0.42f, h);
-            canvas.drawRect(rect, paint);
-        }
-        if (right) {
-            paint.setColor(0x33000000);
-            rect.set(w * 0.58f, 0f, w, h);
-            canvas.drawRect(rect, paint);
-        }
     }
 
     private void drawSide(Canvas canvas, int w, int h, boolean left, float phase, float pulse) {
@@ -112,18 +93,13 @@ final class BlindSpotOverlayView extends View {
         }
     }
 
-    private void drawCenterWarning(Canvas canvas, int w, int h, BlindSpotState.Snapshot state) {
+    private void drawCenterWarning(Canvas canvas, int w, int h) {
         float min = Math.min(w, h);
         float cx = w * 0.5f;
         float cy = h * 0.52f;
         float size = clamp(min * 0.18f, dp(92), dp(190));
 
         paint.setShader(null);
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(0xdd1d1010);
-        rect.set(cx - size * 0.92f, cy - size * 0.62f, cx + size * 0.92f, cy + size * 0.62f);
-        canvas.drawRoundRect(rect, dp(18), dp(18), paint);
-
         path.reset();
         path.moveTo(cx, cy - size * 0.72f);
         path.lineTo(cx - size * 0.78f, cy + size * 0.58f);
@@ -140,17 +116,9 @@ final class BlindSpotOverlayView extends View {
 
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(0xff241000);
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(size * 0.82f);
         canvas.drawText("!", cx, cy + size * 0.36f, paint);
-
-        paint.setColor(0xffffffff);
-        paint.setTextSize(clamp(min * 0.045f, dp(22), dp(44)));
-        String label = state.unknown ? "СЗАДИ"
-                : state.left && state.right ? "СЛЕВА И СПРАВА"
-                : state.left ? "СЛЕВА" : "СПРАВА";
-        canvas.drawText(label, cx, cy + size * 0.95f, paint);
     }
 
     private void drawChevron(Canvas canvas, float cx, float cy, float size, boolean left) {
