@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
     private UartOverlayView uartOverlayView;
     private BlindSpotOverlayView blindSpotOverlayView;
     private boolean touched;
+    private boolean autoHideLaunch;
     private long lastTpmsOpenAt;
 
     private final Runnable tick = new Runnable() {
@@ -72,6 +73,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        autoHideLaunch = isUsbAttachIntent(getIntent());
         if (blockDisabledUsbAutostart(getIntent(), true)) return;
         UiUtils.enterImmersive(this);
         AppPrefs.setObdEmulation(this, false);
@@ -91,6 +93,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        autoHideLaunch = isUsbAttachIntent(intent);
         if (blockDisabledUsbAutostart(intent, false)) return;
         touched = false;
         AppLog.line(this, "Запуск экрана: " + (intent == null ? "нет intent" : intent.getAction()));
@@ -199,7 +202,7 @@ public class MainActivity extends Activity {
 
     private boolean blockDisabledUsbAutostart(Intent intent, boolean finishScreen) {
         if (intent == null) return false;
-        if (!"android.hardware.usb.action.USB_DEVICE_ATTACHED".equals(intent.getAction())) return false;
+        if (!isUsbAttachIntent(intent)) return false;
         if (AppPrefs.autoStart(this) && AppPrefs.backgroundAutoStart(this)) {
             AppLog.line(this, "USB автозапуск: фоновый режим без открытия экрана");
             AppService.start(this);
@@ -712,6 +715,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacksAndMessages(null);
         handler.post(tick);
         if (!AppPrefs.autoHide(this)) return;
+        if (!autoHideLaunch) return;
         handler.postDelayed(() -> {
             boolean permissionsDone = runtimePermissionsOk() && PermissionHelper.hasNotificationAccess(this);
             if (!touched && permissionsDone) {
@@ -721,6 +725,10 @@ public class MainActivity extends Activity {
                 updatePermissionText();
             }
         }, AppPrefs.autoHideDelaySeconds(this) * 1000L);
+    }
+
+    private boolean isUsbAttachIntent(Intent intent) {
+        return intent != null && "android.hardware.usb.action.USB_DEVICE_ATTACHED".equals(intent.getAction());
     }
 
     private String navModeText() {

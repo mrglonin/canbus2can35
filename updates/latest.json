@@ -6,8 +6,8 @@
     "version_code": 93,
     "release_number": 113,
     "asset_name": "kia_113.apk",
-    "size": 27547483,
-    "sha256": "93d82ea812340865e866f091ae51b45f80ee89f842525eab9f7e26a8e6bb6bde",
+    "size": 27547659,
+    "sha256": "0c436460860a3828b64f64a5b708705a134f2a936b3341fce5663a3a58cd687a",
     "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_113.apk"
   },
   "firmware": {
