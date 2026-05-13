@@ -479,7 +479,7 @@ public class CanbusSettingsActivity extends Activity {
         statusValue = infoRow(state, "CAN", "");
         uidValue = infoRow(state, "UID", "");
         versionValue = infoRow(state, "Версия", "");
-        v20StatusValue = infoRow(state, "V20", "");
+        v20StatusValue = infoRow(state, "V21", "");
         v20ApiValue = infoRow(state, "API", "");
         v20CapsValue = infoRow(state, "Caps", "");
         updateValue = infoRow(state, "Прошивка", "");
@@ -487,7 +487,7 @@ public class CanbusSettingsActivity extends Activity {
         GridLayout actions = grid(2);
         state.addView(actions, matchWrap());
         gridButton(actions, "Запросить ID / версию", v -> CanbusControl.requestAdapterInfo(this));
-        gridButton(actions, "Проверить V20 0x79", v -> CanbusControl.requestV20Status(this));
+        gridButton(actions, "Проверить V21 0x79", v -> CanbusControl.requestV20Status(this));
         gridButton(actions, "Подключить USB / CAN", v -> {
             AppService.start(this);
             ObdMonitor.restart(this);

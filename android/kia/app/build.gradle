@@ -2,8 +2,8 @@ plugins {
     id "com.android.application"
 }
 
-def kiaVersionCode = 102
-def kiaVersionName = "12.2-kia"
+def kiaVersionCode = 103
+def kiaVersionName = "12.3-kia"
 def kiaReleaseNumber = kiaVersionName.replaceAll("[^0-9]", "")
 def kiaReleaseApk = "kia_${kiaReleaseNumber ?: kiaVersionCode}.apk"
 

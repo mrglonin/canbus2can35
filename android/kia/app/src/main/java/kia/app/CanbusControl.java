@@ -45,8 +45,12 @@ final class CanbusControl {
     }
 
     static void requestV20Status(Context context) {
-        AppLog.line(context, "V20: запрос health/capabilities 0x79");
+        AppLog.line(context, "V21: запрос health/capabilities 0x79");
         send(context, packet(0x79, null));
+    }
+
+    static void requestVehicleSnapshotQuiet(Context context) {
+        sendQuiet(context, packet(0x77, null));
     }
 
     static void requestAmpSettings(Context context) {
@@ -177,6 +181,10 @@ final class CanbusControl {
         }
     }
 
+    static void sendNavigationSourceQuiet(Context context) {
+        sendQuiet(context, packet(0x7A, raiseFrame(new byte[]{0x06, 0x09, 0x06, 0x00, 0x00})));
+    }
+
     static void sendCompassStep(Context context, int uiStep) {
         send(context, compassPacket(uiStep));
     }
@@ -236,6 +244,10 @@ final class CanbusControl {
         if (id == 0x76) {
             CanSideband.Frame canFrame = CanSideband.parseRawCan(frame);
             if (canFrame != null) CanSideband.apply(context, canFrame);
+            return;
+        }
+        if (id == 0x77) {
+            parseVehicleSnapshot(context, frame);
             return;
         }
         if (id == 0x71) {
@@ -542,6 +554,36 @@ final class CanbusControl {
         SidebandDebugState.uartRx(context, data);
     }
 
+    private static void parseVehicleSnapshot(Context context, byte[] frame) {
+        int frameLen = frame == null || frame.length < 6 ? 0 : Math.min(frame.length, frame[3] & 0xff);
+        int payloadLen = frameLen >= 6 ? frameLen - 6 : 0;
+        if (payloadLen < 30) return;
+        int base = 5;
+        int status = u8(frame, base);
+        if (status == 0) return;
+        int known = u8(frame, base + 1) | (u8(frame, base + 2) << 8) | (u8(frame, base + 3) << 16);
+        if ((known & 0x001) != 0) ObdState.speed(context, u16(frame, base + 8));
+        if ((known & 0x002) != 0) ObdState.rpm(context, u16(frame, base + 10));
+        if ((known & 0x004) != 0) ObdState.coolant(context, s16(frame, base + 12));
+        if ((known & 0x008) != 0) {
+            int voltage = u16(frame, base + 14);
+            if (voltage > 0) ObdState.voltage(context, voltage >= 1000 ? voltage / 1000f : voltage / 10f);
+        }
+        if ((known & 0x010) != 0) ObdState.throttle(context, u8(frame, base + 16));
+        if ((known & 0x040) != 0) BlindSpotState.reverse(context, u8(frame, base + 18) == 2);
+        if ((known & 0x400) != 0) ObdState.intake(context, s16(frame, base + 20));
+        if (payloadLen >= 45 && (u8(frame, base + 30) & 0x01) != 0) {
+            int bus = u8(frame, base + 31);
+            int dlc = Math.min(u8(frame, base + 32), 8);
+            int canId = le32(frame, base + 33);
+            if (dlc > 0 && canId != 0) {
+                byte[] data = new byte[dlc];
+                System.arraycopy(frame, base + 37, data, 0, dlc);
+                CanSideband.apply(context, new CanSideband.Frame(bus, 0, canId, dlc, data));
+            }
+        }
+    }
+
     private static void updateUid(Context context, byte[] frame) {
         if (frame.length < 17) return;
         StringBuilder sb = new StringBuilder();
@@ -585,7 +627,9 @@ final class CanbusControl {
         int rawTx = frame != null && frame.length > 8 ? frame[8] & 0xff : -1;
         int caps = frame != null && frame.length > 9 ? frame[9] & 0xff : -1;
         String tag = ascii(frame, 10, Math.max(0, len - 11));
-        String statusText = status == 0x20 ? "V20 online" : "ответ 0x" + byteHex((byte) status);
+        String statusText = status == 0x20 ? "V20 online"
+                : status == 0x21 ? "V21 online"
+                : "ответ 0x" + byteHex((byte) status);
         String apiText = apiMajor >= 0 ? "API " + apiMajor + "." + Math.max(0, apiMinor) : "API ?";
         String capsText = "rawTX=" + (rawTx == 0 ? "нет" : "да")
                 + " caps=0x" + byteHex((byte) Math.max(0, caps))
@@ -596,7 +640,7 @@ final class CanbusControl {
             v20Capabilities = capsText;
             lastV20At = System.currentTimeMillis();
         }
-        AppLog.line(context, "V20: " + statusText + " " + apiText + " " + capsText);
+        AppLog.line(context, "V21: " + statusText + " " + apiText + " " + capsText);
         broadcast(context);
     }
 
@@ -698,6 +742,26 @@ final class CanbusControl {
             if (v >= 32 && v <= 126) sb.append((char) v);
         }
         return sb.toString();
+    }
+
+    private static int u8(byte[] data, int offset) {
+        return data == null || offset < 0 || offset >= data.length ? 0 : data[offset] & 0xff;
+    }
+
+    private static int u16(byte[] data, int offset) {
+        return u8(data, offset) | (u8(data, offset + 1) << 8);
+    }
+
+    private static int s16(byte[] data, int offset) {
+        int value = u16(data, offset);
+        return value >= 0x8000 ? value - 0x10000 : value;
+    }
+
+    private static int le32(byte[] data, int offset) {
+        return u8(data, offset)
+                | (u8(data, offset + 1) << 8)
+                | (u8(data, offset + 2) << 16)
+                | (u8(data, offset + 3) << 24);
     }
 
     private static int clamp(int value, int min, int max) {

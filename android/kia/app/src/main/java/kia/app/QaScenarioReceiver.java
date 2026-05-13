@@ -146,6 +146,7 @@ public class QaScenarioReceiver extends BroadcastReceiver {
     }
 
     private static void vehicle(Context context) {
+        CanbusControl.handleIncomingFrame(context, snapshotFrame(72, 2100, 86, 14.4f, 22, hex("0000C00000000001")));
         apply(context, 1, 0x132, hex("9001011400000001"));
         apply(context, 0, 0x316, hex("0000800A00003200"));
         apply(context, 0, 0x329, hex("00AF000000000000"));
@@ -170,5 +171,48 @@ public class QaScenarioReceiver extends BroadcastReceiver {
             out[i] = (byte) Integer.parseInt(clean.substring(i * 2, i * 2 + 2), 16);
         }
         return out;
+    }
+
+    private static byte[] snapshotFrame(int speed, int rpm, int coolant, float voltage, int outside, byte[] rcta) {
+        byte[] frame = new byte[51];
+        frame[0] = (byte) 0xBB;
+        frame[1] = (byte) 0xA1;
+        frame[2] = 0x41;
+        frame[3] = (byte) frame.length;
+        frame[4] = 0x77;
+        int base = 5;
+        frame[base] = 1;
+        int known = 0x44F;
+        frame[base + 1] = (byte) (known & 0xff);
+        frame[base + 2] = (byte) ((known >> 8) & 0xff);
+        frame[base + 3] = (byte) ((known >> 16) & 0xff);
+        put32(frame, base + 4, 1);
+        put16(frame, base + 8, speed);
+        put16(frame, base + 10, rpm);
+        put16(frame, base + 12, coolant);
+        put16(frame, base + 14, Math.round(voltage * 1000f));
+        frame[base + 18] = 2;
+        put16(frame, base + 20, outside);
+        frame[base + 30] = 1;
+        frame[base + 31] = 0;
+        frame[base + 32] = 8;
+        put32(frame, base + 33, 0x4F4);
+        if (rcta != null) System.arraycopy(rcta, 0, frame, base + 37, Math.min(8, rcta.length));
+        int sum = 0;
+        for (int i = 0; i < frame.length - 1; i++) sum += frame[i] & 0xff;
+        frame[frame.length - 1] = (byte) sum;
+        return frame;
+    }
+
+    private static void put16(byte[] frame, int offset, int value) {
+        frame[offset] = (byte) (value & 0xff);
+        frame[offset + 1] = (byte) ((value >> 8) & 0xff);
+    }
+
+    private static void put32(byte[] frame, int offset, int value) {
+        frame[offset] = (byte) (value & 0xff);
+        frame[offset + 1] = (byte) ((value >> 8) & 0xff);
+        frame[offset + 2] = (byte) ((value >> 16) & 0xff);
+        frame[offset + 3] = (byte) ((value >> 24) & 0xff);
     }
 }

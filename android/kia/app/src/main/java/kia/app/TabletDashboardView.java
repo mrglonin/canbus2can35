@@ -164,7 +164,7 @@ final class TabletDashboardView extends FrameLayout {
         TextView brand = text("Sportage", compactMode ? 19 : 27, 0xfff4f1ea, true);
         brand.setGravity(Gravity.LEFT);
         rail.addView(brand, new LinearLayout.LayoutParams(-1, dp(compactMode ? 30 : 38)));
-        TextView sub = text(compactMode ? "2CAN35" : "2CAN35 V20 control",
+        TextView sub = text(compactMode ? "2CAN35" : "2CAN35 V21 control",
                 compactMode ? 11 : 13, 0xffa4abb6, false);
         rail.addView(sub, new LinearLayout.LayoutParams(-1, dp(compactMode ? 22 : 28)));
 
@@ -300,7 +300,7 @@ final class TabletDashboardView extends FrameLayout {
         LinearLayout adapter = card("Адаптер");
         row.addView(adapter, weightedCardLp());
         adapterUsbValue = info(adapter, "USB", "");
-        adapterV20Value = info(adapter, "V20", "");
+        adapterV20Value = info(adapter, "V21", "");
         adapterApiValue = info(adapter, "API", "");
         addButtonRow(adapter,
                 actionButton("Проверить", 0xff1f7a67, v -> CanbusControl.requestAdapterInfo(getContext())),
@@ -375,7 +375,7 @@ final class TabletDashboardView extends FrameLayout {
 
         LinearLayout live = card("Живые данные");
         row.addView(live, weightedCardLp());
-        live.addView(body("Маршрут, TBT, текст и компас обновляются штатными командами адаптера V20."), textBlockLp());
+        live.addView(body("Маршрут, TBT, текст и компас обновляются штатными командами адаптера V21."), textBlockLp());
         addButtonRow(live,
                 actionButton("Скан медиа", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
                 actionButton("Диагностика", 0xfff2b84b, v -> selectTab(TAB_DIAG)));
@@ -444,7 +444,7 @@ final class TabletDashboardView extends FrameLayout {
     private void buildDiagnostics() {
         LinearLayout row = row();
         content.addView(row, sectionLp());
-        LinearLayout adapter = card("V20 адаптер");
+        LinearLayout adapter = card("V21 адаптер");
         row.addView(adapter, weightedCardLp());
         adapterV20Value = info(adapter, "Health", "");
         adapterApiValue = info(adapter, "API", "");
@@ -783,7 +783,7 @@ final class TabletDashboardView extends FrameLayout {
             case TAB_VEHICLE:
                 return "OBD, snapshot, TPMS и предупреждения";
             case TAB_DIAG:
-                return "V20 health, raw stream, ACK и журнал";
+                return "V21 health, snapshot, raw debug и журнал";
             case TAB_HOME:
             default:
                 return "Планшетная панель управления адаптером";
@@ -791,9 +791,9 @@ final class TabletDashboardView extends FrameLayout {
     }
 
     private String chipFirmware(CanbusControl.Snapshot can) {
-        if (can == null) return "V20: ?";
+        if (can == null) return "V21: ?";
         String age = can.lastV20At == 0 ? "" : " " + ageText(System.currentTimeMillis() - can.lastV20At);
-        return "V20: " + can.v20Status + age;
+        return "V21: " + can.v20Status + age;
     }
 
     private String chipUsb(String value) {

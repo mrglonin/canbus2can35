@@ -27,7 +27,7 @@ final class ObdMonitor {
     private static volatile boolean stop;
     private static volatile int generation;
     private static long lastStreamStatusAt;
-    private static final String STREAM_STATUS = "Vehicle: пассивный CAN stream 0x70/0x76 активен";
+    private static final String STREAM_STATUS = "Vehicle: compact snapshot 0x77 активен";
 
     private ObdMonitor() {
     }

@@ -2,19 +2,19 @@
   "schema": 1,
   "updated_at": "2026-05-13",
   "app": {
-    "version_name": "12.2-kia",
-    "version_code": 102,
-    "release_number": 122,
-    "asset_name": "kia_122.apk",
-    "size": 27395043,
-    "sha256": "02cd085c9770e096af3e77d39266f894c02699dd0fc4c019b93242b2268b221c",
-    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_122.apk"
+    "version_name": "12.3-kia",
+    "version_code": 103,
+    "release_number": 123,
+    "asset_name": "kia_123.apk",
+    "size": 27414587,
+    "sha256": "148d670b29f33f5b938455c821a121a56ab6645f11b216a876b433a4e9816834",
+    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_123.apk"
   },
   "firmware": {
-    "version": "v20",
-    "asset_name": "20_v08_mode1_v20_USB.bin",
-    "size": 20892,
-    "sha256": "de698d85df1f53d090f6dd5804847ba746b60d9958280628a41ba7b3bddb2570",
-    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/firmware/trusted/v20/20_v08_mode1_v20_USB.bin"
+    "version": "v21",
+    "asset_name": "21_v08_mode1_v21_USB.bin",
+    "size": 21136,
+    "sha256": "cd3a674711ec20a5fbdf193d2aeff07336cbddd9c51dbbb846aa54580b018079",
+    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/firmware/trusted/v21/21_v08_mode1_v21_USB.bin"
   }
 }

@@ -79,7 +79,7 @@ final class QaState {
             case 0x78:
                 return "raw-tx";
             case 0x79:
-                return "v20";
+                return "v21";
             case 0x7A:
                 return "source";
             default:

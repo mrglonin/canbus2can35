@@ -1,5 +1,9 @@
 # Прошивка v20: эталонный минимум поверх авторского canbox
 
+Актуальная рабочая ветка после проверки raw-stream нагрузки - `v21`.
+См. [docs/FIRMWARE_V21_ADAPTER.md](FIRMWARE_V21_ADAPTER.md). Этот файл
+оставлен как история v20 и описание `0x7A` media/source path.
+
 v20 построена от авторской `04350008` и сохраняет штатный canbox/update-loader.
 USB identity не меняется: `0483:5740`, stock CDC/proprietary protocol.
 

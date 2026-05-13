@@ -44,14 +44,14 @@
 кадры. Подтвержденная модель такая: приложение/магнитола говорит с прошивкой
 через ее USB/API или Raise/HU протокол, а прошивка уже переводит это в M-CAN.
 
-## Текущая рабочая база V20
+## Текущая рабочая база V21
 
 Эталонная прошивка для адаптера:
 
 ```text
-firmware/trusted/v20/20_v08_mode1_v20_USB.bin
-firmware/trusted/v20/20_v08_mode1_v20_STLINK64K.bin
-firmware/trusted/v20/20_v08_mode1_v20.report.json
+firmware/trusted/v21/21_v08_mode1_v21_USB.bin
+firmware/trusted/v21/21_v08_mode1_v21_STLINK64K.bin
+firmware/trusted/v21/21_v08_mode1_v21.report.json
 ```
 
 Проверенный адаптер:
@@ -59,22 +59,25 @@ firmware/trusted/v20/20_v08_mode1_v20.report.json
 ```text
 /dev/cu.usbmodemKIA1 @ 19200
 UID: 37 FF DA 05 42 47 30 38 59 41 22 43
-0x79: BB A1 41 0F 79 20 02 00 FF 01 56 32 30 00 FF
+0x79: BB A1 41 0F 79 21 03 00 FF 01 56 32 31 00 02
 ```
 
-V20 команды:
+V21 команды:
 
 | Команда | Назначение |
 |---:|---|
-| `0x70` | raw CAN stream on/off |
-| `0x76` | pop raw CAN frame из ring buffer |
-| `0x77` | decoded snapshot |
+| `0x70` | raw CAN stream on/off только для debug |
+| `0x76` | pop raw CAN frame из ring buffer только для debug |
+| `0x77` | compact Vehicle/RCTA snapshot без raw-потока в APK |
 | `0x78` | one-shot raw CAN TX |
-| `0x79` | health/capabilities, проверка что адаптер жив |
+| `0x79` | V21 health/capabilities, проверка что адаптер жив |
 | `0x7A` | inject Raise/RZC `FD .. 09 ...` source-status в штатный parser прошивки |
 
-Правило архитектуры: прошивка остается маленьким gateway. Большие таблицы,
-названия, DBC, UI, обновления и логика выбора источника должны жить в Android.
+Правило архитектуры: прошивка остается маленьким gateway. Она пассивно слушает
+CAN и хранит маленький snapshot, а Android забирает только нужное через `0x77`.
+Raw stream `0x70/0x76` не используется для обычных Vehicle/RCTA, только для
+ручной диагностики. Большие таблицы, названия, DBC, UI, обновления и логика
+выбора источника живут в Android.
 
 ## Проверенный компас
 
@@ -201,10 +204,11 @@ Source byte scanner после проверки:
 
 1. Компас: `0x45` с повтором `350-500 ms` и формулой панели.
 2. Навигация: `0x48`, `0x45`, `0x47`, `0x4A`, `0x44`.
-3. USB music: сначала `0x7A FD 0A 09 16 ...`, потом title через `0x22`.
+3. USB music: при смене источника/трека один раз `0x7A FD 0A 09 16 ...`, потом title через `0x22`.
 4. BT audio: `0x7A FD 06 09 0B 04 00`, затем проверенные поля `0x22`/`0x20 1F`.
 5. FM/AM: отдельные ветки `0x02` и `0x09`, не смешивать с USB/BT.
-6. Raw CAN `0x78` оставить для диагностики, точечного TX и будущих редких
+6. Vehicle/RCTA: обычный режим через `0x77` snapshot; raw stream не включать без debug.
+7. Raw CAN `0x78` оставить для диагностики, точечного TX и будущих редких
    сценариев, но не использовать как основной путь media/nav.
 
 Локальная панель для live-тестов сейчас находится вне git:
@@ -217,6 +221,7 @@ http://127.0.0.1:8765/
 ## Проверенная база
 
 - [docs/TRUSTED_FIRMWARE_FACTS.md](docs/TRUSTED_FIRMWARE_FACTS.md)
+- [docs/FIRMWARE_V21_ADAPTER.md](docs/FIRMWARE_V21_ADAPTER.md)
 - [docs/TEYES_APP_IMPLEMENTATION_README_20260513.md](docs/TEYES_APP_IMPLEMENTATION_README_20260513.md)
 - [docs/PROGRAMMER_FIRMWARE_DECODE.md](docs/PROGRAMMER_FIRMWARE_DECODE.md)
 - [docs/FM_UART_TO_MCAN_TRACE.md](docs/FM_UART_TO_MCAN_TRACE.md)
@@ -235,10 +240,10 @@ cd /Volumes/SSD/canbus/repo/android/kia
 После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_122.apk
+/Volumes/SSD/canbus/release/kia_123.apk
 ```
 
-Номер в имени берется из `versionName`: `12.2-kia` -> `kia_122.apk`.
+Номер в имени берется из `versionName`: `12.3-kia` -> `kia_123.apk`.
 
 ## Что намеренно удалено
 

@@ -8,7 +8,7 @@ off by default and is controlled over the stock CDC USB protocol:
   0x76  pop one raw CAN frame from the RAM ring
   0x77  read decoded vehicle snapshot for OBD-like UI
   0x78  one-shot raw CAN TX, bus 0=C-CAN/CAN1, bus 1=M-CAN/CAN2
-  0x79  V20 health/capabilities response
+  0x79  V21 health/capabilities response
   0x7A  inject one Raise/RZC FD source-status frame into the stock parser
 
 There is deliberately no transparent UART bridge in this build.
@@ -73,6 +73,11 @@ PATCH_ASM = r"""
 .equ STATE_OUTTEMP,   0x20006e18
 .equ STATE_FUEL_RATE, 0x20006e1a
 .equ STATE_ODOMETER,  0x20006e1c
+.equ STATE_RCTA_FLAGS,0x20006e30
+.equ STATE_RCTA_BUS,  0x20006e31
+.equ STATE_RCTA_DLC,  0x20006e32
+.equ STATE_RCTA_ID,   0x20006e34
+.equ STATE_RCTA_DATA, 0x20006e38
 
 .equ CAN1_BASE,       0x40006400
 .equ CAN2_BASE,       0x40006800
@@ -155,7 +160,7 @@ cmd_obd_snapshot:
     bl state_init_once
     bl state_snapshot_response
     movs r0, #0x77
-    movs r1, #30
+    movs r1, #45
     bl send_response
     b handled
 
@@ -172,9 +177,9 @@ cmd_can_tx:
 
 cmd_v20_status:
     ldr r5, =RESP_BUF
-    movs r0, #0x20
+    movs r0, #0x21
     strb r0, [r5, #5]
-    movs r0, #2
+    movs r0, #3
     strb r0, [r5, #6]
     movs r0, #0
     strb r0, [r5, #7]
@@ -186,7 +191,7 @@ cmd_v20_status:
     strb r0, [r5, #10]
     movs r0, #0x32
     strb r0, [r5, #11]
-    movs r0, #0x30
+    movs r0, #0x31
     strb r0, [r5, #12]
     movs r0, #0
     strb r0, [r5, #13]
@@ -365,11 +370,14 @@ state_update_from_callsite:
     ldr r1, [r0]
     adds r1, #1
     str r1, [r0]
-    cmp r6, #0
-    bne state_done
+    mov r2, r6
     ldr r5, [r4, #36]
     ldr r7, [r4, #16]
     ldrb r6, [r4, #31]
+    cmp r2, #1
+    beq state_bus1
+    cmp r2, #0
+    bne state_done
 
     ldr r0, =0x316
     cmp r5, r0
@@ -391,6 +399,18 @@ state_update_from_callsite:
     ldr r0, =0x394
     cmp r5, r0
     beq state_394
+    ldr r0, =0x4f4
+    cmp r5, r0
+    beq state_4f4_bus0
+    b state_done
+
+state_bus1:
+    ldr r0, =0x132
+    cmp r5, r0
+    beq state_132
+    ldr r0, =0x4f4
+    cmp r5, r0
+    beq state_4f4_bus1
     b state_done
 
 state_316:
@@ -462,6 +482,21 @@ state_545:
     str r1, [r0]
     b state_done
 
+state_132:
+    cmp r6, #1
+    blo state_done
+    ldrb r2, [r7, #0]
+    movs r3, #100
+    muls r2, r3
+    ldr r0, =STATE_VOLTAGE
+    strh r2, [r0]
+    ldr r0, =STATE_KNOWN
+    ldr r1, [r0]
+    movs r2, #0x08
+    orrs r1, r2
+    str r1, [r0]
+    b state_done
+
 state_169:
     cmp r6, #1
     blo state_done
@@ -516,6 +551,37 @@ state_394:
     movs r2, #0x20
     orrs r1, r2
     str r1, [r0]
+    b state_done
+
+state_4f4_bus0:
+    movs r2, #0
+    b state_4f4
+
+state_4f4_bus1:
+    movs r2, #1
+    b state_4f4
+
+state_4f4:
+    cmp r6, #8
+    blo state_done
+    ldr r0, =STATE_RCTA_FLAGS
+    movs r3, #1
+    strb r3, [r0]
+    ldr r0, =STATE_RCTA_BUS
+    strb r2, [r0]
+    ldr r0, =STATE_RCTA_DLC
+    strb r6, [r0]
+    ldr r0, =STATE_RCTA_ID
+    str r5, [r0]
+    ldr r0, =STATE_RCTA_DATA
+    movs r2, #0
+1:
+    cmp r2, #8
+    bge state_done
+    ldrb r3, [r7, r2]
+    strb r3, [r0, r2]
+    adds r2, #1
+    b 1b
 
 state_done:
     pop {r4-r7, pc}
@@ -561,6 +627,17 @@ state_init_once:
     ldr r0, =STATE_ODOMETER
     mvns r2, r1
     str r2, [r0]
+    ldr r0, =STATE_RCTA_FLAGS
+    strb r1, [r0]
+    ldr r0, =STATE_RCTA_BUS
+    strb r1, [r0]
+    ldr r0, =STATE_RCTA_DLC
+    strb r1, [r0]
+    ldr r0, =STATE_RCTA_ID
+    str r1, [r0]
+    ldr r0, =STATE_RCTA_DATA
+    str r1, [r0]
+    str r1, [r0, #4]
 1:
     pop {r0-r3, pc}
 
@@ -617,6 +694,35 @@ state_snapshot_response:
     movs r0, #0
     strb r0, [r7, #28]
     strb r0, [r7, #29]
+    ldr r4, =STATE_RCTA_FLAGS
+    ldrb r0, [r4]
+    strb r0, [r7, #30]
+    ldr r4, =STATE_RCTA_BUS
+    ldrb r0, [r4]
+    strb r0, [r7, #31]
+    ldr r4, =STATE_RCTA_DLC
+    ldrb r0, [r4]
+    strb r0, [r7, #32]
+    ldr r4, =STATE_RCTA_ID
+    ldr r0, [r4]
+    strb r0, [r7, #33]
+    lsrs r1, r0, #8
+    strb r1, [r7, #34]
+    lsrs r1, r0, #16
+    strb r1, [r7, #35]
+    lsrs r1, r0, #24
+    strb r1, [r7, #36]
+    ldr r4, =STATE_RCTA_DATA
+    movs r2, #0
+1:
+    cmp r2, #8
+    bge 2f
+    ldrb r0, [r4, r2]
+    adds r3, r7, #37
+    strb r0, [r3, r2]
+    adds r2, #1
+    b 1b
+2:
     pop {r4-r7, pc}
 
 .thumb_func
@@ -909,7 +1015,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         args.stlink_out.write_bytes(app_image)
 
     report = {
-        "name": "v20 v08 mode1 stock canbox + raw CAN stream + decoded vehicle snapshot + raw CAN TX + capabilities",
+        "name": "v21 v08 mode1 stock canbox + debug raw CAN stream + decoded vehicle/RCTA snapshot + raw CAN TX + capabilities",
         "source": str(source),
         "source_sha256": sha256(encoded_source),
         "output_usb": str(args.out),
@@ -927,15 +1033,16 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         "sideband_commands": {
             "0x70": "raw CAN stream start/stop only",
             "0x76": "pop one raw C-CAN/M-CAN frame from RAM ring",
-            "0x77": "read decoded vehicle snapshot: speed/rpm/temperatures/voltage/brake/gear and reserved OBD-like fields",
+            "0x77": "read decoded vehicle/RCTA snapshot: speed/rpm/temperatures/voltage/brake/gear plus latest 0x4F4 without raw stream",
             "0x78": "one-shot raw CAN TX: payload bus, flags, id_le32, dlc, data[8]",
-            "0x79": "V20 health/capabilities response, no CAN connection required",
+            "0x79": "V21 health/capabilities response, no CAN connection required",
             "0x7A": "inject one Raise/RZC FD source-status frame into the stock media/source parser",
         },
         "vehicle_snapshot_payload": (
             "status, known24, counter_le32, speed_kmh_u16, rpm_u16, coolant_c_s16, "
             "voltage_mv_u16, throttle_pct_u8, brake_u8, gear_u8, fuel_pct_u8, "
-            "outside_c_s16, fuel_rate_x10_u16, odometer_km_u32, reserved2"
+            "outside_c_s16, fuel_rate_x10_u16, odometer_km_u32, reserved2, "
+            "rcta_valid_u8, rcta_bus_u8, rcta_dlc_u8, rcta_id_le32, rcta_data8"
         ),
         "known_flags": {
             "bit0": "speed",
@@ -968,9 +1075,9 @@ def build(args: argparse.Namespace) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--programmer-v08", type=Path, default=PROGRAMMER_V08)
-    parser.add_argument("--out", type=Path, default=Path("firmware/trusted/v20/20_v08_mode1_v20_USB.bin"))
-    parser.add_argument("--stlink-out", type=Path, default=Path("firmware/trusted/v20/20_v08_mode1_v20_STLINK64K.bin"))
-    parser.add_argument("--report", type=Path, default=Path("firmware/trusted/v20/20_v08_mode1_v20.report.json"))
+    parser.add_argument("--out", type=Path, default=Path("firmware/trusted/v21/21_v08_mode1_v21_USB.bin"))
+    parser.add_argument("--stlink-out", type=Path, default=Path("firmware/trusted/v21/21_v08_mode1_v21_STLINK64K.bin"))
+    parser.add_argument("--report", type=Path, default=Path("firmware/trusted/v21/21_v08_mode1_v21.report.json"))
     parser.add_argument("--toolchain", type=Path, default=BUILD_TOOLCHAIN)
     parser.add_argument("--key-a", type=lambda s: int(s, 0), default=0x04)
     parser.add_argument("--key-b", type=lambda s: int(s, 0), default=0x5B)

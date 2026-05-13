@@ -1,6 +1,8 @@
-# APK V20: протокол, структура и следующий этап
+# APK V21: протокол, структура и текущая рабочая модель
 
-Цель: Android-приложение становится главным мозгом проекта, а 2CAN35 V20 остается маленьким стабильным CAN-шлюзом.
+Цель: Android-приложение становится главным мозгом проекта, а 2CAN35 V21 остается
+маленьким стабильным CAN-шлюзом. Прошивка пассивно слушает CAN и отдает compact
+snapshot `0x77`; raw stream нужен только для debug.
 
 ## Обязательные правки протокола
 
@@ -13,19 +15,19 @@
 
 Менять в `CanbusControl.sendRawCan()` и `sendRawCanQuiet()`. ACK разбирать по `0x78`, не по `0x74`.
 
-2. Добавить V20 health/capabilities:
+2. Добавить V21 health/capabilities:
 
 ```text
 APK -> BB 41 A1 06 79 1C
-V20 -> BB A1 41 0F 79 20 02 00 FF 01 56 32 30 00 FF
+V21 -> BB A1 41 0F 79 21 03 00 FF 01 56 32 31 00 02
 ```
 
 В UI показывать:
 
 ```text
 adapter: online/offline
-firmware: V20
-api: 2.0
+firmware: V21
+api: 3.0
 capabilities: raw stream, snapshot, raw tx, stock canbox
 ```
 
@@ -63,7 +65,7 @@ uiStep = 0,3,6,...,33
 - Firmware update through `CanbusFirmwareUpdater`.
 - Media sources through TEYES/SPD, widget, notifications and media sessions.
 - Navigation through Yandex-style and TEYES `com.yf.navinfo` events.
-- OBD/snapshot/raw CAN reading.
+- Vehicle/RCTA snapshot `0x77`, debug-only raw CAN reading.
 - TPMS/RCTA overlays and debug hooks.
 
 ## Новая структура приложения
@@ -75,7 +77,7 @@ uiStep = 0,3,6,...,33
 Показывает:
 
 ```text
-Adapter: connected / V20 / UID / API
+Adapter: connected / V21 / UID / API
 CAN: C-CAN activity / M-CAN activity
 Navigation: active / street / maneuver / compass
 Media: source / artist / title / time
@@ -87,7 +89,7 @@ Warnings: TPMS / RCTA / errors
 
 ```text
 Подключить адаптер
-Проверить V20
+Проверить V21
 Включить сервис
 Открыть диагностику
 ```
@@ -169,7 +171,8 @@ reverse
 Источник:
 
 ```text
-0x70/0x76 passive raw stream для whitelisted vehicle/RCTA IDs
+0x77 compact snapshot от прошивки для Vehicle/RCTA
+0x70/0x76 raw stream только для debug
 0x132 DATA[0] / 10 для voltage
 0x4F4 для blind spot/RCTA
 ```
@@ -212,10 +215,10 @@ ADB-only debug left/right/both/unknown/off
 
 ```text
 UID/version
-V20 capabilities 0x79
-raw stream 0x70
-raw frame read 0x76
+V21 capabilities 0x79
 snapshot 0x77
+raw stream 0x70 только за debug switch
+raw frame read 0x76 только за debug switch
 raw CAN TX 0x78
 last USB frames
 ACK decoder
@@ -256,8 +259,8 @@ can/confirmed_can_signals.csv
 4. Разделить selected source и playing source; hints не должны затирать playing MediaSession.
 5. Перевести RCTA на `0x4F4`, voltage на `0x132`.
 6. Убрать подтвержденные тесты из UI и оставить ADB-only QA receiver.
-7. Собрать `kia_122.apk`, подписать, поставить на TEYES.
-8. Проверить на машине: V20 status, compass, nav text, media text, RCTA, raw stream без debug spam.
+7. Собрать `kia_123.apk`, подписать, поставить на TEYES.
+8. Проверить на машине: V21 status, compass, nav text, media event-only, RCTA через snapshot, raw stream без включения в обычном режиме.
 
 ## Что не делать
 

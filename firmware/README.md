@@ -3,8 +3,9 @@
 Рабочая ветка прошивок после очистки:
 
 - `trusted/v18_v19/` - v18/v19, построенные поверх рабочей прошивки автора `04350008`.
-- `trusted/v20/` - текущая v20 с `0x79` health/capabilities.
-- `scripts/build_v08_mode1_raw_can_stream.py` - генератор текущей v20 ветки.
+- `trusted/v20/` - предыдущая v20 с `0x79` health/capabilities.
+- `trusted/v21/` - текущая v21: `0x77` Vehicle/RCTA snapshot без raw stream в обычном режиме.
+- `scripts/build_v08_mode1_raw_can_stream.py` - генератор текущей v21 ветки.
 - `MANIFEST.md` - краткий список файлов и назначение.
 
 Удалено из рабочей ветки:

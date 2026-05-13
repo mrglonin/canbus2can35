@@ -56,6 +56,7 @@ final class NavProtocol {
     private static byte[] lastEtaFrame;
     private static byte[] lastSpeedFrame;
     private static byte[] lastTextFrame;
+    private static boolean navSourceSent;
 
     private NavProtocol() {
     }
@@ -263,10 +264,16 @@ final class NavProtocol {
         boolean on = intent.getBooleanExtra("navi_on", false);
         if (on) {
             cancelFinishHold();
+            if (!navSourceSent) {
+                CanbusControl.sendNavigationSourceQuiet(context);
+                navSourceSent = true;
+            }
         } else if (isFinishHoldActive()) {
             scheduleFinishClear(context, finishHoldUntil);
             AppLog.setNav(context, "Навигация: финиш удерживается 5 сек.");
             return;
+        } else {
+            navSourceSent = false;
         }
         frame[5] = on ? (byte) 1 : 0;
         send(context, frame.clone());
@@ -566,6 +573,7 @@ final class NavProtocol {
             finishHoldUntil = 0L;
             byte[] frame = naviOnFrame;
             frame[5] = 0;
+            navSourceSent = false;
             send(app, frame.clone());
             stopRepeaterIfIdle();
             AppLog.setNav(app, "Навигация: финиш очищен после 5 сек.");

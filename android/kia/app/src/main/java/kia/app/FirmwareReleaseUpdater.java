@@ -208,6 +208,7 @@ final class FirmwareReleaseUpdater {
 
     private static int firmwareAssetScore(String lowerName) {
         int score = 0;
+        if (lowerName.contains("v21")) score += 80;
         if (lowerName.contains("v20")) score += 60;
         if (lowerName.contains("2can35")) score += 40;
         if (lowerName.contains("smt35")) score += 30;

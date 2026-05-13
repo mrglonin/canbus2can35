@@ -44,6 +44,7 @@ public class AppService extends Service {
     private static final int STM_CDC_PRODUCT_ID = 22336;
     private static final int RAW_CAN_NORMAL_BURST = 2;
     private static final int RAW_CAN_DEBUG_BURST = 3;
+    private static final long SNAPSHOT_POLL_MS = 500L;
     private static final Queue<byte[]> PENDING = new ArrayDeque<>();
     private static volatile AppService active;
 
@@ -78,9 +79,7 @@ public class AppService extends Service {
         @Override
         public void run() {
             if (!serviceRunning) return;
-            boolean needed = AppPrefs.obdEnabled(AppService.this)
-                    || AppPrefs.debugCan(AppService.this)
-                    || AppPrefs.blindSpotEnabled(AppService.this);
+            boolean needed = AppPrefs.debugCan(AppService.this);
             if (needed) {
                 int burst = AppPrefs.debugCan(AppService.this) ? RAW_CAN_DEBUG_BURST : RAW_CAN_NORMAL_BURST;
                 for (int i = 0; i < burst; i++) {
@@ -89,6 +88,18 @@ public class AppService extends Service {
             }
             Handler handler = ioHandler == null ? debugHandler : ioHandler;
             handler.postDelayed(this, needed ? (AppPrefs.debugCan(AppService.this) ? 20L : 35L) : 500L);
+        }
+    };
+    private final Runnable snapshotPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (!serviceRunning) return;
+            boolean needed = AppPrefs.obdEnabled(AppService.this) || AppPrefs.blindSpotEnabled(AppService.this);
+            if (needed) {
+                CanbusControl.requestVehicleSnapshotQuiet(AppService.this);
+            }
+            Handler handler = ioHandler == null ? debugHandler : ioHandler;
+            handler.postDelayed(this, needed ? SNAPSHOT_POLL_MS : 1500L);
         }
     };
 
@@ -171,6 +182,7 @@ public class AppService extends Service {
         refreshSystemOverlays();
         debugHandler.postDelayed(debugPoll, 300L);
         ioHandler.postDelayed(rawCanPoll, 100L);
+        ioHandler.postDelayed(snapshotPoll, 150L);
     }
 
     @Override
@@ -203,7 +215,9 @@ public class AppService extends Service {
         active = null;
         debugHandler.removeCallbacks(debugPoll);
         if (ioHandler != null) ioHandler.removeCallbacks(rawCanPoll);
+        if (ioHandler != null) ioHandler.removeCallbacks(snapshotPoll);
         debugHandler.removeCallbacks(rawCanPoll);
+        debugHandler.removeCallbacks(snapshotPoll);
         if (ioThread != null) {
             ioThread.quitSafely();
             ioThread = null;
@@ -259,7 +273,7 @@ public class AppService extends Service {
     }
 
     private boolean rawCanNeeded() {
-        return AppPrefs.debugCan(this) || AppPrefs.obdEnabled(this) || AppPrefs.blindSpotEnabled(this);
+        return AppPrefs.debugCan(this);
     }
 
     private void refreshSystemOverlays() {
@@ -657,7 +671,7 @@ public class AppService extends Service {
             case 0x78:
                 return "raw CAN TX ACK";
             case 0x79:
-                return "V20 health";
+                return "V21 health";
             case 0x7A:
                 return "media source status";
             default:
