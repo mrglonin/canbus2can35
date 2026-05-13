@@ -5,6 +5,9 @@
 v21 построена от авторской `04350008` и сохраняет штатный canbox/update-loader.
 USB identity не меняется: `0483:5740`, stock CDC/proprietary protocol.
 
+Полная карта ролей прошивки, команд, периодов обновления и CAN-шин:
+[ADAPTER_FIRMWARE_SIGNAL_MAP.md](ADAPTER_FIRMWARE_SIGNAL_MAP.md).
+
 ## Что изменено относительно v20
 
 - Обычный Vehicle/RCTA режим больше не требует постоянного raw stream в APK.
