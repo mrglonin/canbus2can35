@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 final class FirmwareReleaseUpdater {
     static final String ACTION_STATE = "kia.app.FIRMWARE_RELEASE_STATE";
 
-    private static final String LATEST_MANIFEST_URL = "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/latest.json";
+    private static final String LATEST_MANIFEST_URL = "https://api.github.com/repos/mrglonin/canbus2can35/contents/updates/latest.json?ref=main";
     private static final String LATEST_RELEASE_URL = "https://api.github.com/repos/mrglonin/canbus2can35/releases/latest";
     private static final int MAX_FIRMWARE_SIZE = 114688;
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();
@@ -149,7 +149,7 @@ final class FirmwareReleaseUpdater {
         HttpURLConnection connection = (HttpURLConnection) new URL(LATEST_MANIFEST_URL).openConnection();
         connection.setConnectTimeout(12000);
         connection.setReadTimeout(20000);
-        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Accept", "application/vnd.github.raw");
         connection.setRequestProperty("User-Agent", "KiaCanbusFirmwareUpdater");
         int code = connection.getResponseCode();
         InputStream stream = code >= 200 && code < 300 ? connection.getInputStream() : connection.getErrorStream();
