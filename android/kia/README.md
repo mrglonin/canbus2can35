@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia CANBOX integration.
 
 Current package: `kia.app`
 
-Current app version: `12.5-kia` (`versionCode 105`)
+Current app version: `12.6-kia` (`versionCode 106`)
 
 Main protocol notes:
 
@@ -18,7 +18,8 @@ Main protocol notes:
 - Voltage uses M-CAN `0x132 DATA[0] / 10`; legacy `0x545` is only fallback.
 - RCTA/blind-spot overlay uses latest `0x4F4` carried by the firmware snapshot; legacy `0x58B` remains debug-only.
 - Media source hints never overwrite a playing MediaSession; music is sent to the cluster once per source/track change, not held by repeat spam.
-- Navigation UI has no compass/TBT/text-mode switches: adapter output is fixed to `0x7A` source plus `0x48/0x45/0x47/0x4A/0x44`.
+- Navigation UI has no compass/TBT/text-mode switches: APK sends state changes, while V21 adapter holds/replays `0x48/0x45/0x47/0x4A/0x44` from firmware.
+- Compass is sent only on value changes from APK; V21 repeats the stored `0x45` compass frame on compact `0x77` ticks when no active route is held.
 - Raw CAN TX `0x78` is M-CAN only; C-CAN TX is blocked in app and firmware.
 - Default profile keeps Vehicle/RCTA/TPMS/media/nav active and disables debug/raw recording, media overlays, UART debug and test leftovers.
 - CAN log export writes to the public `Downloads` folder. The visible preview stays small, while a full capture stores up to `50 000` selected CAN frames and then auto-stops, saves, and compresses to `.log.gz`.
@@ -32,7 +33,7 @@ Build:
 Release APK name is kept short and stable:
 
 ```text
-/Volumes/SSD/canbus/release/kia_125.apk
+/Volumes/SSD/canbus/release/kia_126.apk
 ```
 
 The release build is signed with the local Android debug keystore
@@ -42,7 +43,7 @@ head unit. A production key can be added later without changing the output path.
 The local Gradle output uses the same filename:
 
 ```text
-app/build/outputs/apk/release/kia_125.apk
+app/build/outputs/apk/release/kia_126.apk
 ```
 
 TEYES sandbox emulator:

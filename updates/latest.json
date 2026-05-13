@@ -2,19 +2,19 @@
   "schema": 1,
   "updated_at": "2026-05-14",
   "app": {
-    "version_name": "12.5-kia",
-    "version_code": 105,
-    "release_number": 125,
-    "asset_name": "kia_125.apk",
-    "size": 27416579,
-    "sha256": "81eb44294e329dad227f8c8c692d2011b1ffeec59331fa0833a2152429d24e1b",
-    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_125.apk"
+    "version_name": "12.6-kia",
+    "version_code": 106,
+    "release_number": 126,
+    "asset_name": "kia_126.apk",
+    "size": 27415339,
+    "sha256": "bfcc86d09c5ca0de22d61dd81b169a46c5064c1676eecd046c0d920852be5790",
+    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_126.apk"
   },
   "firmware": {
     "version": "v21",
     "asset_name": "21_v08_mode1_v21_USB.bin",
-    "size": 21128,
-    "sha256": "d008f4b5c24d46c26cefd104892d245446fcb09719ce2f660a353d0108070d5d",
+    "size": 21432,
+    "sha256": "1e3a6c23773f39a0c0df956799ceaecd5fb3a9d0aaebce1e83d8a01b55b1e1dc",
     "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/firmware/trusted/v21/21_v08_mode1_v21_USB.bin"
   }
 }

@@ -35,7 +35,6 @@ final class NavProtocol {
     private static final byte[] naviOnFrame = NAV_ON.clone();
     private static final byte[] speedFrame = SPEED.clone();
     private static final long FINISH_HOLD_MS = 5000L;
-    private static final long NAV_REPEAT_MS = 1000L;
     private static final long TEYES_ROUTE_GRACE_MS = 12000L;
 
     private static String street;
@@ -48,8 +47,6 @@ final class NavProtocol {
     private static boolean teyesRouteActive;
     private static Handler handler;
     private static Runnable finishClearRunnable;
-    private static Runnable repeatRunnable;
-    private static Context repeatContext;
     private static boolean navActive;
     private static byte[] lastNavFrame;
     private static byte[] lastManeuverFrame;
@@ -595,7 +592,6 @@ final class NavProtocol {
             navSourceSent = false;
             routeState = "off";
             send(app, frame.clone());
-            stopRepeaterIfIdle();
             AppLog.setNav(app, "Навигация: финиш очищен после 5 сек.");
         };
         long delay = Math.max(0L, until - System.currentTimeMillis());
@@ -665,46 +661,6 @@ final class NavProtocol {
         } else if (cmd == 0x4A) {
             lastTextFrame = copy;
         }
-        if (navActive || isFinishHoldActive()) {
-            ensureRepeater(context.getApplicationContext());
-        } else {
-            stopRepeaterIfIdle();
-        }
-    }
-
-    private static void ensureRepeater(Context context) {
-        if (context == null) return;
-        repeatContext = context.getApplicationContext();
-        Handler h = handler();
-        if (repeatRunnable != null) return;
-        repeatRunnable = new Runnable() {
-            @Override
-            public void run() {
-                Context app = repeatContext;
-                if (app == null || (!navActive && !isFinishHoldActive())) {
-                    repeatRunnable = null;
-                    return;
-                }
-                repeatFrame(app, lastNavFrame);
-                repeatFrame(app, lastManeuverFrame);
-                repeatFrame(app, lastEtaFrame);
-                repeatFrame(app, lastSpeedFrame);
-                repeatFrame(app, lastTextFrame);
-                handler().postDelayed(this, NAV_REPEAT_MS);
-            }
-        };
-        h.postDelayed(repeatRunnable, NAV_REPEAT_MS);
-    }
-
-    private static void repeatFrame(Context context, byte[] frame) {
-        if (context == null || frame == null) return;
-        AppService.sendFrame(context, frame.clone());
-    }
-
-    private static void stopRepeaterIfIdle() {
-        if (navActive || isFinishHoldActive() || repeatRunnable == null || handler == null) return;
-        handler.removeCallbacks(repeatRunnable);
-        repeatRunnable = null;
     }
 
     private static void finishTeyesRouteIfStale(Context context) {

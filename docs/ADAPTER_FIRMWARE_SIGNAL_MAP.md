@@ -6,8 +6,8 @@
 отдает APK и что уходит дальше в штатный parser/M-CAN. Это не DBC и не большая
 таблица Android-логики. Это рабочая карта для чистой прошивки адаптера.
 
-Следующий целевой вариант, где адаптер сам держит compass/nav hold и APK
-передает только события, описан отдельно:
+Текущая V21 уже реализует базовый adapter-owned hold для compass/nav. Целевая
+карта расширения и acceptance зафиксированы отдельно:
 [FIRMWARE_ADAPTER_OWNED_LOGIC_TARGET.md](FIRMWARE_ADAPTER_OWNED_LOGIC_TARGET.md).
 
 ## Главная модель
@@ -51,16 +51,16 @@ CAN-C отправку лучше не держать в обычной прош
 | `0x20` | APK media | radio/AM/BT artist text candidate, UTF-16LE | event-only |
 | `0x21` | APK media | FM/media source/station text candidate, UTF-16LE | event-only |
 | `0x22` | APK media | title text, UTF-16LE | event-only |
-| `0x44` | APK nav | speed limit | on change / active route repeat |
-| `0x45` | APK nav/compass | maneuver or compass direction | `350-500 ms` for compass hold; nav on change/repeat |
-| `0x47` | APK nav | ETA / route distance | on change / active route repeat |
+| `0x44` | APK nav | speed limit | event/change; V21 repeats active route |
+| `0x45` | APK nav/compass | maneuver or compass direction | event/change; V21 repeats compass/nav |
+| `0x47` | APK nav | ETA / route distance | event/change; V21 repeats active route |
 | `0x48` | APK nav | nav on/off | route state change |
-| `0x4A` | APK nav | street/text, UTF-16LE | on change / active route repeat |
+| `0x4A` | APK nav | street/text, UTF-16LE | event/change; V21 repeats active route |
 | `0x55` | updater | firmware update mode/block | updater only |
 | `0x56` | APK/tools | UID/version | request only |
 | `0x70` | debug UI | raw stream on/off | debug only |
 | `0x76` | debug UI | pop raw frame from logger ring | debug only |
-| `0x77` | APK Vehicle/RCTA | compact snapshot | `500 ms` while Vehicle/RCTA enabled |
+| `0x77` | APK Vehicle/RCTA/nav/compass | compact snapshot + hold tick | about `500 ms` lightweight poll |
 | `0x78` | debug UI | one-shot raw TX | explicit debug; target M-CAN |
 | `0x79` | APK/tools | health/capabilities | request only |
 | `0x7A` | APK media/nav source | inject Raise/RZC `FD .. 09 ...` into stock parser | event-only |
@@ -87,17 +87,17 @@ uiStep = 0, 3, 6, ... 33
 DD = (36 - uiStep) % 36
 ```
 
-Firmware behavior target:
+Firmware behavior:
 
 | State | Behavior |
 |---|---|
 | valid bearing | accept `0x45` and let stock parser output cluster compass |
-| hold active | repeat last compass frame every `350-500 ms` |
-| bearing stale | keep last value for short controlled timeout, then stop repeat |
+| hold active | V21 repeats last compass frame on compact `0x77` tick |
+| bearing stale | APK stops sending new values; V21 keeps last stored frame until a future timeout extension |
 | nav maneuver active | nav `0x45` has priority over compass-only frame |
 
-Current APK already repeats compass. Future clean firmware may take over the
-repeat so APK sends only value changes.
+Current APK sends only compass value changes. V21 owns the repeat by replaying
+the stored `0x45` compass frame through the stock parser.
 
 ## Navigation
 
@@ -128,8 +128,8 @@ State rules:
 | finish | hold finish about `5 s`, then one clean nav off |
 | navigator off | clear once, no off/on blinking |
 
-Clean firmware target: store last nav bundle and do the active-route repeat
-inside adapter. APK should only send state changes and finish/off.
+V21 stores the last nav bundle and does active-route repeat inside the adapter.
+APK sends only state changes and finish/off.
 
 ## Media sources
 
@@ -172,8 +172,8 @@ Packing everything into one field can make the cluster show clipped garbage.
 
 ## Vehicle snapshot `0x77`
 
-APK polls `0x77` every `500 ms` only when Vehicle or RCTA is enabled.
-No raw stream is needed for normal UI.
+APK polls `0x77` every `500 ms` as the lightweight production poll when
+Vehicle/RCTA/nav/compass is active. No raw stream is needed for normal UI.
 
 Payload v21:
 
@@ -269,9 +269,9 @@ Keep:
 | Surface | Normal period |
 |---|---|
 | Media source/text | no period, event-only |
-| Compass hold | `350-500 ms` while valid |
-| Active nav bundle | about `1 s` if cluster requires hold |
-| Vehicle/RCTA snapshot polling by APK | `500 ms` while enabled |
+| Compass hold | V21 repeat on compact `0x77` tick while no active route is held |
+| Active nav bundle | about `1 s` from V21 |
+| Vehicle/RCTA snapshot polling by APK | about `500 ms` lightweight production poll |
 | Full raw logger | user-controlled debug only |
 | Health `0x79` | manual/request only |
 | UID/version `0x56` | startup/request only |

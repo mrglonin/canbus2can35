@@ -94,7 +94,9 @@ public class AppService extends Service {
         @Override
         public void run() {
             if (!serviceRunning) return;
-            boolean needed = AppPrefs.obdEnabled(AppService.this) || AppPrefs.blindSpotEnabled(AppService.this);
+            boolean needed = AppPrefs.obdEnabled(AppService.this)
+                    || AppPrefs.blindSpotEnabled(AppService.this)
+                    || AppPrefs.navCompass(AppService.this);
             if (needed) {
                 CanbusControl.requestVehicleSnapshotQuiet(AppService.this);
             }

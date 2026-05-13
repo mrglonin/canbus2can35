@@ -46,6 +46,7 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private float headingDegrees;
     private long lastHeadingAt;
     private long lastLogAt;
+    private int lastSentUiStep = -1;
     private String headingSource = "neutral";
 
     private CompassBridge(Context context) {
@@ -192,6 +193,7 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         if (!AppPrefs.navCompass(context)) return;
         long now = System.currentTimeMillis();
         if (lastHeadingAt == 0 || now - lastHeadingAt > HEADING_MAX_AGE_MS) {
+            lastSentUiStep = -1;
             synchronized (CompassBridge.class) {
                 lastStatus = "0x45 compass: нет свежего GPS bearing";
             }
@@ -203,7 +205,11 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         }
         float heading = currentHeading(now);
         int uiStep = compassDisplayStep(heading);
+        if (uiStep == lastSentUiStep) {
+            return;
+        }
         CanbusControl.sendCompassStepQuiet(context, uiStep);
+        lastSentUiStep = uiStep;
         synchronized (CompassBridge.class) {
             int sent = (36 - uiStep) % 36;
             lastSentAt = now;

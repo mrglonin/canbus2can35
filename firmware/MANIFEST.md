@@ -26,8 +26,8 @@ UID: 37 FF DA 05 42 47 30 38 59 41 22 43
 | `trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx_STLINK64K.bin` | `a94208b4d5ebee90f8e1b17f276a10e8b3fbbc98832232dc2da2d7c5b03be756` | ST-Link full image для v19. |
 | `trusted/v20/20_v08_mode1_v20_USB.bin` | `b790f7b1077358c0bac5e6eee81f96efea2fbcf90e0b39bdaf2e3e799953f95b` | USB-update: v19 + `0x79` V20 health/capabilities и исправленный выход после `0x77`. |
 | `trusted/v20/20_v08_mode1_v20_STLINK64K.bin` | `10ef4cbccc7cd8802cecf9a8ef4dc1c32e38edbc9eda17b9cd80a0cbea9f22f0` | ST-Link full image для v20. |
-| `trusted/v21/21_v08_mode1_v21_USB.bin` | `d008f4b5c24d46c26cefd104892d245446fcb09719ce2f660a353d0108070d5d` | USB-update: v20 + `0x77` Vehicle/RCTA snapshot, M-CAN `0x132` voltage, latest `0x4F4`, raw stream только debug, `0x78` TX только M-CAN. |
-| `trusted/v21/21_v08_mode1_v21_STLINK64K.bin` | `ff5b78753055c0b1df958309d601a08449fb048470ce027419d883365039d4f8` | ST-Link full image для v21. |
+| `trusted/v21/21_v08_mode1_v21_USB.bin` | `1e3a6c23773f39a0c0df956799ceaecd5fb3a9d0aaebce1e83d8a01b55b1e1dc` | USB-update: v20 + `0x77` Vehicle/RCTA snapshot, M-CAN `0x132` voltage, latest `0x4F4`, raw stream только debug, `0x78` TX только M-CAN, adapter-owned compass/nav hold. |
+| `trusted/v21/21_v08_mode1_v21_STLINK64K.bin` | `d3f37cc733e8da2cb18e53b2111b9fbb53c82e497add07498d44bda0d1d2c90f` | ST-Link full image для v21. |
 
 ## USB sideband commands
 
@@ -35,9 +35,10 @@ UID: 37 FF DA 05 42 47 30 38 59 41 22 43
 |---:|---|
 | `0x70` | включить/выключить RAW CAN stream для debug |
 | `0x76` | прочитать один RAW CAN кадр для debug |
-| `0x77` | прочитать compact Vehicle/RCTA snapshot |
+| `0x77` | прочитать compact Vehicle/RCTA snapshot и дать tick удержанию nav/compass |
 | `0x78` | одноразово отправить CAN кадр |
 | `0x79` | V21 health/capabilities без CAN-подключения |
 
-Эти команды не заменяют штатный протокол музыки/навигации автора. Они нужны для
-диагностики и приложения.
+Медиа и навигация продолжают идти через штатный протокол автора. V21 только
+хранит последние nav/compass USB/API кадры и повторяет их без Android-side
+спама; debug logger и raw TX не участвуют в production-режиме.

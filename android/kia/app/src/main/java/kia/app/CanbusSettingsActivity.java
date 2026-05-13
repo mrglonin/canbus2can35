@@ -521,8 +521,8 @@ public class CanbusSettingsActivity extends Activity {
         blindSpotStatusValue = infoRow(blindSpot, "Состояние", "");
         blindSpot.addView(check("Система предупреждения при заднем ходе", AppPrefs.blindSpotEnabled(this), (button, checked) -> {
             AppPrefs.setBlindSpotEnabled(this, checked);
-            if (checked) CanbusControl.startCanStream(this);
-            else if (!AppPrefs.obdEnabled(this) && !AppPrefs.debugCan(this)) CanbusControl.stopCanStream(this);
+            if (checked) AppService.start(this);
+            else if (!AppPrefs.debugCan(this)) CanbusControl.stopCanStream(this);
             AppLog.line(this, "RCTA: система " + yes(checked));
             AppService.refreshOverlays(this);
             savedToast();

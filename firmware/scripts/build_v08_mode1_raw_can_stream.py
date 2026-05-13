@@ -78,6 +78,14 @@ PATCH_ASM = r"""
 .equ STATE_RCTA_DLC,  0x20006e32
 .equ STATE_RCTA_ID,   0x20006e34
 .equ STATE_RCTA_DATA, 0x20006e38
+.equ HOLD_NAV_ACTIVE, 0x20006e44
+.equ HOLD_NAV_COUNT,  0x20006e45
+.equ HOLD_COMPASS_FRAME, 0x20006e50
+.equ HOLD_NAV_ON_FRAME,  0x20006e78
+.equ HOLD_NAV_MAN_FRAME, 0x20006ea0
+.equ HOLD_NAV_ETA_FRAME, 0x20006ec8
+.equ HOLD_NAV_SPEED_FRAME,0x20006ef0
+.equ HOLD_NAV_TEXT_FRAME,0x20006f18
 
 .equ CAN1_BASE,       0x40006400
 .equ CAN2_BASE,       0x40006800
@@ -97,6 +105,16 @@ dispatcher:
     push {r4-r7, lr}
     mov r4, r0
     ldrb r2, [r4, #4]
+    cmp r2, #0x44
+    beq cmd_store_then_stock
+    cmp r2, #0x45
+    beq cmd_store_then_stock
+    cmp r2, #0x47
+    beq cmd_store_then_stock
+    cmp r2, #0x48
+    beq cmd_store_then_stock
+    cmp r2, #0x4a
+    beq cmd_store_then_stock
     cmp r2, #0x70
     beq cmd_canlog
     cmp r2, #0x76
@@ -109,6 +127,16 @@ dispatcher:
     beq cmd_v20_status
     cmp r2, #0x7a
     beq cmd_raise_source_inject
+    mov r0, r4
+    pop {r4-r7, lr}
+    ldr r3, =ORIG_USB_DISPATCH
+    bx r3
+
+cmd_store_then_stock:
+    mov r0, r4
+    bl state_init_once
+    mov r0, r4
+    bl hold_store_frame
     mov r0, r4
     pop {r4-r7, lr}
     ldr r3, =ORIG_USB_DISPATCH
@@ -158,6 +186,7 @@ cmd_can_ring_read:
 
 cmd_obd_snapshot:
     bl state_init_once
+    bl hold_replay_from_snapshot
     bl state_snapshot_response
     movs r0, #0x77
     movs r1, #45
@@ -638,6 +667,22 @@ state_init_once:
     ldr r0, =STATE_RCTA_DATA
     str r1, [r0]
     str r1, [r0, #4]
+    ldr r0, =HOLD_NAV_ACTIVE
+    strb r1, [r0]
+    ldr r0, =HOLD_NAV_COUNT
+    strb r1, [r0]
+    ldr r0, =HOLD_COMPASS_FRAME
+    strb r1, [r0]
+    ldr r0, =HOLD_NAV_ON_FRAME
+    strb r1, [r0]
+    ldr r0, =HOLD_NAV_MAN_FRAME
+    strb r1, [r0]
+    ldr r0, =HOLD_NAV_ETA_FRAME
+    strb r1, [r0]
+    ldr r0, =HOLD_NAV_SPEED_FRAME
+    strb r1, [r0]
+    ldr r0, =HOLD_NAV_TEXT_FRAME
+    strb r1, [r0]
 1:
     pop {r0-r3, pc}
 
@@ -865,6 +910,120 @@ can_ring_pop_response:
 6:
     pop {r4-r7, pc}
 
+.thumb_func
+hold_store_frame:
+    push {r4-r7, lr}
+    mov r4, r0
+    ldrb r5, [r4, #3]
+    cmp r5, #0
+    beq hold_store_done
+    cmp r5, #40
+    bhi hold_store_done
+    ldrb r6, [r4, #4]
+    cmp r6, #0x44
+    beq hold_store_speed
+    cmp r6, #0x45
+    beq hold_store_45
+    cmp r6, #0x47
+    beq hold_store_eta
+    cmp r6, #0x48
+    beq hold_store_nav
+    cmp r6, #0x4a
+    beq hold_store_text
+    b hold_store_done
+
+hold_store_45:
+    ldrb r0, [r4, #5]
+    cmp r0, #0x08
+    beq hold_store_compass
+    ldr r7, =HOLD_NAV_MAN_FRAME
+    b hold_copy
+
+hold_store_compass:
+    ldr r7, =HOLD_COMPASS_FRAME
+    b hold_copy
+
+hold_store_nav:
+    ldrb r0, [r4, #5]
+    ldr r1, =HOLD_NAV_ACTIVE
+    strb r0, [r1]
+    ldr r7, =HOLD_NAV_ON_FRAME
+    b hold_copy
+
+hold_store_eta:
+    ldr r7, =HOLD_NAV_ETA_FRAME
+    b hold_copy
+
+hold_store_speed:
+    ldr r7, =HOLD_NAV_SPEED_FRAME
+    b hold_copy
+
+hold_store_text:
+    ldr r7, =HOLD_NAV_TEXT_FRAME
+    b hold_copy
+
+hold_copy:
+    movs r0, #0
+1:
+    cmp r0, r5
+    bhs hold_store_done
+    ldrb r1, [r4, r0]
+    strb r1, [r7, r0]
+    adds r0, #1
+    b 1b
+
+hold_store_done:
+    pop {r4-r7, pc}
+
+.thumb_func
+hold_replay_from_snapshot:
+    push {r4-r7, lr}
+    ldr r0, =HOLD_NAV_ACTIVE
+    ldrb r0, [r0]
+    cbz r0, hold_replay_compass
+    ldr r4, =HOLD_NAV_COUNT
+    ldrb r0, [r4]
+    adds r0, #1
+    strb r0, [r4]
+    cmp r0, #2
+    blo hold_replay_done
+    movs r0, #0
+    strb r0, [r4]
+    ldr r0, =HOLD_NAV_ON_FRAME
+    bl hold_replay_one
+    ldr r0, =HOLD_NAV_MAN_FRAME
+    bl hold_replay_one
+    ldr r0, =HOLD_NAV_ETA_FRAME
+    bl hold_replay_one
+    ldr r0, =HOLD_NAV_SPEED_FRAME
+    bl hold_replay_one
+    ldr r0, =HOLD_NAV_TEXT_FRAME
+    bl hold_replay_one
+    b hold_replay_done
+
+hold_replay_compass:
+    ldr r4, =HOLD_NAV_COUNT
+    movs r0, #0
+    strb r0, [r4]
+    ldr r0, =HOLD_COMPASS_FRAME
+    bl hold_replay_one
+
+hold_replay_done:
+    pop {r4-r7, pc}
+
+.thumb_func
+hold_replay_one:
+    push {r4-r7, lr}
+    mov r4, r0
+    ldrb r0, [r4, #0]
+    cmp r0, #0xbb
+    bne hold_replay_one_done
+    mov r0, r4
+    ldr r3, =ORIG_USB_DISPATCH
+    blx r3
+hold_replay_one_done:
+    pop {r4-r7, pc}
+
 .balign 4
 .pool
 """
@@ -1009,7 +1168,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         args.stlink_out.write_bytes(app_image)
 
     report = {
-        "name": "v21 v08 mode1 stock canbox + debug raw CAN stream + decoded vehicle/RCTA snapshot + raw CAN TX + capabilities",
+        "name": "v21 v08 mode1 stock canbox + adapter-owned nav/compass hold + Vehicle/RCTA snapshot + M-CAN TX debug",
         "source": str(source),
         "source_sha256": sha256(encoded_source),
         "output_usb": str(args.out),
@@ -1027,7 +1186,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         "sideband_commands": {
             "0x70": "raw CAN stream start/stop only",
             "0x76": "pop one raw C-CAN/M-CAN frame from RAM ring",
-            "0x77": "read decoded vehicle/RCTA snapshot: speed/rpm/temperatures/voltage/brake/gear plus latest 0x4F4 without raw stream",
+            "0x77": "read decoded vehicle/RCTA snapshot and tick adapter-owned nav/compass hold without raw stream",
             "0x78": "one-shot raw CAN TX on M-CAN only: payload bus=1, flags, id_le32, dlc, data[8]",
             "0x79": "V21 health/capabilities response, no CAN connection required",
             "0x7A": "inject one Raise/RZC FD source-status frame into the stock media/source parser",
