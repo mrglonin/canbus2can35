@@ -95,28 +95,12 @@ final class MediaMonitor {
     static void reportSourceHint(Context context, String source, String pkg, int priority, long ttlMs) {
         if (context == null || TextUtils.isEmpty(source)) return;
         long now = System.currentTimeMillis();
-        String sourceKey = sourceKey(source, pkg);
-        boolean changed = !sameSource(source, pkg, activeSource, activePkg);
         hintSource = source;
         hintPkg = pkg;
         hintPriority = priority;
         hintUntil = now + Math.max(1000L, ttlMs);
-        activeSource = source;
-        activePkg = pkg;
-        activeSourceKey = sourceKey;
-        activePriority = changed ? priority : Math.max(activePriority, priority);
-        activeSourceAt = now;
-        if (changed || TextUtils.isEmpty(lastLine)) {
-            String line = "Мультимедиа: " + dash(source) + " / - / - / --:--";
-            if (!TextUtils.equals(line, lastLine) && now - lastAt > 750L) {
-                lastLine = line;
-                lastAt = now;
-                AppLog.setMedia(context, line);
-                CanbusControl.sendMediaMetadata(context, source, "", source);
-                if (AppPrefs.debug(context)) {
-                    AppLog.line(context, "Мультимедиа: TEYES widget hint=" + source + " pkg=" + pkg);
-                }
-            }
+        if (AppPrefs.debug(context) && now - lastAt > 750L) {
+            AppLog.line(context, "Мультимедиа: выбран источник " + source + " pkg=" + pkg);
         }
     }
 
@@ -268,20 +252,14 @@ final class MediaMonitor {
             if (isGenericTeyesSource(source, pkg)) {
                 source = hintSource;
                 pkg = hintPkg;
-                priority = Math.max(priority, hintPriority);
-            } else if (priority < hintPriority + SOURCE_SWITCH_MARGIN) {
-                if (AppPrefs.debug(context)) {
-                    AppLog.line(context, "Мультимедиа: TEYES widget удержал " + hintSource
-                            + ", пропущен " + source + " pkg=" + pkg + " priority=" + priority + "/" + hintPriority);
-                }
-                return false;
+                priority = Math.max(priority, Math.min(hintPriority, 90));
             }
         }
         String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title) + " / " + duration(durationMs);
         String sourceKey = sourceKey(source, pkg);
         boolean sameSource = sameSource(source, pkg, activeSource, activePkg);
         boolean locked = !TextUtils.isEmpty(activeSourceKey) && now - activeSourceAt < SOURCE_LOCK_MS;
-        if (!sameSource && locked && priority < activePriority + SOURCE_SWITCH_MARGIN) {
+        if (!sameSource && locked && priority + SOURCE_SWITCH_MARGIN < activePriority) {
             if (AppPrefs.debug(context)) {
                 AppLog.line(context, "Мультимедиа: источник удержан " + activeSourceKey
                         + ", пропущен " + sourceKey + " priority=" + priority + "/" + activePriority);
@@ -297,7 +275,11 @@ final class MediaMonitor {
             lastLine = line;
             lastAt = now;
             AppLog.setMedia(context, line);
-            CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(title) ? title : source);
+            if (priority >= 120 || isRadioSource(source, pkg)) {
+                CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(title) ? title : source);
+            } else if (AppPrefs.debug(context)) {
+                AppLog.line(context, "Мультимедиа: stale/paused не отправлен в CAN source=" + source + " priority=" + priority);
+            }
             AppLog.line(context, "Мультимедиа: источник=" + source + " пакет=" + pkg + " трек=" + title + " автор=" + artist);
             return true;
         }
@@ -534,6 +516,7 @@ final class MediaMonitor {
         String label = label(context, pkg);
         String probe = ((pkg == null ? "" : pkg) + " " + (label == null ? "" : label)).toLowerCase(Locale.US);
         if (probe.contains("yandex") || probe.contains("яндекс")) return "Яндекс Музыка";
+        if (probe.contains("teyesspotify")) return "Яндекс Музыка";
         if (probe.contains("spotify")) return "Spotify";
         if (probe.contains("youtube")) return "YouTube Music";
         if (probe.contains("carplay")) return "CarPlay";
@@ -564,6 +547,12 @@ final class MediaMonitor {
                 || s.equals("teyes media")
                 || s.equals("teyes video")
                 || s.equals("-");
+    }
+
+    private static boolean isRadioSource(String source, String pkg) {
+        String p = dash(pkg).toLowerCase(Locale.US);
+        String s = dash(source).toLowerCase(Locale.US);
+        return p.contains("radio") || s.contains("radio") || s.contains("радио") || s.equals("fm") || s.startsWith("am");
     }
 
     private static String dash(String value) {

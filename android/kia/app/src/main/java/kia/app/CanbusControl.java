@@ -26,6 +26,7 @@ final class CanbusControl {
     private static long lastV20At;
     private static int lastUartAvailable = -1;
     private static int lastUartDropped = -1;
+    private static int mediaSecond;
 
     private CanbusControl() {
     }
@@ -146,13 +147,47 @@ final class CanbusControl {
     }
 
     static void sendMediaTrack(Context context, String title) {
+        sendQuiet(context, mediaSourceStatusPacket(MediaSource.USB_MUSIC));
         send(context, textPacket(0x22, title, 16));
     }
 
     static void sendMediaMetadata(Context context, String source, String artist, String title) {
-        sendQuiet(context, mediaSourcePacket(1, source));
-        sendQuiet(context, mediaSourcePacket(2, artist));
-        send(context, textPacket(0x22, title, 16));
+        MediaSource mediaSource = mediaSource(source);
+        sendQuiet(context, mediaSourceStatusPacket(mediaSource));
+        switch (mediaSource) {
+            case BLUETOOTH_AUDIO:
+                sendQuiet(context, textPacketWithSubtype(0x20, 0x1F, artist, 16));
+                send(context, textPacket(0x22, title, 16));
+                break;
+            case FM_RADIO:
+                send(context, textPacket(0x21, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                break;
+            case AM_RADIO:
+                send(context, textPacket(0x20, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                break;
+            case BT_PHONE:
+                AppLog.line(context, "Мультимедиа: BT phone source без text-поля");
+                break;
+            case USB_MUSIC:
+            case CLOUD_MUSIC:
+            case GENERIC_MUSIC:
+            default:
+                send(context, textPacket(0x22, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                break;
+        }
+    }
+
+    static void sendCompassStep(Context context, int uiStep) {
+        send(context, compassPacket(uiStep));
+    }
+
+    static void sendCompassStepQuiet(Context context, int uiStep) {
+        sendQuiet(context, compassPacket(uiStep));
+    }
+
+    static void sendCompassHeadingQuiet(Context context, float headingDegrees) {
+        int ui = Math.round(normalizeHeading(headingDegrees) / 30f) * 3;
+        sendCompassStepQuiet(context, ui);
     }
 
     static void sendRawCan(Context context, int bus, int canId, byte[] data, boolean dryRun) {
@@ -281,10 +316,12 @@ final class CanbusControl {
     }
 
     private static void send(Context context, byte[] frame) {
+        QaState.frame(context, frame);
         AppService.sendFrame(context, frame);
     }
 
     private static void sendQuiet(Context context, byte[] frame) {
+        QaState.frame(context, frame);
         AppService.sendFrameQuiet(context, frame);
     }
 
@@ -342,26 +379,130 @@ final class CanbusControl {
         return checksum(frame);
     }
 
-    private static byte[] mediaSourcePacket(int type, String value) {
+    private static byte[] textPacketWithSubtype(int id, int subtype, String value, int maxChars) {
         String text = value == null ? "" : value.trim();
-        if (text.length() > 16) {
-            text = text.substring(0, 16);
+        if (text.length() > maxChars) {
+            text = text.substring(0, maxChars);
         }
         if (TextUtils.isEmpty(text)) {
-            byte[] frame = new byte[]{(byte) 0xBB, 0x41, (byte) 0xA1, 0x09, 0x21, (byte) type, 0, 0, 0};
+            byte[] frame = new byte[]{(byte) 0xBB, 0x41, (byte) 0xA1, 0x09, (byte) id, (byte) subtype, 0, 0, 0};
             return checksum(frame);
         }
         byte[] payload = text.getBytes(StandardCharsets.UTF_16LE);
-        int len = Math.min(payload.length, 32) + 7;
+        int len = Math.min(payload.length, maxChars * 2) + 7;
         byte[] frame = new byte[len];
         frame[0] = (byte) 0xBB;
         frame[1] = 0x41;
         frame[2] = (byte) 0xA1;
         frame[3] = (byte) len;
-        frame[4] = 0x21;
-        frame[5] = (byte) type;
+        frame[4] = (byte) id;
+        frame[5] = (byte) subtype;
         System.arraycopy(payload, 0, frame, 6, len - 7);
         return checksum(frame);
+    }
+
+    private static byte[] mediaSourceStatusPacket(MediaSource source) {
+        return packet(0x7A, raiseSourceStatus(source));
+    }
+
+    private static byte[] raiseSourceStatus(MediaSource source) {
+        if (source == MediaSource.BLUETOOTH_AUDIO) {
+            return raiseFrame(new byte[]{0x06, 0x09, 0x0B, 0x04, 0x00});
+        }
+        if (source == MediaSource.FM_RADIO) {
+            return raiseFrame(new byte[]{0x08, 0x09, 0x02, 0x00, 0x65, 0x46, 0x00});
+        }
+        if (source == MediaSource.AM_RADIO) {
+            return raiseFrame(new byte[]{0x06, 0x09, 0x09, 0x00, 0x00});
+        }
+        if (source == MediaSource.BT_PHONE) {
+            return raiseFrame(new byte[]{0x06, 0x09, 0x07, 0x01, 0x00});
+        }
+        int sec;
+        synchronized (CanbusControl.class) {
+            mediaSecond = (mediaSecond + 1) % 60;
+            sec = mediaSecond;
+        }
+        return raiseFrame(new byte[]{0x0A, 0x09, 0x16, 0x00, 0x01, 0x00, 0x00, (byte) sec});
+    }
+
+    private static byte[] raiseFrame(byte[] body) {
+        byte[] frame = new byte[body.length + 2];
+        frame[0] = (byte) 0xFD;
+        System.arraycopy(body, 0, frame, 1, body.length);
+        int sum = 0;
+        for (int i = 1; i < frame.length - 1; i++) sum += frame[i] & 0xff;
+        frame[frame.length - 1] = (byte) sum;
+        return frame;
+    }
+
+    private static MediaSource mediaSource(String source) {
+        String text = source == null ? "" : source.toLowerCase(Locale.US);
+        if (text.contains("phone") || text.contains("телефон")) return MediaSource.BT_PHONE;
+        if (text.contains("bluetooth") || text.contains("bt")) return MediaSource.BLUETOOTH_AUDIO;
+        if (text.contains("интернет") || text.contains("network")) return MediaSource.CLOUD_MUSIC;
+        if (text.contains("fm") || text.contains("радио") || text.contains("radio")) return MediaSource.FM_RADIO;
+        if (text.contains("am ")) return MediaSource.AM_RADIO;
+        if (text.contains("яндекс") || text.contains("yandex") || text.contains("spotify")
+                || text.contains("youtube") || text.contains("cloud") || text.contains("teyes music")) {
+            return MediaSource.CLOUD_MUSIC;
+        }
+        if (text.contains("usb") || text.contains("local")) return MediaSource.USB_MUSIC;
+        return MediaSource.GENERIC_MUSIC;
+    }
+
+    private static String sourceLabel(MediaSource mediaSource, String source) {
+        if (!TextUtils.isEmpty(source)) return source;
+        switch (mediaSource) {
+            case BLUETOOTH_AUDIO:
+                return "Bluetooth";
+            case FM_RADIO:
+                return "FM";
+            case AM_RADIO:
+                return "AM";
+            case BT_PHONE:
+                return "BT phone";
+            case CLOUD_MUSIC:
+                return "Cloud music";
+            case USB_MUSIC:
+            case GENERIC_MUSIC:
+            default:
+                return "USB";
+        }
+    }
+
+    private enum MediaSource {
+        USB_MUSIC,
+        BLUETOOTH_AUDIO,
+        FM_RADIO,
+        AM_RADIO,
+        BT_PHONE,
+        CLOUD_MUSIC,
+        GENERIC_MUSIC
+    }
+
+    private static byte[] compassPacket(int uiStep) {
+        int ui = nearestCompassUiStep(uiStep);
+        int sent = (36 - ui) % 36;
+        byte[] frame = new byte[]{(byte) 0xBB, 0x41, (byte) 0xA1, 0x0E, 0x45, 0x08, 0x00, 0x00,
+                (byte) sent, 0x00, 0x78, 0x00, (byte) 0xA0, 0x00};
+        return checksum(frame);
+    }
+
+    private static int nearestCompassUiStep(int value) {
+        int out = ((value % 36) + 36) % 36;
+        out = Math.round(out / 3f) * 3;
+        return out == 36 ? 0 : out;
+    }
+
+    private static float normalizeHeading(float value) {
+        float out = value % 360f;
+        if (out < 0f) out += 360f;
+        return out;
+    }
+
+    private static String firstNonEmpty(String first, String fallback) {
+        return TextUtils.isEmpty(first) ? fallback : first;
     }
 
     private static byte[] packet(int id, byte[] payload) {

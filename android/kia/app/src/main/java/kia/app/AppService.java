@@ -42,7 +42,8 @@ public class AppService extends Service {
     private static final int FTDI_CANBOX_PRODUCT_ID = 24577;
     private static final int STM_VENDOR_ID = 1155;
     private static final int STM_CDC_PRODUCT_ID = 22336;
-    private static final int RAW_CAN_BURST = 3;
+    private static final int RAW_CAN_NORMAL_BURST = 2;
+    private static final int RAW_CAN_DEBUG_BURST = 3;
     private static final Queue<byte[]> PENDING = new ArrayDeque<>();
     private static volatile AppService active;
 
@@ -53,6 +54,7 @@ public class AppService extends Service {
     private volatile boolean readRunning;
     private volatile boolean serviceRunning;
     private long lastDebugCanStartAt;
+    private boolean rawStreamEnabled;
     private long lastOverlayPermissionLogAt;
     private long lastQuietConnectAt;
     private UartOverlayView systemUartOverlay;
@@ -80,12 +82,13 @@ public class AppService extends Service {
                     || AppPrefs.debugCan(AppService.this)
                     || AppPrefs.blindSpotEnabled(AppService.this);
             if (needed) {
-                for (int i = 0; i < RAW_CAN_BURST; i++) {
+                int burst = AppPrefs.debugCan(AppService.this) ? RAW_CAN_DEBUG_BURST : RAW_CAN_NORMAL_BURST;
+                for (int i = 0; i < burst; i++) {
                     writeOrQueue(sidebandPacket(0x76, null), true);
                 }
             }
             Handler handler = ioHandler == null ? debugHandler : ioHandler;
-            handler.postDelayed(this, needed ? 20L : 500L);
+            handler.postDelayed(this, needed ? (AppPrefs.debugCan(AppService.this) ? 20L : 35L) : 500L);
         }
     };
 
@@ -240,11 +243,22 @@ public class AppService extends Service {
     }
 
     private void ensureDebugCanStream() {
-        if (!AppPrefs.debugCan(this) && !AppPrefs.obdEnabled(this) && !AppPrefs.blindSpotEnabled(this)) return;
+        if (!rawCanNeeded()) {
+            if (rawStreamEnabled) {
+                rawStreamEnabled = false;
+                writeOrQueue(sidebandPacket(0x70, new byte[]{0x00}), true);
+            }
+            return;
+        }
         long now = System.currentTimeMillis();
         if (now - lastDebugCanStartAt < 5000L) return;
         lastDebugCanStartAt = now;
+        rawStreamEnabled = true;
         writeOrQueue(sidebandPacket(0x70, new byte[]{0x01}), true);
+    }
+
+    private boolean rawCanNeeded() {
+        return AppPrefs.debugCan(this) || AppPrefs.obdEnabled(this) || AppPrefs.blindSpotEnabled(this);
     }
 
     private void refreshSystemOverlays() {
@@ -315,9 +329,7 @@ public class AppService extends Service {
                     | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
             if (view instanceof TpmsOverlayView) {
                 height = ((TpmsOverlayView) view).windowHeight();
-                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
             }
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -645,6 +657,8 @@ public class AppService extends Service {
                 return "raw CAN TX ACK";
             case 0x79:
                 return "V20 health";
+            case 0x7A:
+                return "media source status";
             default:
                 return "cmd=0x" + Integer.toHexString(id).toUpperCase();
         }

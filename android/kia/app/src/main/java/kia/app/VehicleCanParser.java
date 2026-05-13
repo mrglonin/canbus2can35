@@ -14,6 +14,22 @@ final class VehicleCanParser {
     private VehicleCanParser() {
     }
 
+    static boolean handles(int id) {
+        return id == 0x316
+                || id == 0x329
+                || id == 0x044
+                || id == 0x545
+                || id == 0x541
+                || id == 0x553
+                || id == 0x169
+                || id == 0x131
+                || id == 0x132
+                || id == 0x134
+                || id == 0x4F4
+                || id == 0x58B
+                || id == 0x2B0;
+    }
+
     static void apply(Context context, CanSideband.Frame frame) {
         if (context == null || frame == null || frame.data == null) return;
         byte[] d = frame.data;
@@ -36,6 +52,13 @@ final class VehicleCanParser {
         }
         if (id == 0x545 && d.length >= 4) {
             ObdState.voltage(context, (d[3] & 0xff) / 10f);
+            return;
+        }
+        if (id == 0x132 && d.length >= 1) {
+            ObdState.voltage(context, (d[0] & 0xff) / 10f);
+            if (AppPrefs.debugCan(context)) {
+                AppLog.line(context, "CAN напряжение 0x132: " + String.format(java.util.Locale.US, "%.1fV", (d[0] & 0xff) / 10f));
+            }
             return;
         }
         if (id == 0x541 && d.length >= 8) {
@@ -75,7 +98,7 @@ final class VehicleCanParser {
             }
             return;
         }
-        if ((id == 0x131 || id == 0x132 || id == 0x134) && d.length > 0) {
+        if ((id == 0x131 || id == 0x134) && d.length > 0) {
             if (!AppPrefs.debugCan(context)) return;
             String text = "0x" + Integer.toHexString(id).toUpperCase() + " " + CanbusControl.hex(d);
             long now = System.currentTimeMillis();
@@ -90,7 +113,11 @@ final class VehicleCanParser {
             BlindSpotState.fromCan(context, id, d);
             return;
         }
-        if ((id == 0x4F4 || id == 0x2B0) && d.length > 0) {
+        if (id == 0x4F4 && d.length >= 8) {
+            BlindSpotState.fromCan(context, id, d);
+            return;
+        }
+        if (id == 0x2B0 && d.length > 0) {
             if (!AppPrefs.debugCan(context)) return;
             String text = "0x" + Integer.toHexString(id).toUpperCase() + " " + CanbusControl.hex(d);
             long now = System.currentTimeMillis();

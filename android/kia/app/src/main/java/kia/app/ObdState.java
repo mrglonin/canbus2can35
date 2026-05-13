@@ -2,12 +2,16 @@ package kia.app;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 
 final class ObdState {
     static final String ACTION_STATE = "kia.app.OBD_STATE";
 
     private static Snapshot state = new Snapshot();
     private static long lastTouchBroadcastAt;
+    private static Handler handler;
+    private static Runnable pendingTouchBroadcast;
 
     private ObdState() {
     }
@@ -115,10 +119,32 @@ final class ObdState {
         state.connected = true;
         state.status = "Kia Canbus: подключено, данные обновляются";
         state.updatedAt = System.currentTimeMillis();
-        if (state.updatedAt - lastTouchBroadcastAt < 50L) return;
-        lastTouchBroadcastAt = state.updatedAt;
+        long delta = state.updatedAt - lastTouchBroadcastAt;
+        if (delta < 50L) {
+            scheduleTouchBroadcast(context, 55L - delta);
+            return;
+        }
+        sendTouchBroadcast(context);
+    }
+
+    private static void sendTouchBroadcast(Context context) {
+        lastTouchBroadcastAt = System.currentTimeMillis();
         VehicleDisplayState.updateFromObd(context, state);
         broadcast(context);
+    }
+
+    private static void scheduleTouchBroadcast(Context context, long delayMs) {
+        if (context == null) return;
+        if (handler == null) handler = new Handler(Looper.getMainLooper());
+        if (pendingTouchBroadcast != null) handler.removeCallbacks(pendingTouchBroadcast);
+        Context app = context.getApplicationContext();
+        pendingTouchBroadcast = () -> {
+            synchronized (ObdState.class) {
+                pendingTouchBroadcast = null;
+                sendTouchBroadcast(app);
+            }
+        };
+        handler.postDelayed(pendingTouchBroadcast, Math.max(10L, delayMs));
     }
 
     private static void broadcast(Context context) {

@@ -28,16 +28,26 @@ public class RctaDebugReceiver extends BroadcastReceiver {
         }
 
         BlindSpotState.reverse(context, true);
-        byte[] data = new byte[8];
+        byte[] data;
         if ("left".equals(side)) {
-            data[1] = 0x01;
+            data = hex("0001C00000003001");
         } else if ("right".equals(side)) {
-            data[1] = 0x02;
+            data = hex("0001C00018000C61");
+        } else if ("unknown".equals(side) || "rear".equals(side)) {
+            data = hex("0001C00000000002");
         } else {
-            data[1] = 0x03;
+            data = hex("0001C00018003061");
             side = "both";
         }
-        BlindSpotState.fromCan(context, 0x58B, data);
+        BlindSpotState.fromCan(context, 0x4F4, data);
         AppLog.line(context, "RCTA debug: " + side);
+    }
+
+    private static byte[] hex(String value) {
+        byte[] out = new byte[value.length() / 2];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) Integer.parseInt(value.substring(i * 2, i * 2 + 2), 16);
+        }
+        return out;
     }
 }

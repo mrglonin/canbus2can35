@@ -147,6 +147,15 @@
         </receiver>
 
         <receiver
+            android:name=".QaScenarioReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="kia.app.QA_SCENARIO" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".NaviReceiver"
             android:enabled="true"
             android:exported="true">

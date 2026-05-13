@@ -315,15 +315,15 @@ final class TabletDashboardView extends FrameLayout {
             toast("Компас " + yes(checked));
         }), controlLp());
         addButtonRow(nav,
-                actionButton("Дружбы", 0xff1f7a67, v -> sendNavDemo()),
-                actionButton("Очистить", 0xff6a4752, v -> clearNavigation()));
+                actionButton("Навигация", 0xff2f5f8f, v -> selectTab(TAB_NAV)),
+                actionButton("Журнал", 0xff2f5f8f, v -> selectTab(TAB_DIAG)));
 
         LinearLayout media = card("Медиа");
         row.addView(media, weightedCardLp());
         mediaStatusValue = info(media, "Сейчас", "");
         addButtonRow(media,
                 actionButton("Скан", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
-                actionButton("Тест", 0xff1f7a67, v -> sendMediaDemo()));
+                actionButton("Доступ", 0xfff2b84b, v -> openNotificationSettings()));
 
         LinearLayout metrics = row();
         content.addView(metrics, sectionTopLp());
@@ -373,16 +373,12 @@ final class TabletDashboardView extends FrameLayout {
             toast("Компас " + yes(checked));
         }), controlLp());
 
-        LinearLayout tests = card("Быстрый тест");
-        row.addView(tests, weightedCardLp());
-        TextView hint = body("Тест отправляет штатные команды навигации и сырой M-CAN компас через V20 raw TX.");
-        tests.addView(hint, textBlockLp());
-        addButtonRow(tests,
-                actionButton("Маршрут: Дружбы", 0xff1f7a67, v -> sendNavDemo()),
-                actionButton("Финиш", 0xff6a4752, v -> sendFinishDemo()));
-        addButtonRow(tests,
-                actionButton("Компас N", 0xff2f5f8f, v -> sendCompassSample(0)),
-                actionButton("Компас E", 0xff2f5f8f, v -> sendCompassSample(9)));
+        LinearLayout live = card("Живые данные");
+        row.addView(live, weightedCardLp());
+        live.addView(body("Маршрут, TBT, текст и компас обновляются штатными командами адаптера V20."), textBlockLp());
+        addButtonRow(live,
+                actionButton("Скан медиа", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
+                actionButton("Диагностика", 0xfff2b84b, v -> selectTab(TAB_DIAG)));
 
         LinearLayout debug = card("Последние данные");
         content.addView(debug, sectionTopLp());
@@ -398,7 +394,7 @@ final class TabletDashboardView extends FrameLayout {
         mediaStatusValue = info(now, "Строка", "");
         addButtonRow(now,
                 actionButton("Сканировать", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
-                actionButton("Тест-трек", 0xff1f7a67, v -> sendMediaDemo()));
+                actionButton("Уведомления", 0xfff2b84b, v -> openNotificationSettings()));
 
         LinearLayout access = card("Доступ");
         row.addView(access, weightedCardLp());
@@ -543,51 +539,6 @@ final class TabletDashboardView extends FrameLayout {
         MediaMonitor.scanNow(getContext());
     }
 
-    private void sendNavDemo() {
-        Context context = getContext();
-        Intent on = new Intent("kia.app.ACTION_NAVI_ON_DATA");
-        on.putExtra("navi_on", true);
-        NavProtocol.handle(context, on);
-
-        Intent maneuver = new Intent("kia.app.ACTION_MANEUVER_DATA");
-        maneuver.putExtra("imageId", "context_ra_turn_right");
-        maneuver.putExtra("distance", "120");
-        maneuver.putExtra("unit", "м");
-        maneuver.putExtra("street", "улица Дружбы");
-        NavProtocol.handle(context, maneuver);
-
-        Intent eta = new Intent("kia.app.ACTION_ETA_DATA");
-        eta.putExtra("edistance", "4.2 км");
-        NavProtocol.handle(context, eta);
-
-        Intent speed = new Intent("kia.app.ACTION_SPEED_DATA");
-        speed.putExtra("speed_limit", "60");
-        NavProtocol.handle(context, speed);
-        toast("Навигация: Дружбы отправлена");
-    }
-
-    private void sendFinishDemo() {
-        Context context = getContext();
-        Intent maneuver = new Intent("kia.app.ACTION_MANEUVER_DATA");
-        maneuver.putExtra("imageId", "context_ra_finish");
-        maneuver.putExtra("distance", "0");
-        maneuver.putExtra("unit", "м");
-        maneuver.putExtra("street", "");
-        NavProtocol.handle(context, maneuver);
-    }
-
-    private void clearNavigation() {
-        Intent off = new Intent("kia.app.ACTION_NAVI_ON_DATA");
-        off.putExtra("navi_on", false);
-        NavProtocol.handle(getContext(), off);
-        toast("Навигация очищена");
-    }
-
-    private void sendMediaDemo() {
-        CanbusControl.sendMediaMetadata(getContext(), "TEYES USB", "Sportage", "Дружбы test");
-        Toast.makeText(getContext(), "Медиа тест отправлен", Toast.LENGTH_SHORT).show();
-    }
-
     private void openNotificationSettings() {
         Context context = getContext();
         if (context instanceof Activity) {
@@ -607,14 +558,6 @@ final class TabletDashboardView extends FrameLayout {
         if (context instanceof Activity) {
             FirmwareReleaseUpdater.downloadAndFlash((Activity) context);
         }
-    }
-
-    private void sendCompassSample(int step) {
-        byte[] frame = new byte[8];
-        frame[0] = 0x08;
-        frame[3] = (byte) (step & 0xff);
-        CanbusControl.sendRawCan(getContext(), 1, 0x115, frame, false);
-        toast("Компас 0x115 step=" + step);
     }
 
     private LinearLayout.LayoutParams sectionLp() {

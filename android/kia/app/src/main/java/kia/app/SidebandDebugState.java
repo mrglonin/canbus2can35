@@ -43,6 +43,10 @@ final class SidebandDebugState {
                 last(canM), last(canC), last(uartRx), last(uartTx), lastSaved);
     }
 
+    static synchronized boolean canRecording() {
+        return canRecording;
+    }
+
     static synchronized void setCanRecording(Context context, boolean value) {
         canRecording = value;
         line(canM, stamp() + " CAN " + (value ? "START" : "STOP"));

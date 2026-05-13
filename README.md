@@ -44,9 +44,180 @@
 кадры. Подтвержденная модель такая: приложение/магнитола говорит с прошивкой
 через ее USB/API или Raise/HU протокол, а прошивка уже переводит это в M-CAN.
 
+## Текущая рабочая база V20
+
+Эталонная прошивка для адаптера:
+
+```text
+firmware/trusted/v20/20_v08_mode1_v20_USB.bin
+firmware/trusted/v20/20_v08_mode1_v20_STLINK64K.bin
+firmware/trusted/v20/20_v08_mode1_v20.report.json
+```
+
+Проверенный адаптер:
+
+```text
+/dev/cu.usbmodemKIA1 @ 19200
+UID: 37 FF DA 05 42 47 30 38 59 41 22 43
+0x79: BB A1 41 0F 79 20 02 00 FF 01 56 32 30 00 FF
+```
+
+V20 команды:
+
+| Команда | Назначение |
+|---:|---|
+| `0x70` | raw CAN stream on/off |
+| `0x76` | pop raw CAN frame из ring buffer |
+| `0x77` | decoded snapshot |
+| `0x78` | one-shot raw CAN TX |
+| `0x79` | health/capabilities, проверка что адаптер жив |
+| `0x7A` | inject Raise/RZC `FD .. 09 ...` source-status в штатный parser прошивки |
+
+Правило архитектуры: прошивка остается маленьким gateway. Большие таблицы,
+названия, DBC, UI, обновления и логика выбора источника должны жить в Android.
+
+## Проверенный компас
+
+Компас лучше отправлять штатной USB/API командой `0x45`, не raw `CAN M`.
+
+Форма кадра:
+
+```text
+BB 41 A1 0E 45 08 00 00 DD 00 78 00 A0 CS
+```
+
+`DD` - направление. Рабочая сетка только кратная `3`: `0, 3, 6, ... 33`.
+Для удержания отображения кадр надо повторять примерно раз в `350-500 ms`.
+Без повтора приборка может вернуться в дефолт.
+
+В локальной панели используется удобная UI-инверсия:
+
+```text
+sent = (36 - ui) % 36
+```
+
+Подтверждено на машине:
+
+| UI | Отправляется `DD` | Статус |
+|---:|---:|---|
+| `0` | `0` | стабильно держит `N` |
+| `12` | `24` | стабильная кардинальная точка после инверсии |
+| `24` | `12` | стабильная противоположная точка после инверсии |
+
+Практический вывод: для APK использовать уже проверенную формулу панели, а не
+пытаться напрямую крутить M-CAN кадры `0x115`.
+
+## Проверенная навигация
+
+Навигация уже поддерживается штатными командами прошивки. Raw CAN для этого не
+нужен.
+
+| Команда | Назначение |
+|---:|---|
+| `0x48` | nav on/off |
+| `0x45` | maneuver/TBT/compass |
+| `0x47` | ETA/route status |
+| `0x4A` | street/text, UTF-16LE |
+| `0x44` | speed limit |
+
+Минимальный nav on:
+
+```text
+BB 41 A1 07 48 01 ED
+```
+
+Nav off:
+
+```text
+BB 41 A1 07 48 00 EC
+```
+
+## Проверенные источники музыки
+
+Ключевой вывод live-тестов: музыка и источники работают через `0x7A` и штатный
+media/source parser прошивки. Одиночный raw CAN ACK через `0x78` не означает, что
+приборка покажет источник.
+
+Рабочие источники:
+
+| Источник | Статус | База кадра |
+|---|---|---|
+| USB music | работает | `0x7A` + `FD 0A 09 16 ...` |
+| BT audio | работает | `0x7A` + `FD 06 09 0B 04 00` |
+| BT combo | работает | `0x0B04` + доп. BT/status |
+| FM radio | работает | `0x7A` + `FD 08 09 02 00 65 46 00` |
+| AM radio 24 | работает | `0x7A` + `FD 06 09 09 00 00` |
+| BT phone | работает как source | `0x7A` + `FD 06 09 07 01 00` |
+
+Нерабочие/неподтвержденные источники:
+
+| Источник | Статус |
+|---|---|
+| BT music `0x11` | не выводит нужный BT audio |
+| AUX `0x12` | не работает |
+| Other media `0x83` | не работает |
+| Navigation source `0x06` | не нужен как music source |
+| Media off `0x80` | не полезен для вывода |
+
+Source byte scanner после проверки:
+
+| Byte | Статус |
+|---:|---|
+| `0x02` | FM/radio подтверждено |
+| `0x09` | AM 24 radio подтверждено |
+| остальные 46 значений | закрыты как нерабочие в текущем сценарии |
+
+## Проверенные поля текста
+
+Текстовые команды идут штатным USB/API слоем:
+
+| Команда | Назначение |
+|---:|---|
+| `0x20` | radio/FM/AM text candidate |
+| `0x21` | media/source text candidate |
+| `0x22` | USB/title text |
+
+Строки кодируются `UTF-16LE`.
+
+Итог по live-тестам:
+
+| Источник | Рабочие поля |
+|---|---|
+| USB | `Full bundle`, `0x22 title`, `0x22 subtype 0x1F` |
+| BT audio | `0x22 title`, `0x20 subtype 0x1F` |
+| BT combo | `0x21 no subtype` |
+| FM radio | `0x21 no subtype` |
+| AM radio 24 | `0x20 no subtype` |
+| BT phone | рабочих text-полей не найдено |
+
+Важно по USB: старое предположение, что `0x21 subtype 0x1F/0x20` стабильно
+дает source/artist для USB, не подтвердилось как отдельный видимый вывод.
+Для APK считать надежным USB title через `0x22`, а source включать через
+`0x7A FD 0A 09 16 ...`.
+
+## Что делать в APK
+
+Текущий Android слой должен отправлять не raw CAN, а правильные USB/API команды:
+
+1. Компас: `0x45` с повтором `350-500 ms` и формулой панели.
+2. Навигация: `0x48`, `0x45`, `0x47`, `0x4A`, `0x44`.
+3. USB music: сначала `0x7A FD 0A 09 16 ...`, потом title через `0x22`.
+4. BT audio: `0x7A FD 06 09 0B 04 00`, затем проверенные поля `0x22`/`0x20 1F`.
+5. FM/AM: отдельные ветки `0x02` и `0x09`, не смешивать с USB/BT.
+6. Raw CAN `0x78` оставить для диагностики, точечного TX и будущих редких
+   сценариев, но не использовать как основной путь media/nav.
+
+Локальная панель для live-тестов сейчас находится вне git:
+
+```text
+/Volumes/SSD/canbus/tools/compass_panel/server.py
+http://127.0.0.1:8765/
+```
+
 ## Проверенная база
 
 - [docs/TRUSTED_FIRMWARE_FACTS.md](docs/TRUSTED_FIRMWARE_FACTS.md)
+- [docs/TEYES_APP_IMPLEMENTATION_README_20260513.md](docs/TEYES_APP_IMPLEMENTATION_README_20260513.md)
 - [docs/PROGRAMMER_FIRMWARE_DECODE.md](docs/PROGRAMMER_FIRMWARE_DECODE.md)
 - [docs/FM_UART_TO_MCAN_TRACE.md](docs/FM_UART_TO_MCAN_TRACE.md)
 - [docs/PROGRAMMER_FIRMWARE_UART_CHECK.md](docs/PROGRAMMER_FIRMWARE_UART_CHECK.md)
@@ -61,13 +232,13 @@ cd /Volumes/SSD/canbus/repo/android/kia
 ./gradlew assembleRelease
 ```
 
-После сборки APK автоматически копируется в:
+После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_109.apk
+/Volumes/SSD/canbus/release/kia_118.apk
 ```
 
-Номер в имени берется из `versionName`: `10.9-kia` -> `kia_109.apk`.
+Номер в имени берется из `versionName`: `11.8-kia` -> `kia_118.apk`.
 
 ## Что намеренно удалено
 

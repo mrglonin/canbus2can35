@@ -90,12 +90,13 @@ final class TpmsDashboardView extends View {
     }
 
     private void drawTires(Canvas canvas, float ox, float oy, float scale) {
-        float panelW = 410f * scale;
-        float panelH = 255f * scale;
-        float left = ox + 58f * scale;
-        float right = ox + 1280f * scale - 58f * scale - panelW;
-        float top = oy + 92f * scale;
-        float bottom = oy + 390f * scale;
+        float panelW = 382f * scale;
+        float panelH = 242f * scale;
+        float side = 52f * scale;
+        float left = ox + side;
+        float right = ox + 1280f * scale - side - panelW;
+        float top = oy + 104f * scale;
+        float bottom = oy + 376f * scale;
 
         drawTire(canvas, tire(0), 0, "Л.П.(L.F.)", left, top, panelW, panelH, scale);
         drawTire(canvas, tire(1), 1, "П.П.(R.F.)", right, top, panelW, panelH, scale);
@@ -220,17 +221,18 @@ final class TpmsDashboardView extends View {
     }
 
     private void drawCar(Canvas canvas, float ox, float oy, float scale) {
-        float carW = 340f * scale;
-        float carH = 530f * scale;
-        float carY = oy + 92f * scale;
-        drawCover(canvas, R.drawable.tpms_background_land, ox + 640f * scale - carW / 2f, carY, carW, carH);
+        float carW = 350f * scale;
+        float carH = 560f * scale;
+        float carCx = ox + 640f * scale;
+        float carCy = oy + 360f * scale;
+        drawFitAspect(canvas, R.drawable.tpms_background_land, carCx, carCy, carW, carH);
 
         if (hasAlert()) {
             drawFitAspect(canvas, R.drawable.tpms_car_model_warning,
-                    ox + 640f * scale,
-                    carY + carH * 0.54f,
-                    185f * scale,
-                    165f * scale);
+                    carCx,
+                    carCy + 58f * scale,
+                    168f * scale,
+                    150f * scale);
         }
     }
 

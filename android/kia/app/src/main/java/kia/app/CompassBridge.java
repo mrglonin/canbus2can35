@@ -17,13 +17,11 @@ import android.os.Looper;
 import java.util.Locale;
 
 final class CompassBridge implements SensorEventListener, LocationListener {
-    private static final int BUS_M_CAN = 1;
-    private static final byte[] NAV_STATUS_114 = {
-            0x0B, 0x21, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xE1, 0x0F
-    };
-    private static final byte[] NAV_STATUS_197 = {
-            0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
+    private static final long COMPASS_REPEAT_MS = 450L;
+    private static final long HEADING_MAX_AGE_MS = 2500L;
+    private static final float MIN_BEARING_SPEED_MPS = 1.5f;
+    private static final float MAX_BEARING_ACCURACY_DEG = 45f;
+    private static final float MAX_LOCATION_ACCURACY_M = 50f;
 
     private static CompassBridge instance;
 
@@ -35,7 +33,7 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         @Override
         public void run() {
             sendCompass();
-            handler.postDelayed(this, AppPrefs.navCompass(context) ? 700L : 2000L);
+            handler.postDelayed(this, AppPrefs.navCompass(context) ? COMPASS_REPEAT_MS : 2000L);
         }
     };
 
@@ -45,7 +43,6 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private boolean magneticReady;
     private float headingDegrees;
     private long lastHeadingAt;
-    private long lastStatusAt;
     private long lastLogAt;
     private String headingSource = "neutral";
 
@@ -72,7 +69,6 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     }
 
     private void startInternal() {
-        registerSensors();
         registerLocation();
         handler.removeCallbacks(tick);
         handler.post(tick);
@@ -151,7 +147,7 @@ final class CompassBridge implements SensorEventListener, LocationListener {
 
     @Override
     public void onLocationChanged(Location location) {
-        if (location != null && location.hasBearing() && location.getSpeed() > 0.8f) {
+        if (validBearing(location)) {
             setHeading(location.getBearing(), "gps");
         }
     }
@@ -188,31 +184,20 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private void sendCompass() {
         if (!AppPrefs.navCompass(context)) return;
         long now = System.currentTimeMillis();
-        if (!mCanSeenRecently()) {
+        if (lastHeadingAt == 0 || now - lastHeadingAt > HEADING_MAX_AGE_MS) {
             if (AppPrefs.debug(context) && now - lastLogAt > 10000L) {
                 lastLogAt = now;
-                AppLog.line(context, "Компас: жду живой M-CAN, raw TX не отправляю");
+                AppLog.line(context, "Компас: нет свежего GPS bearing, 0x45 не отправляю");
             }
             return;
         }
-        if (now - lastStatusAt > 1800L) {
-            lastStatusAt = now;
-            CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x114, NAV_STATUS_114);
-            CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x197, NAV_STATUS_197);
-        }
-        byte[] frame = new byte[8];
         float heading = currentHeading(now);
-        int raw = Math.round((heading + 7.5f) / 7.5f) & 0x3F;
-        frame[5] = (byte) raw;
-        CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x1E6, frame);
-        byte[] tbt = new byte[8];
-        tbt[0] = 0x08;
-        tbt[3] = (byte) compassDisplayStep(heading);
-        CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x115, tbt);
+        int uiStep = compassDisplayStep(heading);
+        CanbusControl.sendCompassStepQuiet(context, uiStep);
         if (AppPrefs.debug(context) && now - lastLogAt > 5000L) {
             lastLogAt = now;
             AppLog.line(context, String.format(Locale.US,
-                    "Компас: %.0f° raw=%02X tbt=%02X source=%s", heading, raw, tbt[3] & 0xff, headingSource));
+                    "Компас: %.0f° ui=%02X через 0x45 source=%s", heading, uiStep, headingSource));
         }
     }
 
@@ -232,8 +217,12 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         return step * 3;
     }
 
-    private boolean mCanSeenRecently() {
-        SidebandDebugState.Snapshot snapshot = SidebandDebugState.snapshot();
-        return snapshot.mAgeMs >= 0 && snapshot.mAgeMs < 5000L;
+    private static boolean validBearing(Location location) {
+        if (location == null || !location.hasBearing()) return false;
+        if (location.hasSpeed() && location.getSpeed() < MIN_BEARING_SPEED_MPS) return false;
+        if (android.os.Build.VERSION.SDK_INT >= 26
+                && location.hasBearingAccuracy()
+                && location.getBearingAccuracyDegrees() > MAX_BEARING_ACCURACY_DEG) return false;
+        return !location.hasAccuracy() || location.getAccuracy() <= MAX_LOCATION_ACCURACY_M;
     }
 }

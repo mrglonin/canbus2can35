@@ -86,6 +86,7 @@ final class NavProtocol {
         String state = extraText(intent, "state");
         NavDebugState.teyes(context, "com.yf.navinfo " + extras(intent));
         if (!teyesStateAllowsRoute(state)) {
+            AppLog.setNav(context, "Навигация TEYES: не активное ведение " + safe(state));
             finishTeyesRouteIfStale(context);
             return;
         }
@@ -513,7 +514,11 @@ final class NavProtocol {
         return !(s.equals("0") || s.equals("false") || s.equals("off")
                 || s.equals("close") || s.equals("closed")
                 || s.equals("stop") || s.equals("stopped")
-                || s.equals("idle") || s.equals("none"));
+                || s.equals("idle") || s.equals("none")
+                || s.contains("preview") || s.contains("search")
+                || s.contains("failed") || s.contains("fail")
+                || s.contains("error") || s.contains("ошиб")
+                || s.contains("navigator mode=off"));
     }
 
     private static boolean hasMeaningfulDirection(String direction) {

@@ -9,8 +9,9 @@ off by default and is controlled over the stock CDC USB protocol:
   0x77  read decoded vehicle snapshot for OBD-like UI
   0x78  one-shot raw CAN TX, bus 0=C-CAN/CAN1, bus 1=M-CAN/CAN2
   0x79  V20 health/capabilities response
+  0x7A  inject one Raise/RZC FD source-status frame into the stock parser
 
-There is deliberately no UART code in this build.
+There is deliberately no transparent UART bridge in this build.
 """
 
 from __future__ import annotations
@@ -78,6 +79,7 @@ PATCH_ASM = r"""
 
 .equ ORIG_USB_DISPATCH, 0x08005395
 .equ ORIG_USB_SEND,     0x08005fa9
+.equ ORIG_MEDIA_SOURCE, 0x080057ed
 
 .global dispatcher
 .global can0_fifo0_after
@@ -100,6 +102,8 @@ dispatcher:
     beq cmd_can_tx
     cmp r2, #0x79
     beq cmd_v20_status
+    cmp r2, #0x7a
+    beq cmd_raise_source_inject
     mov r0, r4
     pop {r4-r7, lr}
     ldr r3, =ORIG_USB_DISPATCH
@@ -189,6 +193,30 @@ cmd_v20_status:
     movs r0, #0x79
     movs r1, #9
     bl send_response
+    b handled
+
+cmd_raise_source_inject:
+    ldrb r5, [r4, #3]
+    cmp r5, #11
+    blo raise_source_bad
+    ldrb r5, [r4, #5]
+    cmp r5, #0xfd
+    bne raise_source_bad
+    ldrb r5, [r4, #7]
+    cmp r5, #0x09
+    bne raise_source_bad
+    adds r0, r4, #5
+    ldr r3, =ORIG_MEDIA_SOURCE
+    blx r3
+    movs r0, #0x7a
+    movs r1, #0
+    bl send_ack
+    b handled
+
+raise_source_bad:
+    movs r0, #0x7a
+    movs r1, #0xff
+    bl send_ack
     b handled
 
 can_tx_bad_frame:
@@ -902,6 +930,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
             "0x77": "read decoded vehicle snapshot: speed/rpm/temperatures/voltage/brake/gear and reserved OBD-like fields",
             "0x78": "one-shot raw CAN TX: payload bus, flags, id_le32, dlc, data[8]",
             "0x79": "V20 health/capabilities response, no CAN connection required",
+            "0x7A": "inject one Raise/RZC FD source-status frame into the stock media/source parser",
         },
         "vehicle_snapshot_payload": (
             "status, known24, counter_le32, speed_kmh_u16, rpm_u16, coolant_c_s16, "

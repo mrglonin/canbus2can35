@@ -11,4 +11,6 @@ motion,speed,C-CAN,0x316,8,DATA[6],km/h,confirmed,programmer_v08_and_v18_snapsho
 engine,rpm,C-CAN,0x316,8,DATA[2..3],(DATA[2] + DATA[3]*256) / 4,confirmed,programmer_v08_and_v18_snapshot
 engine,coolant_temp,C-CAN,0x329,8,DATA[1],(DATA[1] - 0x40) * 0.75,confirmed,programmer_v08_and_v18_snapshot
 body,outside_temp,C-CAN,0x044,8,DATA[3],(DATA[3] - 0x52) / 2,confirmed,programmer_v08_and_v18_snapshot
-power,voltage,C-CAN,0x545,8,DATA[3],DATA[3] * 100 mV,confirmed_in_v18_snapshot,firmware_v18
+power,voltage,M-CAN,0x132,8,DATA[0],DATA[0] / 10 V,confirmed_live,can_passive_20260513
+power,voltage_legacy,C-CAN,0x545,8,DATA[3],DATA[3] * 100 mV,historical_v18_snapshot,firmware_v18
+safety,blind_spot_rcta,C-CAN,0x4F4,8,full payload / masks,"0000C00000000001 idle; 0001... active; left/right by live masks",confirmed_live,blindspot_live_20260513

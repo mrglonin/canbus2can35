@@ -64,9 +64,11 @@ final class BlindSpotOverlayView extends View {
         float phase = (now % 900L) / 900f;
         float pulse = 0.68f + 0.32f * (1f - Math.abs(phase - 0.5f) * 2f);
 
-        drawDim(canvas, w, h, state.left, state.right);
-        if (state.left) drawSide(canvas, w, h, true, phase, pulse);
-        if (state.right) drawSide(canvas, w, h, false, phase, pulse);
+        boolean left = state.left || state.unknown;
+        boolean right = state.right || state.unknown;
+        drawDim(canvas, w, h, left, right);
+        if (left) drawSide(canvas, w, h, true, phase, pulse);
+        if (right) drawSide(canvas, w, h, false, phase, pulse);
         drawCenterWarning(canvas, w, h, state);
 
         postInvalidateOnAnimation();
@@ -145,7 +147,9 @@ final class BlindSpotOverlayView extends View {
 
         paint.setColor(0xffffffff);
         paint.setTextSize(clamp(min * 0.045f, dp(22), dp(44)));
-        String label = state.left && state.right ? "СЛЕВА И СПРАВА" : state.left ? "СЛЕВА" : "СПРАВА";
+        String label = state.unknown ? "СЗАДИ"
+                : state.left && state.right ? "СЛЕВА И СПРАВА"
+                : state.left ? "СЛЕВА" : "СПРАВА";
         canvas.drawText(label, cx, cy + size * 0.95f, paint);
     }
 

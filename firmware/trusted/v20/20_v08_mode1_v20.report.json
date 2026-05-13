@@ -3,10 +3,10 @@
   "source": "/Volumes/SSD/canbus/labs/37FFDA054247303859412243_04350008.bin",
   "source_sha256": "6b0f718f89e1bc1955dbeb03c0874d9ec83f1bf506cb1ce66920f7bca70d186f",
   "output_usb": "firmware/trusted/v20/20_v08_mode1_v20_USB.bin",
-  "output_usb_size": 20840,
-  "output_usb_sha256": "b790f7b1077358c0bac5e6eee81f96efea2fbcf90e0b39bdaf2e3e799953f95b",
+  "output_usb_size": 20892,
+  "output_usb_sha256": "de698d85df1f53d090f6dd5804847ba746b60d9958280628a41ba7b3bddb2570",
   "output_stlink": "firmware/trusted/v20/20_v08_mode1_v20_STLINK64K.bin",
-  "output_stlink_sha256": "10ef4cbccc7cd8802cecf9a8ef4dc1c32e38edbc9eda17b9cd80a0cbea9f22f0",
+  "output_stlink_sha256": "d2c26939c3f1938f7b04081e475c53559599b0c612e2c10deb45296dabed3b0d",
   "vectors": {
     "sp": "0x20010000",
     "reset": "0x08006e3d",
@@ -19,7 +19,8 @@
     "0x76": "pop one raw C-CAN/M-CAN frame from RAM ring",
     "0x77": "read decoded vehicle snapshot: speed/rpm/temperatures/voltage/brake/gear and reserved OBD-like fields",
     "0x78": "one-shot raw CAN TX: payload bus, flags, id_le32, dlc, data[8]",
-    "0x79": "V20 health/capabilities response, no CAN connection required"
+    "0x79": "V20 health/capabilities response, no CAN connection required",
+    "0x7A": "inject one Raise/RZC FD source-status frame into the stock media/source parser"
   },
   "vehicle_snapshot_payload": "status, known24, counter_le32, speed_kmh_u16, rpm_u16, coolant_c_s16, voltage_mv_u16, throttle_pct_u8, brake_u8, gear_u8, fuel_pct_u8, outside_c_s16, fuel_rate_x10_u16, odometer_km_u32, reserved2",
   "known_flags": {
@@ -45,13 +46,13 @@
   "hook_policy": "hooks run after the stock FIFO read, then return with the stock release-FIFO arguments restored",
   "stub": {
     "address": "0x08008bf8",
-    "size": 1376,
+    "size": 1428,
     "symbols": {
       "dispatcher": "0x08008bf8",
-      "can0_fifo0_after": "0x08008d20",
-      "can0_fifo1_after": "0x08008d40",
-      "can1_fifo0_after": "0x08008d60",
-      "can1_fifo1_after": "0x08008d80"
+      "can0_fifo0_after": "0x08008d52",
+      "can0_fifo1_after": "0x08008d72",
+      "can1_fifo0_after": "0x08008d92",
+      "can1_fifo1_after": "0x08008db2"
     }
   },
   "patches": [
@@ -63,24 +64,24 @@
     {
       "address": "0x0800482a",
       "old": "41 46 38 46",
-      "new": "04 F0 79 FA"
+      "new": "04 F0 92 FA"
     },
     {
       "address": "0x0800494a",
       "old": "01 21 40 46",
-      "new": "04 F0 F9 F9"
+      "new": "04 F0 12 FA"
     },
     {
       "address": "0x08004a74",
       "old": "21 46 40 46",
-      "new": "04 F0 74 F9"
+      "new": "04 F0 8D F9"
     },
     {
       "address": "0x08004b82",
       "old": "01 21 30 46",
-      "new": "04 F0 FD F8"
+      "new": "04 F0 16 F9"
     }
   ],
-  "nm": "00000000 T dispatcher\n00000026 t cmd_canlog\n00000042 t log_off\n00000054 t log_on\n0000006a t cmd_can_ring_read\n0000007c t cmd_obd_snapshot\n0000008e t cmd_can_tx\n000000a4 t cmd_v20_status\n000000d6 t can_tx_bad_frame\n000000e0 t handled\n000000e2 t send_ack\n000000ec t send_response\n00000128 T can0_fifo0_after\n00000148 T can0_fifo1_after\n00000168 T can1_fifo0_after\n00000188 T can1_fifo1_after\n000001a8 t can_ring_put_from_callsite\n0000020e t state_update_from_callsite\n00000262 t state_316\n00000286 t state_329\n000002a6 t state_044\n000002c2 t state_545\n000002dc t state_169\n000002fc t state_111\n00000318 t state_gear_unknown\n00000320 t state_394\n0000033e t state_done\n00000340 t state_init_once\n00000390 t state_snapshot_response\n000003f8 t can_send_from_frame\n0000040a t can_tx_can1\n0000040e t can_tx_can2\n00000410 t can_tx_have_base\n0000042c t can_tx_mailbox_selected\n00000452 t can_tx_ext_id\n00000458 t can_tx_id_done\n00000462 t can_tx_data_frame\n0000047a t can_tx_no_mailbox\n0000047e t can_ring_init_once\n00000490 t can_ring_reset\n000004a8 t can_ring_pop_response\n08005395 a ORIG_USB_DISPATCH\n08005fa9 a ORIG_USB_SEND\n20000f00 a LOG_FLAG\n20000f08 a RESP_BUF\n20006e00 a STATE_MAGIC\n20006e04 a STATE_KNOWN\n20006e08 a STATE_COUNTER\n20006e0c a STATE_SPEED\n20006e0e a STATE_RPM\n20006e10 a STATE_COOLANT\n20006e12 a STATE_VOLTAGE\n20006e14 a STATE_THROTTLE\n20006e15 a STATE_BRAKE\n20006e16 a STATE_GEAR\n20006e17 a STATE_FUEL\n20006e18 a STATE_OUTTEMP\n20006e1a a STATE_FUEL_RATE\n20006e1c a STATE_ODOMETER\n20006ff0 a CAN_RING_MAGIC\n20006ff4 a CAN_RING_HEAD\n20006ff6 a CAN_RING_TAIL\n20006ff8 a CAN_RING_DROP\n20007000 a CAN_RING_BUF\n40006400 a CAN1_BASE\n40006800 a CAN2_BASE\n",
+  "nm": "00000000 T dispatcher\n0000002a t cmd_canlog\n00000046 t log_off\n00000058 t log_on\n0000006e t cmd_can_ring_read\n00000080 t cmd_obd_snapshot\n00000092 t cmd_can_tx\n000000a8 t cmd_v20_status\n000000da t cmd_raise_source_inject\n000000fe t raise_source_bad\n00000108 t can_tx_bad_frame\n00000112 t handled\n00000114 t send_ack\n0000011e t send_response\n0000015a T can0_fifo0_after\n0000017a T can0_fifo1_after\n0000019a T can1_fifo0_after\n000001ba T can1_fifo1_after\n000001da t can_ring_put_from_callsite\n00000240 t state_update_from_callsite\n00000294 t state_316\n000002b8 t state_329\n000002d8 t state_044\n000002f4 t state_545\n0000030e t state_169\n0000032e t state_111\n0000034a t state_gear_unknown\n00000352 t state_394\n00000370 t state_done\n00000372 t state_init_once\n000003c2 t state_snapshot_response\n0000042a t can_send_from_frame\n0000043c t can_tx_can1\n00000440 t can_tx_can2\n00000442 t can_tx_have_base\n0000045e t can_tx_mailbox_selected\n00000484 t can_tx_ext_id\n0000048a t can_tx_id_done\n00000494 t can_tx_data_frame\n000004ac t can_tx_no_mailbox\n000004b0 t can_ring_init_once\n000004c2 t can_ring_reset\n000004da t can_ring_pop_response\n08005395 a ORIG_USB_DISPATCH\n080057ed a ORIG_MEDIA_SOURCE\n08005fa9 a ORIG_USB_SEND\n20000f00 a LOG_FLAG\n20000f08 a RESP_BUF\n20006e00 a STATE_MAGIC\n20006e04 a STATE_KNOWN\n20006e08 a STATE_COUNTER\n20006e0c a STATE_SPEED\n20006e0e a STATE_RPM\n20006e10 a STATE_COOLANT\n20006e12 a STATE_VOLTAGE\n20006e14 a STATE_THROTTLE\n20006e15 a STATE_BRAKE\n20006e16 a STATE_GEAR\n20006e17 a STATE_FUEL\n20006e18 a STATE_OUTTEMP\n20006e1a a STATE_FUEL_RATE\n20006e1c a STATE_ODOMETER\n20006ff0 a CAN_RING_MAGIC\n20006ff4 a CAN_RING_HEAD\n20006ff6 a CAN_RING_TAIL\n20006ff8 a CAN_RING_DROP\n20007000 a CAN_RING_BUF\n40006400 a CAN1_BASE\n40006800 a CAN2_BASE\n",
   "roundtrip_ok": true
 }

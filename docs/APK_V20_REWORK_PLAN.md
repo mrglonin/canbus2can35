@@ -46,16 +46,16 @@ capabilities: raw stream, snapshot, raw tx, stock canbox
 0x60 = simple settings
 ```
 
-4. Компас перевести на V20 raw TX `0x78` и отправлять bundle, а не один кадр:
+4. Компас держать на штатной команде `0x45`, не на raw M-CAN:
 
 ```text
-M-CAN 0x114 = HU/nav context
-M-CAN 0x197 = navigation status/context
-M-CAN 0x115 = visible compass/TBT display, byte0=0x08, byte3=direction
-M-CAN 0x1E6 = compass/ETA support layer
+BB 41 A1 0E 45 08 00 00 DD 00 78 00 A0 CS
+DD = (36 - uiStep) % 36
+uiStep = 0,3,6,...,33
 ```
 
-`0x115` - ключевой кандидат для видимого компаса. `0x1E6` оставлять как дополнительный слой.
+Повторять `350-500 ms`. Raw `0x115/0x1E6` больше не использовать как основной
+путь компаса в APK.
 
 ## Что приложение уже умеет
 
@@ -110,15 +110,15 @@ classic/TBT mode
 text mode: street / speed / auto
 ```
 
-Тесты:
+ADB-only QA:
 
 ```text
-Отправить nav on
-Отправить "Дружбы"
-Отправить поворот направо 120 м
-Отправить speed limit 60
-Отправить compass north/east/south/west
-Очистить navigation
+nav_active
+nav_preview
+nav_failed
+nav_finish
+nav_off
+compass --ei step N
 ```
 
 ### 3. Медиа
@@ -137,14 +137,15 @@ play state
 last sent 0x21/0x22
 ```
 
-Тесты:
+ADB-only QA:
 
 ```text
-Отправить source
-Отправить artist
-Отправить title
-Очистить media
-Radio/FM test через 0x20
+media_yandex
+media_bt_selected_paused
+media_bt_playing
+media_usb
+media_fm
+media_am
 ```
 
 ### 4. Машина
@@ -168,8 +169,9 @@ reverse
 Источник:
 
 ```text
-0x77 snapshot для быстрых полей
-0x70/0x76 raw stream для обучения новых параметров
+0x70/0x76 passive raw stream для whitelisted vehicle/RCTA IDs
+0x132 DATA[0] / 10 для voltage
+0x4F4 для blind spot/RCTA
 ```
 
 ### 5. Штатные настройки
@@ -199,7 +201,7 @@ pressure/temp thresholds
 alert sound
 RCTA enable
 RCTA overlay
-debug left/right/both/off
+ADB-only debug left/right/both/unknown/off
 ```
 
 ### 7. Диагностика
@@ -250,12 +252,12 @@ can/confirmed_can_signals.csv
 
 1. Исправить `0x74 -> 0x78`.
 2. Добавить `0x79` request/parse/status.
-3. Обновить `CompassBridge`: добавить `0x115` и bundle-repeat.
-4. Разделить текущий UI на понятные экраны.
-5. Добавить диагностику V20 и ACK decoder.
-6. Добавить лабораторию параметров.
-7. Собрать `kia_110.apk`, подписать, поставить на TEYES.
-8. Проверить на машине: V20 status, compass, nav text, media text, snapshot, raw stream.
+3. Обновить `CompassBridge`: `0x45`, GPS-bearing validity, repeat `350-500 ms`.
+4. Разделить selected source и playing source; hints не должны затирать playing MediaSession.
+5. Перевести RCTA на `0x4F4`, voltage на `0x132`.
+6. Убрать подтвержденные тесты из UI и оставить ADB-only QA receiver.
+7. Собрать `kia_118.apk`, подписать, поставить на TEYES.
+8. Проверить на машине: V20 status, compass, nav text, media text, RCTA, raw stream без debug spam.
 
 ## Что не делать
 
