@@ -208,6 +208,13 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         if (uiStep == lastSentUiStep) {
             return;
         }
+        if (!AppService.usbReady()) {
+            synchronized (CompassBridge.class) {
+                lastStatus = String.format(Locale.US, "0x45 compass: %.0f deg ui=%02X ожидает USB",
+                        heading, uiStep);
+            }
+            return;
+        }
         CanbusControl.sendCompassStepQuiet(context, uiStep);
         lastSentUiStep = uiStep;
         synchronized (CompassBridge.class) {

@@ -126,6 +126,11 @@ public class AppService extends Service {
         sendFrame(context, data, true);
     }
 
+    static boolean usbReady() {
+        AppService service = active;
+        return service != null && service.port != null;
+    }
+
     private static void sendFrame(Context context, byte[] data, boolean quiet) {
         AppService service = active;
         if (service != null) {
@@ -420,6 +425,11 @@ public class AppService extends Service {
             port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
             AppLog.setUsb(this, "Kia Canbus: подключено " + device.getDeviceName() + " 115200 8N1");
             startReader();
+            if (!AppPrefs.debugCan(this)) {
+                rawStreamEnabled = false;
+                writeOrQueue(sidebandPacket(0x70, new byte[]{0x00}), true);
+            }
+            CanbusControl.requestAdapterInfo(this);
             flushQueue();
         } catch (Exception e) {
             closePort();

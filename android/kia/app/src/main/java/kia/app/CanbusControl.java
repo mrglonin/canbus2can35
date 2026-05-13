@@ -151,16 +151,16 @@ final class CanbusControl {
     }
 
     static void sendMediaTrack(Context context, String title) {
-        sendQuiet(context, mediaSourceStatusPacket(MediaSource.USB_MUSIC));
+        send(context, mediaSourceStatusPacket(MediaSource.USB_MUSIC));
         send(context, textPacket(0x22, title, 16));
     }
 
     static void sendMediaMetadata(Context context, String source, String artist, String title) {
         MediaSource mediaSource = mediaSource(source);
-        sendQuiet(context, mediaSourceStatusPacket(mediaSource));
+        send(context, mediaSourceStatusPacket(mediaSource));
         switch (mediaSource) {
             case BLUETOOTH_AUDIO:
-                sendQuiet(context, textPacketWithSubtype(0x20, 0x1F, artist, 16));
+                send(context, textPacketWithSubtype(0x20, 0x1F, artist, 16));
                 send(context, textPacket(0x22, title, 16));
                 break;
             case FM_RADIO:
@@ -182,7 +182,7 @@ final class CanbusControl {
     }
 
     static void sendNavigationSourceQuiet(Context context) {
-        sendQuiet(context, packet(0x7A, raiseFrame(new byte[]{0x06, 0x09, 0x06, 0x00, 0x00})));
+        send(context, packet(0x7A, raiseFrame(new byte[]{0x06, 0x09, 0x06, 0x00, 0x00})));
     }
 
     static void sendCompassStep(Context context, int uiStep) {

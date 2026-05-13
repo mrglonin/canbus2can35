@@ -214,6 +214,11 @@ Source byte scanner после проверки:
 7. Raw CAN `0x78` оставить только для диагностики M-CAN, точечного TX и будущих
    редких сценариев, но не использовать как основной путь media/nav.
 
+Важно для связки APK + V21: source/status события `0x7A` и BT artist теперь
+ставятся в USB-очередь при открытии порта, а не теряются как quiet frames.
+При каждом USB connect APK автоматически запрашивает UID/version/health и
+отправляет `0x70 off`, если CAN debug не включен явно.
+
 Локальная панель для live-тестов сейчас находится вне git:
 
 ```text
@@ -245,10 +250,10 @@ cd /Volumes/SSD/canbus/repo/android/kia
 После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_126.apk
+/Volumes/SSD/canbus/release/kia_127.apk
 ```
 
-Номер в имени берется из `versionName`: `12.6-kia` -> `kia_126.apk`.
+Номер в имени берется из `versionName`: `12.7-kia` -> `kia_127.apk`.
 
 ## Что намеренно удалено
 
