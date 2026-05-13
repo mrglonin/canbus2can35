@@ -220,15 +220,15 @@ final class TpmsDashboardView extends View {
     }
 
     private void drawCar(Canvas canvas, float ox, float oy, float scale) {
-        float carW = 235f * scale;
-        float carH = 468f * scale;
-        float carY = oy + 120f * scale;
-        drawFitAspect(canvas, R.drawable.tpms_background_land, ox + 640f * scale, carY + carH / 2f, carW, carH);
+        float carW = 340f * scale;
+        float carH = 530f * scale;
+        float carY = oy + 92f * scale;
+        drawCover(canvas, R.drawable.tpms_background_land, ox + 640f * scale - carW / 2f, carY, carW, carH);
 
         if (hasAlert()) {
             drawFitAspect(canvas, R.drawable.tpms_car_model_warning,
                     ox + 640f * scale,
-                    carY + 275f * scale,
+                    carY + carH * 0.54f,
                     185f * scale,
                     165f * scale);
         }
