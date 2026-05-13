@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private TextView mediaView;
     private TextView logView;
     private ScrollView logScroll;
+    private TabletDashboardView tabletDashboardView;
     private Button navModeButton;
     private Button vehicleButton;
     private Button tpmsButton;
@@ -80,6 +81,7 @@ public class MainActivity extends Activity {
         AppService.start(this);
         ObdMonitor.start(this);
         TpmsMonitor.start(this);
+        AppUpdater.checkOnLaunch(this);
         requestNextRuntimePermission();
         updatePermissionText();
         refreshState();
@@ -108,6 +110,8 @@ public class MainActivity extends Activity {
         filter.addAction(TpmsState.ACTION_STATE);
         filter.addAction(CanbusControl.ACTION_STATE);
         filter.addAction(BlindSpotState.ACTION_STATE);
+        filter.addAction(AppUpdater.ACTION_STATE);
+        filter.addAction(FirmwareReleaseUpdater.ACTION_STATE);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -169,44 +173,16 @@ public class MainActivity extends Activity {
 
     private void buildUi() {
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xff03070c);
+        root.setBackgroundColor(0xff111317);
 
-        dashboardView = new ObdDashboardView(this);
-        root.addView(dashboardView, new FrameLayout.LayoutParams(-1, -1));
+        dashboardView = null;
+        homeTpmsView = null;
+        disabledObdView = null;
+        vehicleButton = null;
+        tpmsButton = null;
 
-        homeTpmsView = new TpmsDashboardView(this);
-        root.addView(homeTpmsView, new FrameLayout.LayoutParams(-1, -1));
-
-        disabledObdView = disabledView();
-        root.addView(disabledObdView, new FrameLayout.LayoutParams(-1, -1));
-
-        vehicleButton = glassButton("VEHICLE TEST", 18);
-        vehicleButton.setText("");
-        vehicleButton.setBackgroundResource(R.drawable.btn_vehicle_test);
-        vehicleButton.setOnClickListener(v -> {
-            if (AppPrefs.obdEnabled(this)) startActivity(new Intent(this, VehicleInfoActivity.class));
-        });
-        FrameLayout.LayoutParams vehicleLp = new FrameLayout.LayoutParams(dp(120), dp(80), Gravity.RIGHT | Gravity.BOTTOM);
-        vehicleLp.setMargins(0, 0, dp(20), dp(10));
-        root.addView(vehicleButton, vehicleLp);
-
-        Button settings = new Button(this);
-        settings.setText("");
-        settings.setBackgroundResource(R.drawable.btn_home_setting);
-        settings.setOnClickListener(v -> startActivity(new Intent(this, CanbusSettingsActivity.class)));
-        FrameLayout.LayoutParams settingsLp = new FrameLayout.LayoutParams(dp(80), dp(80), Gravity.RIGHT | Gravity.TOP);
-        settingsLp.setMargins(0, dp(18), dp(22), 0);
-        root.addView(settings, settingsLp);
-
-        tpmsButton = new Button(this);
-        tpmsButton.setText("");
-        tpmsButton.setBackgroundResource(R.drawable.btn_home_performance_test);
-        tpmsButton.setOnClickListener(v -> {
-            if (AppPrefs.tpmsEnabled(this)) startActivity(new Intent(this, TpmsActivity.class));
-        });
-        FrameLayout.LayoutParams tpmsLp = new FrameLayout.LayoutParams(dp(126), dp(126), Gravity.RIGHT | Gravity.BOTTOM);
-        tpmsLp.setMargins(0, 0, dp(7), dp(69));
-        root.addView(tpmsButton, tpmsLp);
+        tabletDashboardView = new TabletDashboardView(this);
+        root.addView(tabletDashboardView, new FrameLayout.LayoutParams(-1, -1));
 
         uartOverlayView = new UartOverlayView(this);
         uartOverlayView.setVisibility(View.GONE);
@@ -216,15 +192,7 @@ public class MainActivity extends Activity {
         blindSpotOverlayView.setVisibility(View.GONE);
         root.addView(blindSpotOverlayView, new FrameLayout.LayoutParams(-1, -1));
 
-        settingsPanel = new FrameLayout(this);
-        settingsPanel.setVisibility(View.GONE);
-        settingsPanel.setBackgroundColor(0xfff3f3f3);
-        settingsPanel.setClickable(true);
-        settingsPanel.setElevation(dp(24));
-        FrameLayout.LayoutParams panelLp = new FrameLayout.LayoutParams(-1, -1);
-        root.addView(settingsPanel, panelLp);
-
-        buildSettingsPanel();
+        settingsPanel = null;
         setContentView(root);
         refreshSectionVisibility();
     }
@@ -674,6 +642,7 @@ public class MainActivity extends Activity {
         if (obdView != null) obdView.setText(cleanStatusLine(vehicle.status));
         if (tpmsView != null) tpmsView.setText(cleanStatusLine(tpms.status));
         if (logView != null) logView.setText(AppLog.text());
+        if (tabletDashboardView != null) tabletDashboardView.refresh();
         if (dashboardView != null && AppPrefs.obdEnabled(this)) dashboardView.setSnapshot(vehicle);
         if (homeTpmsView != null) homeTpmsView.setSnapshot(tpms);
         refreshSectionVisibility();
@@ -688,6 +657,7 @@ public class MainActivity extends Activity {
         if (disabledObdView != null) disabledObdView.setVisibility(!obd && !tpms ? View.VISIBLE : View.GONE);
         if (vehicleButton != null) vehicleButton.setVisibility(obd ? View.VISIBLE : View.GONE);
         if (tpmsButton != null) tpmsButton.setVisibility(tpms && obd ? View.VISIBLE : View.GONE);
+        if (tabletDashboardView != null) tabletDashboardView.refresh();
         if (uartOverlayView != null) {
             uartOverlayView.setVisibility(View.GONE);
         }

@@ -112,15 +112,15 @@ FD .. 09 <source> ...
 - `0x114/0x197` как обязательную модель отправки медиа;
 - clean-C замену штатной прошивки.
 
-## 6. Текущий мод v19
+## 6. Текущий мод v20
 
-`v19` не заменяет модель автора. Он только добавляет sideband к штатной
+`v20` не заменяет модель автора. Он только добавляет sideband к штатной
 прошивке v08.
 
 Файл для USB update:
 
 ```text
-firmware/trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx_USB.bin
+firmware/trusted/v20/20_v08_mode1_v20_USB.bin
 ```
 
 Команды:
@@ -131,6 +131,7 @@ firmware/trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx_USB.bin
 | `0x76` | прочитать один raw CAN кадр из ring buffer |
 | `0x77` | прочитать decoded snapshot |
 | `0x78` | одноразово отправить raw CAN кадр |
+| `0x79` | V20 health/capabilities без CAN-подключения |
 
 Ограничение: `0x78` не воспроизводит штатную медиа/навигационную логику. Для
 медиа и навигации приложение должно говорить с прошивкой в ее родном USB/API

@@ -51,6 +51,9 @@ public class CanbusSettingsActivity extends Activity {
     private TextView statusValue;
     private TextView uidValue;
     private TextView versionValue;
+    private TextView v20StatusValue;
+    private TextView v20ApiValue;
+    private TextView v20CapsValue;
     private TextView sourceValue;
     private TextView updateValue;
     private TextView vehicleStatusValue;
@@ -67,6 +70,12 @@ public class CanbusSettingsActivity extends Activity {
     private TextView tpmsStatusValue;
     private TextView tpmsDataValue;
     private TextView appVersionValue;
+    private TextView appUpdateStatusValue;
+    private TextView appUpdateReleaseValue;
+    private TextView firmwareReleaseStatusValue;
+    private TextView firmwareReleaseAssetValue;
+    private Button appUpdateInstallButton;
+    private Button firmwareReleaseFlashButton;
     private TextView tpmsLowValue;
     private TextView tpmsHighValue;
     private TextView ampFaderValue;
@@ -137,6 +146,8 @@ public class CanbusSettingsActivity extends Activity {
         filter.addAction(NavDebugState.ACTION_STATE);
         filter.addAction(SidebandDebugState.ACTION_STATE);
         filter.addAction(BlindSpotState.ACTION_STATE);
+        filter.addAction(AppUpdater.ACTION_STATE);
+        filter.addAction(FirmwareReleaseUpdater.ACTION_STATE);
         filter.addAction(CanbusControl.ACTION_FRAME_RECEIVED);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -184,7 +195,8 @@ public class CanbusSettingsActivity extends Activity {
 
     private void buildUi() {
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xffeef2f6);
+        boolean compact = compactUi();
+        root.setBackgroundColor(0xff111317);
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
@@ -193,16 +205,16 @@ public class CanbusSettingsActivity extends Activity {
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setBackgroundColor(0xff121522);
-        top.setPadding(dp(22), 0, dp(18), 0);
-        page.addView(top, new LinearLayout.LayoutParams(-1, dp(82)));
+        top.setBackgroundColor(0xff181b20);
+        top.setPadding(dp(compact ? 8 : 18), 0, dp(compact ? 8 : 18), 0);
+        page.addView(top, new LinearLayout.LayoutParams(-1, dp(compact ? 68 : 82)));
 
         LinearLayout tabRow = new LinearLayout(this);
         tabRow.setOrientation(LinearLayout.HORIZONTAL);
         tabRow.setGravity(Gravity.CENTER_VERTICAL);
         tabRow.setPadding(0, 0, 0, 0);
-        LinearLayout.LayoutParams tabsLp = new LinearLayout.LayoutParams(0, dp(48), 1);
-        tabsLp.setMargins(0, 0, dp(16), 0);
+        LinearLayout.LayoutParams tabsLp = new LinearLayout.LayoutParams(0, dp(compact ? 44 : 48), 1);
+        tabsLp.setMargins(0, 0, dp(compact ? 8 : 16), 0);
         top.addView(tabRow, tabsLp);
         addTab(tabRow, TAB_OBD, "OBD");
         addTab(tabRow, TAB_TPMS, "TPMS");
@@ -211,14 +223,15 @@ public class CanbusSettingsActivity extends Activity {
         addTab(tabRow, TAB_SETTINGS, "Настройки");
 
         Button close = iconButton("×", v -> closeSettings());
-        top.addView(close, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        top.addView(close, new LinearLayout.LayoutParams(dp(compact ? 48 : 56), dp(compact ? 48 : 56)));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
         page.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(28), dp(22), dp(28), dp(28));
+        content.setPadding(dp(compact ? 10 : 28), dp(compact ? 12 : 22),
+                dp(compact ? 10 : 28), dp(compact ? 18 : 28));
         scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
 
         uartOverlayView = new UartOverlayView(this);
@@ -237,14 +250,14 @@ public class CanbusSettingsActivity extends Activity {
     private void addTab(LinearLayout parent, int id, String text) {
         TextView tab = new TextView(this);
         tab.setText(text);
-        tab.setTextSize(14);
+        tab.setTextSize(compactUi() ? 11 : 14);
         tab.setTypeface(Typeface.DEFAULT_BOLD);
         tab.setGravity(Gravity.CENTER);
         tab.setSingleLine(true);
         tab.setClickable(true);
         tab.setOnClickListener(v -> selectTab(id));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1);
-        lp.setMargins(dp(3), 0, dp(3), 0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(compactUi() ? 40 : 46), 1);
+        lp.setMargins(dp(compactUi() ? 2 : 3), 0, dp(compactUi() ? 2 : 3), 0);
         parent.addView(tab, lp);
         tabs[id] = tab;
     }
@@ -263,9 +276,9 @@ public class CanbusSettingsActivity extends Activity {
             boolean enabled = isTabAvailable(i);
             tab.setVisibility(enabled ? View.VISIBLE : View.GONE);
             boolean selected = i == currentTab;
-            tab.setTextColor(selected ? 0xff10131f : 0xffc8d0e0);
-            tab.setBackground(roundedStroke(selected ? 0xffffffff : 0xff252a3d, 22,
-                    selected ? 0xffffffff : 0xff30374d));
+            tab.setTextColor(selected ? 0xff14171c : 0xffd8dde6);
+            tab.setBackground(roundedStroke(selected ? 0xfff2b84b : 0xff252a31, 8,
+                    selected ? 0xfff2b84b : 0xff333842));
         }
     }
 
@@ -313,6 +326,9 @@ public class CanbusSettingsActivity extends Activity {
         statusValue = null;
         uidValue = null;
         versionValue = null;
+        v20StatusValue = null;
+        v20ApiValue = null;
+        v20CapsValue = null;
         sourceValue = null;
         updateValue = null;
         vehicleStatusValue = null;
@@ -329,6 +345,12 @@ public class CanbusSettingsActivity extends Activity {
         tpmsStatusValue = null;
         tpmsDataValue = null;
         appVersionValue = null;
+        appUpdateStatusValue = null;
+        appUpdateReleaseValue = null;
+        firmwareReleaseStatusValue = null;
+        firmwareReleaseAssetValue = null;
+        appUpdateInstallButton = null;
+        firmwareReleaseFlashButton = null;
         tpmsLowValue = null;
         tpmsHighValue = null;
         ampFaderValue = null;
@@ -456,11 +478,15 @@ public class CanbusSettingsActivity extends Activity {
         statusValue = infoRow(state, "CAN", "");
         uidValue = infoRow(state, "UID", "");
         versionValue = infoRow(state, "Версия", "");
+        v20StatusValue = infoRow(state, "V20", "");
+        v20ApiValue = infoRow(state, "API", "");
+        v20CapsValue = infoRow(state, "Caps", "");
         updateValue = infoRow(state, "Прошивка", "");
 
         GridLayout actions = grid(2);
         state.addView(actions, matchWrap());
         gridButton(actions, "Запросить ID / версию", v -> CanbusControl.requestAdapterInfo(this));
+        gridButton(actions, "Проверить V20 0x79", v -> CanbusControl.requestV20Status(this));
         gridButton(actions, "Подключить USB / CAN", v -> {
             AppService.start(this);
             ObdMonitor.restart(this);
@@ -470,17 +496,15 @@ public class CanbusSettingsActivity extends Activity {
         LinearLayout firmware = card();
         content.addView(firmware, cardLp());
         addCardTitle(firmware, "Прошивка CAN адаптера");
-        TextView firmwareText = bodyText("Сначала переведите адаптер в режим прошивки и дождитесь подтверждения, затем выберите файл прошивки.");
-        firmwareText.setTextColor(0xff606675);
+        TextView firmwareText = bodyText("Приложение берёт BIN из git-манифеста и само запускает штатный USB update. Отдельно включать режим прошивки не нужно.");
+        firmwareText.setTextColor(0xffa4abb6);
         firmware.addView(firmwareText, matchWrap());
-        GridLayout firmwareActions = grid(2);
-        firmware.addView(firmwareActions, matchWrap());
-        gridButton(firmwareActions, "Режим прошивки", v -> {
-            CanbusControl.sendUpdateStart(this);
-            Toast.makeText(this, "Команда режима прошивки отправлена", Toast.LENGTH_SHORT).show();
-            refresh();
-        });
-        gridButton(firmwareActions, "Выбрать файл", v -> pickFirmware());
+        firmwareReleaseStatusValue = infoRow(firmware, "GitHub", "");
+        firmwareReleaseAssetValue = infoRow(firmware, "BIN", "");
+        GridLayout releaseActions = grid(2);
+        firmware.addView(releaseActions, matchWrap());
+        gridButton(releaseActions, "Проверить BIN", v -> FirmwareReleaseUpdater.checkNow(this));
+        firmwareReleaseFlashButton = gridButton(releaseActions, "Скачать / прошить", v -> FirmwareReleaseUpdater.downloadAndFlash(this));
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
         firmware.addView(progressBar, new LinearLayout.LayoutParams(-1, dp(32)));
@@ -652,6 +676,20 @@ public class CanbusSettingsActivity extends Activity {
         });
         app.addView(delay, new LinearLayout.LayoutParams(-1, dp(42)));
 
+        LinearLayout updates = card();
+        content.addView(updates, cardLp());
+        addCardTitle(updates, "Обновление приложения");
+        appUpdateStatusValue = infoRow(updates, "Статус", "");
+        appUpdateReleaseValue = infoRow(updates, "GitHub", "");
+        updates.addView(check("Проверять при запуске", AppPrefs.updateCheckOnLaunch(this), (button, checked) -> {
+            AppPrefs.setUpdateCheckOnLaunch(this, checked);
+            savedToast();
+        }));
+        GridLayout updateActions = grid(2);
+        updates.addView(updateActions, matchWrap());
+        gridButton(updateActions, "Проверить GitHub", v -> AppUpdater.checkNow(this));
+        appUpdateInstallButton = gridButton(updateActions, "Скачать / установить", v -> AppUpdater.downloadAndInstall(this));
+
         LinearLayout canDebug = card();
         content.addView(canDebug, cardLp());
         addCardTitle(canDebug, "Отладка CAN");
@@ -777,6 +815,9 @@ public class CanbusSettingsActivity extends Activity {
         }
         if (uidValue != null) uidValue.setText(can.adapterUid);
         if (versionValue != null) versionValue.setText(can.firmwareVersion);
+        if (v20StatusValue != null) v20StatusValue.setText(can.v20Status);
+        if (v20ApiValue != null) v20ApiValue.setText(can.v20Api);
+        if (v20CapsValue != null) v20CapsValue.setText(can.v20Capabilities);
         if (sourceValue != null) sourceValue.setText(vehicle.source);
         if (updateValue != null) updateValue.setText(can.updateStatus);
         if (vehicleStatusValue != null) vehicleStatusValue.setText(cleanVehicleStatus(vehicle));
@@ -785,6 +826,35 @@ public class CanbusSettingsActivity extends Activity {
         if (tpmsStatusValue != null) tpmsStatusValue.setText(tpms.status + " | " + (tpms.connected ? "подключено" : "нет подключения"));
         if (tpmsDataValue != null) tpmsDataValue.setText(tpms.connected || hasTpmsData(tpms) ? "данные подключено" : "данные не получены");
         if (appVersionValue != null) appVersionValue.setText(versionText());
+        if (appUpdateStatusValue != null) {
+            AppUpdater.Snapshot update = AppUpdater.snapshot();
+            appUpdateStatusValue.setText(update.status);
+            appUpdateReleaseValue.setText(updateText(update));
+            if (appUpdateInstallButton != null) {
+                appUpdateInstallButton.setEnabled(update.updateAvailable || update.downloaded);
+                appUpdateInstallButton.setText(update.downloaded ? "Установить APK" : "Скачать / установить");
+            }
+        }
+        if (firmwareReleaseStatusValue != null) {
+            FirmwareReleaseUpdater.Snapshot firmware = FirmwareReleaseUpdater.snapshot();
+            firmwareReleaseStatusValue.setText(firmware.status);
+            firmwareReleaseAssetValue.setText(firmwareUpdateText(firmware));
+            if (firmwareReleaseFlashButton != null) {
+                boolean canFlash = (!TextUtils.isEmpty(firmware.downloadUrl) || firmware.downloaded)
+                        && (firmware.assetSize <= 0 || firmware.assetSize <= 114688);
+                firmwareReleaseFlashButton.setEnabled(canFlash);
+                firmwareReleaseFlashButton.setText(firmware.downloading || firmware.flashing ? "Идёт процесс" : "Скачать / прошить");
+            }
+            if (progressBar != null) {
+                if (firmware.downloading || firmware.flashing) {
+                    progressBar.setProgress(Math.min(100, Math.round(firmware.downloadedBytes * 100f / Math.max(1, firmware.totalBytes))));
+                } else if (firmware.downloaded) {
+                    progressBar.setProgress(100);
+                } else {
+                    progressBar.setProgress(0);
+                }
+            }
+        }
         if (tpmsLowValue != null) tpmsLowValue.setText(String.format(Locale.US, "%.1f Bar", AppPrefs.tpmsLowBar(this)));
         if (tpmsHighValue != null) tpmsHighValue.setText(String.format(Locale.US, "%.1f Bar", AppPrefs.tpmsHighBar(this)));
         if (mediaValue != null) mediaValue.setText(AppLog.media());
@@ -948,6 +1018,39 @@ public class CanbusSettingsActivity extends Activity {
         } catch (Exception e) {
             return "не получена";
         }
+    }
+
+    private String updateText(AppUpdater.Snapshot update) {
+        if (update == null) return "";
+        StringBuilder text = new StringBuilder();
+        text.append("сейчас ").append(emptyDash(update.currentVersion));
+        if (update.currentRelease > 0) text.append(" / ").append(update.currentRelease);
+        if (update.latestRelease > 0 || !TextUtils.isEmpty(update.assetName)) {
+            text.append("  |  latest ");
+            if (update.latestRelease > 0) text.append(update.latestRelease).append(' ');
+            text.append(emptyDash(update.assetName));
+        }
+        if (update.downloading) {
+            text.append("  |  ").append(downloadProgress(update.downloadedBytes, update.totalBytes));
+        }
+        return text.toString();
+    }
+
+    private String firmwareUpdateText(FirmwareReleaseUpdater.Snapshot firmware) {
+        if (firmware == null) return "";
+        StringBuilder text = new StringBuilder();
+        if (!TextUtils.isEmpty(firmware.tagName)) text.append(firmware.tagName).append("  |  ");
+        text.append(emptyDash(firmware.assetName));
+        if (firmware.assetSize > 0) text.append("  |  ").append(firmware.assetSize / 1024).append(" KB");
+        if (firmware.downloading || firmware.flashing) {
+            text.append("  |  ").append(downloadProgress(firmware.downloadedBytes, firmware.totalBytes));
+        }
+        return text.toString();
+    }
+
+    private String downloadProgress(long done, long total) {
+        if (total <= 0) return (done / 1024) + " KB";
+        return Math.min(100, Math.round(done * 100f / total)) + "%";
     }
 
     private TextView thresholdRow(LinearLayout parent, String label, float value, float minusStep, float plusStep, boolean low) {
@@ -1155,31 +1258,32 @@ public class CanbusSettingsActivity extends Activity {
     private void sectionHeader(String title, String subtitle) {
         TextView t = new TextView(this);
         t.setText(title);
-        t.setTextColor(0xff10131f);
-        t.setTextSize(25);
+        t.setTextColor(0xfff4f1ea);
+        t.setTextSize(compactUi() ? 21 : 25);
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setGravity(Gravity.LEFT);
         content.addView(t, new LinearLayout.LayoutParams(-1, -2));
 
         TextView s = bodyText(subtitle);
-        s.setTextColor(0xff606675);
+        s.setTextColor(0xffa4abb6);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, dp(4), 0, dp(16));
+        lp.setMargins(0, dp(4), 0, dp(compactUi() ? 12 : 16));
         content.addView(s, lp);
     }
 
     private LinearLayout card() {
         LinearLayout view = new LinearLayout(this);
         view.setOrientation(LinearLayout.VERTICAL);
-        view.setPadding(dp(18), dp(14), dp(18), dp(16));
-        view.setBackground(rounded(0xffffffff, 8));
+        view.setPadding(dp(compactUi() ? 12 : 18), dp(compactUi() ? 12 : 14),
+                dp(compactUi() ? 12 : 18), dp(compactUi() ? 12 : 16));
+        view.setBackground(roundedStroke(0xfff4f1ea, 8, 0xffddd7ca));
         view.setElevation(dp(2));
         return view;
     }
 
     private LinearLayout.LayoutParams cardLp() {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, 0, 0, dp(14));
+        lp.setMargins(0, 0, 0, dp(compactUi() ? 10 : 14));
         return lp;
     }
 
@@ -1193,7 +1297,7 @@ public class CanbusSettingsActivity extends Activity {
         TextView v = new TextView(this);
         v.setText(title);
         v.setTextColor(0xff10131f);
-        v.setTextSize(18);
+        v.setTextSize(compactUi() ? 16 : 18);
         v.setTypeface(Typeface.DEFAULT_BOLD);
         v.setGravity(Gravity.LEFT);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
@@ -1206,53 +1310,59 @@ public class CanbusSettingsActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(5), 0, dp(5));
-        parent.addView(row, new LinearLayout.LayoutParams(-1, dp(42)));
+        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
 
         TextView name = new TextView(this);
         name.setText(label);
         name.setTextColor(0xff6d7280);
-        name.setTextSize(14);
+        name.setTextSize(compactUi() ? 12 : 14);
         name.setTypeface(Typeface.DEFAULT_BOLD);
-        row.addView(name, new LinearLayout.LayoutParams(dp(145), -1));
+        row.addView(name, new LinearLayout.LayoutParams(dp(compactUi() ? 112 : 145), -2));
 
         TextView text = new TextView(this);
         text.setText(value);
         text.setTextColor(0xff111827);
-        text.setTextSize(14);
+        text.setTextSize(compactUi() ? 12 : 14);
         text.setGravity(Gravity.CENTER_VERTICAL);
-        text.setSingleLine(true);
-        row.addView(text, new LinearLayout.LayoutParams(0, -1, 1));
+        text.setSingleLine(!compactUi());
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
         return text;
     }
 
     private TextView permissionStatusRow(LinearLayout parent, String label, Button[] buttonOut, View.OnClickListener listener) {
         LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setOrientation(compactUi() ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(16), dp(6), dp(12), dp(6));
+        row.setPadding(dp(compactUi() ? 12 : 16), dp(6), dp(compactUi() ? 12 : 12), dp(6));
         row.setBackground(roundedStroke(0xfff7f9fc, 14, 0xffdfe5ef));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(62));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, compactUi() ? -2 : dp(62));
         lp.setMargins(0, dp(5), 0, dp(5));
         parent.addView(row, lp);
 
         TextView name = new TextView(this);
         name.setText(label);
         name.setTextColor(0xff1f2430);
-        name.setTextSize(15.5f);
+        name.setTextSize(compactUi() ? 13.5f : 15.5f);
         name.setTypeface(Typeface.DEFAULT_BOLD);
         name.setGravity(Gravity.CENTER_VERTICAL);
-        row.addView(name, new LinearLayout.LayoutParams(0, -1, 1));
+        row.addView(name, compactUi()
+                ? new LinearLayout.LayoutParams(-1, dp(30))
+                : new LinearLayout.LayoutParams(0, -1, 1));
 
         TextView status = new TextView(this);
         status.setTextColor(0xff8a1f1f);
-        status.setTextSize(15);
+        status.setTextSize(compactUi() ? 13 : 15);
         status.setTypeface(Typeface.DEFAULT_BOLD);
         status.setGravity(Gravity.CENTER);
-        row.addView(status, new LinearLayout.LayoutParams(dp(124), -1));
+        row.addView(status, compactUi()
+                ? new LinearLayout.LayoutParams(-1, dp(30))
+                : new LinearLayout.LayoutParams(dp(124), -1));
 
         Button action = button("Запросить", 0xff151928, listener);
-        LinearLayout.LayoutParams actionLp = new LinearLayout.LayoutParams(dp(132), dp(46));
-        actionLp.setMargins(dp(10), 0, 0, 0);
+        LinearLayout.LayoutParams actionLp = compactUi()
+                ? new LinearLayout.LayoutParams(-1, dp(44))
+                : new LinearLayout.LayoutParams(dp(132), dp(46));
+        actionLp.setMargins(compactUi() ? 0 : dp(10), compactUi() ? dp(6) : 0, 0, 0);
         row.addView(action, actionLp);
         buttonOut[0] = action;
         return status;
@@ -1262,7 +1372,7 @@ public class CanbusSettingsActivity extends Activity {
         TextView v = new TextView(this);
         v.setText(text);
         v.setTextColor(0xff202433);
-        v.setTextSize(15);
+        v.setTextSize(compactUi() ? 13 : 15);
         v.setLineSpacing(dp(2), 1.0f);
         v.setSingleLine(false);
         return v;
@@ -1270,7 +1380,7 @@ public class CanbusSettingsActivity extends Activity {
 
     private GridLayout grid(int columns) {
         GridLayout grid = new GridLayout(this);
-        grid.setColumnCount(columns);
+        grid.setColumnCount(adaptiveColumns(columns));
         grid.setUseDefaultMargins(false);
         return grid;
     }
@@ -1278,8 +1388,8 @@ public class CanbusSettingsActivity extends Activity {
     private TextView metric(GridLayout grid, String title, String value) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(16), dp(12), dp(16), dp(14));
-        box.setBackground(rounded(0xffffffff, 8));
+        box.setPadding(dp(compactUi() ? 12 : 16), dp(12), dp(compactUi() ? 12 : 16), dp(14));
+        box.setBackground(roundedStroke(0xffffffff, 8, 0xffddd7ca));
         box.setElevation(dp(2));
 
         TextView label = new TextView(this);
@@ -1292,7 +1402,7 @@ public class CanbusSettingsActivity extends Activity {
         TextView data = new TextView(this);
         data.setText(value);
         data.setTextColor(0xff111827);
-        data.setTextSize(27);
+        data.setTextSize(compactUi() ? 23 : 27);
         data.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams dataLp = new LinearLayout.LayoutParams(-1, -2);
         dataLp.setMargins(0, dp(8), 0, 0);
@@ -1300,7 +1410,7 @@ public class CanbusSettingsActivity extends Activity {
 
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
         lp.width = 0;
-        lp.height = dp(104);
+        lp.height = dp(compactUi() ? 92 : 104);
         lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
         lp.setMargins(dp(6), dp(6), dp(6), dp(6));
         grid.addView(box, lp);
@@ -1311,7 +1421,7 @@ public class CanbusSettingsActivity extends Activity {
         Button b = button(text, 0xff151928, listener);
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
         lp.width = 0;
-        lp.height = dp(52);
+        lp.height = dp(compactUi() ? 48 : 52);
         lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
         lp.setMargins(dp(5), dp(5), dp(5), dp(5));
         grid.addView(b, lp);
@@ -1332,7 +1442,7 @@ public class CanbusSettingsActivity extends Activity {
 
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
         lp.width = 0;
-        lp.height = dp(134);
+        lp.height = dp(compactUi() ? 124 : 134);
         lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
         lp.setMargins(dp(6), dp(6), dp(6), dp(6));
         grid.addView(box, lp);
@@ -1348,12 +1458,12 @@ public class CanbusSettingsActivity extends Activity {
         row.setPadding(dp(16), 0, dp(12), 0);
         row.setBackground(roundedStroke(0xfff7f9fc, 14, 0xffdfe5ef));
         row.setClickable(true);
-        wrap.addView(row, new FrameLayout.LayoutParams(-1, dp(58)));
+        wrap.addView(row, new FrameLayout.LayoutParams(-1, dp(compactUi() ? 64 : 58)));
 
         TextView label = new TextView(this);
         label.setText(text);
         label.setTextColor(0xff1f2430);
-        label.setTextSize(15.5f);
+        label.setTextSize(compactUi() ? 13.5f : 15.5f);
         label.setTypeface(Typeface.DEFAULT_BOLD);
         label.setGravity(Gravity.CENTER_VERTICAL);
         label.setSingleLine(false);
@@ -1364,8 +1474,8 @@ public class CanbusSettingsActivity extends Activity {
         toggle.setText(null);
         toggle.setMinWidth(dp(60));
         toggle.setPadding(dp(8), 0, 0, 0);
-        toggle.setScaleX(1.06f);
-        toggle.setScaleY(1.06f);
+        toggle.setScaleX(compactUi() ? 0.94f : 1.06f);
+        toggle.setScaleY(compactUi() ? 0.94f : 1.06f);
         tintSwitch(toggle);
         toggle.setChecked(checked);
         toggle.setOnCheckedChangeListener(listener);
@@ -1387,7 +1497,7 @@ public class CanbusSettingsActivity extends Activity {
     private Button button(String text, int color, View.OnClickListener listener) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextSize(15);
+        b.setTextSize(compactUi() ? 13 : 15);
         b.setTextColor(0xffffffff);
         b.setAllCaps(false);
         b.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1402,8 +1512,25 @@ public class CanbusSettingsActivity extends Activity {
 
     private Button iconButton(String text, View.OnClickListener listener) {
         Button b = button(text, 0xff252a3d, listener);
-        b.setTextSize(24);
+        b.setTextSize(compactUi() ? 22 : 24);
         return b;
+    }
+
+    private boolean compactUi() {
+        return screenWidthDp() < 720;
+    }
+
+    private int adaptiveColumns(int requested) {
+        int width = screenWidthDp();
+        if (width < 720) return 1;
+        if (width < 980) return Math.min(requested, 2);
+        return requested;
+    }
+
+    private int screenWidthDp() {
+        float density = getResources().getDisplayMetrics().density;
+        int px = getResources().getDisplayMetrics().widthPixels;
+        return density <= 0 ? px : Math.round(px / density);
     }
 
     private void savedToast() {

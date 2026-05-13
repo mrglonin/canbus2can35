@@ -18,6 +18,9 @@ android/**/.idea/
 # /Volumes/SSD/canbus/release.
 release/
 *.apk
+!updates/
+!updates/*.apk
+!updates/*.json
 
 # Keep random firmware dumps out of git. Only trusted, documented binaries are
 # allowed in firmware/trusted.

@@ -188,19 +188,31 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private void sendCompass() {
         if (!AppPrefs.navCompass(context)) return;
         long now = System.currentTimeMillis();
+        if (!mCanSeenRecently()) {
+            if (AppPrefs.debug(context) && now - lastLogAt > 10000L) {
+                lastLogAt = now;
+                AppLog.line(context, "Компас: жду живой M-CAN, raw TX не отправляю");
+            }
+            return;
+        }
         if (now - lastStatusAt > 1800L) {
             lastStatusAt = now;
             CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x114, NAV_STATUS_114);
             CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x197, NAV_STATUS_197);
         }
         byte[] frame = new byte[8];
-        int raw = Math.round((currentHeading(now) + 7.5f) / 7.5f) & 0x3F;
+        float heading = currentHeading(now);
+        int raw = Math.round((heading + 7.5f) / 7.5f) & 0x3F;
         frame[5] = (byte) raw;
         CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x1E6, frame);
+        byte[] tbt = new byte[8];
+        tbt[0] = 0x08;
+        tbt[3] = (byte) compassDisplayStep(heading);
+        CanbusControl.sendRawCanQuiet(context, BUS_M_CAN, 0x115, tbt);
         if (AppPrefs.debug(context) && now - lastLogAt > 5000L) {
             lastLogAt = now;
             AppLog.line(context, String.format(Locale.US,
-                    "Компас: %.0f° raw=%02X source=%s", currentHeading(now), raw, headingSource));
+                    "Компас: %.0f° raw=%02X tbt=%02X source=%s", heading, raw, tbt[3] & 0xff, headingSource));
         }
     }
 
@@ -213,5 +225,15 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         float out = value % 360f;
         if (out < 0f) out += 360f;
         return out;
+    }
+
+    private static int compassDisplayStep(float heading) {
+        int step = Math.round(normalize(heading) / 30f) % 12;
+        return step * 3;
+    }
+
+    private boolean mCanSeenRecently() {
+        SidebandDebugState.Snapshot snapshot = SidebandDebugState.snapshot();
+        return snapshot.mAgeMs >= 0 && snapshot.mAgeMs < 5000L;
     }
 }

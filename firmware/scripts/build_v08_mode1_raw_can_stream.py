@@ -8,6 +8,7 @@ off by default and is controlled over the stock CDC USB protocol:
   0x76  pop one raw CAN frame from the RAM ring
   0x77  read decoded vehicle snapshot for OBD-like UI
   0x78  one-shot raw CAN TX, bus 0=C-CAN/CAN1, bus 1=M-CAN/CAN2
+  0x79  V20 health/capabilities response
 
 There is deliberately no UART code in this build.
 """
@@ -15,35 +16,34 @@ There is deliberately no UART code in this build.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
+import struct
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
-from build_v08_mode1_cdc_can_uart_sideband import (
+REPO_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = REPO_ROOT.parent
+TOOLS_DIR = REPO_ROOT / "tools"
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+from decode_2can35_update import (
     APP_FLASH_OFF,
-    DEFAULT_V08,
     FLASH_BASE,
     HEADER_LEN,
-    STUB_ADDR,
-    TOOLCHAIN,
-    encode_thumb_bl,
-    encode_thumb_b_w,
-    ensure_pkg_len,
-    patch_exact,
-    pkg_off,
-    sha256,
-    u32,
+    make_stlink_app_image,
+    transform_package,
 )
-from decode_2can35_update import make_stlink_app_image, transform_package
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-LOCAL_V08 = REPO_ROOT.parent / "incoming/downloads_root_20260509/firmware/37FFDA054247303859412243_04350008.bin"
-PROGRAMMER_V08 = LOCAL_V08 if LOCAL_V08.exists() else DEFAULT_V08
-LOCAL_TOOLCHAIN = REPO_ROOT.parent / "toolchains/arm-gnu-toolchain-15.2.rel1-darwin-arm64-arm-none-eabi/bin"
-BUILD_TOOLCHAIN = LOCAL_TOOLCHAIN if LOCAL_TOOLCHAIN.exists() else TOOLCHAIN
+APP_BASE = FLASH_BASE + APP_FLASH_OFF
+STUB_ADDR = 0x08008BF8
+PROGRAMMER_V08 = WORKSPACE_ROOT / "labs/37FFDA054247303859412243_04350008.bin"
+BUILD_TOOLCHAIN = WORKSPACE_ROOT / "tools/toolchains/arm-gnu-toolchain-15.2.rel1-darwin-arm64-arm-none-eabi/bin"
 
 
 PATCH_ASM = r"""
@@ -98,6 +98,8 @@ dispatcher:
     beq cmd_obd_snapshot
     cmp r2, #0x78
     beq cmd_can_tx
+    cmp r2, #0x79
+    beq cmd_v20_status
     mov r0, r4
     pop {r4-r7, lr}
     ldr r3, =ORIG_USB_DISPATCH
@@ -151,6 +153,7 @@ cmd_obd_snapshot:
     movs r0, #0x77
     movs r1, #30
     bl send_response
+    b handled
 
 cmd_can_tx:
     ldrb r5, [r4, #3]
@@ -161,6 +164,31 @@ cmd_can_tx:
     mov r1, r0
     movs r0, #0x78
     bl send_ack
+    b handled
+
+cmd_v20_status:
+    ldr r5, =RESP_BUF
+    movs r0, #0x20
+    strb r0, [r5, #5]
+    movs r0, #2
+    strb r0, [r5, #6]
+    movs r0, #0
+    strb r0, [r5, #7]
+    movs r0, #0xff
+    strb r0, [r5, #8]
+    movs r0, #1
+    strb r0, [r5, #9]
+    movs r0, #0x56
+    strb r0, [r5, #10]
+    movs r0, #0x32
+    strb r0, [r5, #11]
+    movs r0, #0x30
+    strb r0, [r5, #12]
+    movs r0, #0
+    strb r0, [r5, #13]
+    movs r0, #0x79
+    movs r1, #9
+    bl send_response
     b handled
 
 can_tx_bad_frame:
@@ -714,6 +742,67 @@ can_ring_pop_response:
 """
 
 
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def u32(data: bytes | bytearray, off: int) -> int:
+    return struct.unpack_from("<I", data, off)[0]
+
+
+def encode_thumb_b_w(addr: int, target: int) -> bytes:
+    target &= ~1
+    offset = target - (addr + 4)
+    if offset & 1:
+        raise ValueError("Thumb B.W target offset must be halfword aligned")
+    imm = offset & 0x01FFFFFF
+    s = (imm >> 24) & 1
+    i1 = (imm >> 23) & 1
+    i2 = (imm >> 22) & 1
+    imm10 = (imm >> 12) & 0x03FF
+    imm11 = (imm >> 1) & 0x07FF
+    j1 = (~(i1 ^ s)) & 1
+    j2 = (~(i2 ^ s)) & 1
+    return struct.pack("<HH", 0xF000 | (s << 10) | imm10, 0x9000 | (j1 << 13) | (j2 << 11) | imm11)
+
+
+def encode_thumb_bl(addr: int, target: int) -> bytes:
+    target &= ~1
+    offset = target - (addr + 4)
+    if offset & 1:
+        raise ValueError("Thumb BL target offset must be halfword aligned")
+    imm = offset & 0x01FFFFFF
+    s = (imm >> 24) & 1
+    i1 = (imm >> 23) & 1
+    i2 = (imm >> 22) & 1
+    imm10 = (imm >> 12) & 0x03FF
+    imm11 = (imm >> 1) & 0x07FF
+    j1 = (~(i1 ^ s)) & 1
+    j2 = (~(i2 ^ s)) & 1
+    return struct.pack("<HH", 0xF000 | (s << 10) | imm10, 0xD000 | (j1 << 13) | (j2 << 11) | imm11)
+
+
+def pkg_off(addr: int) -> int:
+    return HEADER_LEN + (addr - APP_BASE)
+
+
+def patch_exact(buf: bytearray, addr: int, expected: bytes, new: bytes) -> dict[str, str]:
+    off = pkg_off(addr)
+    old = bytes(buf[off : off + len(expected)])
+    if old != expected:
+        raise ValueError(
+            f"unexpected bytes at 0x{addr:08x}: {old.hex(' ').upper()} != {expected.hex(' ').upper()}"
+        )
+    buf[off : off + len(new)] = new
+    return {"address": f"0x{addr:08x}", "old": old.hex(" ").upper(), "new": new.hex(" ").upper()}
+
+
+def ensure_pkg_len(buf: bytearray, addr: int, size: int) -> None:
+    required = pkg_off(addr) + size
+    if len(buf) < required:
+        buf.extend(b"\xff" * (required - len(buf)))
+
+
 def assemble_patch(toolchain: Path) -> tuple[bytes, dict[str, int], str]:
     as_bin = toolchain / "arm-none-eabi-as"
     objcopy_bin = toolchain / "arm-none-eabi-objcopy"
@@ -792,7 +881,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         args.stlink_out.write_bytes(app_image)
 
     report = {
-        "name": "v19 v08 mode1 stock canbox + raw CAN stream + decoded vehicle snapshot + raw CAN TX",
+        "name": "v20 v08 mode1 stock canbox + raw CAN stream + decoded vehicle snapshot + raw CAN TX + capabilities",
         "source": str(source),
         "source_sha256": sha256(encoded_source),
         "output_usb": str(args.out),
@@ -812,6 +901,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
             "0x76": "pop one raw C-CAN/M-CAN frame from RAM ring",
             "0x77": "read decoded vehicle snapshot: speed/rpm/temperatures/voltage/brake/gear and reserved OBD-like fields",
             "0x78": "one-shot raw CAN TX: payload bus, flags, id_le32, dlc, data[8]",
+            "0x79": "V20 health/capabilities response, no CAN connection required",
         },
         "vehicle_snapshot_payload": (
             "status, known24, counter_le32, speed_kmh_u16, rpm_u16, coolant_c_s16, "
@@ -834,7 +924,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         "raw_frame_payload": "status, bus(0=C-CAN 1=M-CAN), flags(bit0=EXT bit1=RTR), dlc, reserved, id_le32, data[8]",
         "can_tx_payload": "bus(0=C-CAN/CAN1 1=M-CAN/CAN2), flags(bit0=EXT bit1=RTR), id_le32, dlc, data[8]",
         "can_tx_ack": "0=queued, 1=no free mailbox, 2=bad bus, 0xff=bad command length",
-        "removed": ["UART sideband"],
+        "removed": ["UART sideband", "0x74 raw CAN TX command"],
         "hook_policy": "hooks run after the stock FIFO read, then return with the stock release-FIFO arguments restored",
         "stub": {"address": f"0x{STUB_ADDR:08x}", "size": len(patch_blob), "symbols": {k: f"0x{v:08x}" for k, v in sym_addr.items()}},
         "patches": patches,
@@ -849,9 +939,9 @@ def build(args: argparse.Namespace) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--programmer-v08", type=Path, default=PROGRAMMER_V08)
-    parser.add_argument("--out", type=Path, default=Path("firmware/trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx_USB.bin"))
-    parser.add_argument("--stlink-out", type=Path, default=Path("firmware/trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx_STLINK64K.bin"))
-    parser.add_argument("--report", type=Path, default=Path("firmware/trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx.report.json"))
+    parser.add_argument("--out", type=Path, default=Path("firmware/trusted/v20/20_v08_mode1_v20_USB.bin"))
+    parser.add_argument("--stlink-out", type=Path, default=Path("firmware/trusted/v20/20_v08_mode1_v20_STLINK64K.bin"))
+    parser.add_argument("--report", type=Path, default=Path("firmware/trusted/v20/20_v08_mode1_v20.report.json"))
     parser.add_argument("--toolchain", type=Path, default=BUILD_TOOLCHAIN)
     parser.add_argument("--key-a", type=lambda s: int(s, 0), default=0x04)
     parser.add_argument("--key-b", type=lambda s: int(s, 0), default=0x5B)

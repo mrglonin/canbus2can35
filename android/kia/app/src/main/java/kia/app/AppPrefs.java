@@ -37,6 +37,7 @@ final class AppPrefs {
     private static final String KEY_CAN_LOG_MODE = "can_log_mode";
     private static final String KEY_BLIND_SPOT_ENABLED = "blind_spot_enabled";
     private static final String KEY_BLIND_SPOT_OVERLAY = "blind_spot_overlay";
+    private static final String KEY_UPDATE_CHECK_ON_LAUNCH = "update_check_on_launch";
 
     private AppPrefs() {
     }
@@ -325,6 +326,14 @@ final class AppPrefs {
 
     static void setBlindSpotOverlay(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_BLIND_SPOT_OVERLAY, value).apply();
+    }
+
+    static boolean updateCheckOnLaunch(Context context) {
+        return prefs(context).getBoolean(KEY_UPDATE_CHECK_ON_LAUNCH, true);
+    }
+
+    static void setUpdateCheckOnLaunch(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_UPDATE_CHECK_ON_LAUNCH, value).apply();
     }
 
     private static int clamp(int value, int min, int max) {

@@ -18,8 +18,12 @@ final class CanbusControl {
 
     private static String adapterUid = "не получен";
     private static String firmwareVersion = "не получена";
+    private static String v20Status = "не проверено";
+    private static String v20Api = "—";
+    private static String v20Capabilities = "—";
     private static String updateStatus = "ожидание";
     private static long lastFrameAt;
+    private static long lastV20At;
     private static int lastUartAvailable = -1;
     private static int lastUartDropped = -1;
 
@@ -27,7 +31,8 @@ final class CanbusControl {
     }
 
     static synchronized Snapshot snapshot() {
-        return new Snapshot(adapterUid, firmwareVersion, updateStatus, lastFrameAt);
+        return new Snapshot(adapterUid, firmwareVersion, v20Status, v20Api, v20Capabilities,
+                updateStatus, lastFrameAt, lastV20At);
     }
 
     static void requestAdapterInfo(Context context) {
@@ -35,6 +40,12 @@ final class CanbusControl {
         send(context, frame(0x60, 0x00, 0x00));
         send(context, frame(0x56, 0x01));
         send(context, frame(0x56, 0x02));
+        requestV20Status(context);
+    }
+
+    static void requestV20Status(Context context) {
+        AppLog.line(context, "V20: запрос health/capabilities 0x79");
+        send(context, packet(0x79, null));
     }
 
     static void requestAmpSettings(Context context) {
@@ -158,7 +169,7 @@ final class CanbusControl {
         AppLog.line(context, (dryRun ? "CAN TX dry-run: " : "CAN TX: ")
                 + canBusText(bus) + " flags=" + flagsText(flags) + " id=0x" + Integer.toHexString(canId).toUpperCase(Locale.US)
                 + " data=" + hex(data));
-        if (!dryRun) send(context, packet(0x74, payload));
+        if (!dryRun) send(context, packet(0x78, payload));
     }
 
     static void sendRawCanQuiet(Context context, int bus, int canId, byte[] data) {
@@ -167,7 +178,7 @@ final class CanbusControl {
 
     static void sendRawCanQuiet(Context context, int bus, int flags, int canId, byte[] data) {
         if (!validCanTx(bus, data)) return;
-        sendQuiet(context, packet(0x74, CanSideband.canTxPayload(bus, flags, canId, data)));
+        sendQuiet(context, packet(0x78, CanSideband.canTxPayload(bus, flags, canId, data)));
     }
 
     static void handleIncomingFrame(Context context, byte[] frame) {
@@ -201,11 +212,19 @@ final class CanbusControl {
             return;
         }
         if (id == 0x73) {
-            AppLog.line(context, "UART TX ACK: " + ackText(frame) + " | " + hex(frame));
+            AppLog.line(context, "USB ACK UART TX: " + ackText(frame) + " | " + hex(frame));
+            return;
+        }
+        if (id == 0x78) {
+            AppLog.line(context, "USB ACK raw CAN TX: " + ackText(frame) + " | " + hex(frame));
             return;
         }
         if (id == 0x74) {
-            AppLog.line(context, "CAN TX ACK: " + ackText(frame) + " | " + hex(frame));
+            AppLog.line(context, "USB ACK legacy raw TX 0x74: " + ackText(frame) + " | " + hex(frame));
+            return;
+        }
+        if (id == 0x79) {
+            updateV20Status(context, frame);
             return;
         }
         if (id == 0x30) {
@@ -417,6 +436,29 @@ final class CanbusControl {
         broadcast(context);
     }
 
+    private static void updateV20Status(Context context, byte[] frame) {
+        int len = frame == null || frame.length < 6 ? 0 : frame[3] & 0xff;
+        int status = frame != null && frame.length > 5 ? frame[5] & 0xff : -1;
+        int apiMajor = frame != null && frame.length > 6 ? frame[6] & 0xff : -1;
+        int apiMinor = frame != null && frame.length > 7 ? frame[7] & 0xff : -1;
+        int rawTx = frame != null && frame.length > 8 ? frame[8] & 0xff : -1;
+        int caps = frame != null && frame.length > 9 ? frame[9] & 0xff : -1;
+        String tag = ascii(frame, 10, Math.max(0, len - 11));
+        String statusText = status == 0x20 ? "V20 online" : "ответ 0x" + byteHex((byte) status);
+        String apiText = apiMajor >= 0 ? "API " + apiMajor + "." + Math.max(0, apiMinor) : "API ?";
+        String capsText = "rawTX=" + (rawTx == 0 ? "нет" : "да")
+                + " caps=0x" + byteHex((byte) Math.max(0, caps))
+                + (TextUtils.isEmpty(tag) ? "" : " tag=" + tag);
+        synchronized (CanbusControl.class) {
+            v20Status = statusText;
+            v20Api = apiText;
+            v20Capabilities = capsText;
+            lastV20At = System.currentTimeMillis();
+        }
+        AppLog.line(context, "V20: " + statusText + " " + apiText + " " + capsText);
+        broadcast(context);
+    }
+
     private static void applySettingsFrame(Context context, byte[] frame) {
         int len = frame[3] & 0xff;
         int mode = frame.length > 5 ? frame[5] & 0xff : -1;
@@ -505,6 +547,18 @@ final class CanbusControl {
         return (v < 16 ? "0" : "") + Integer.toHexString(v).toUpperCase(Locale.US);
     }
 
+    private static String ascii(byte[] data, int offset, int maxLen) {
+        if (data == null || offset >= data.length || maxLen <= 0) return "";
+        StringBuilder sb = new StringBuilder();
+        int end = Math.min(data.length - 1, offset + maxLen);
+        for (int i = offset; i < end; i++) {
+            int v = data[i] & 0xff;
+            if (v == 0) break;
+            if (v >= 32 && v <= 126) sb.append((char) v);
+        }
+        return sb.toString();
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
@@ -519,14 +573,23 @@ final class CanbusControl {
     static final class Snapshot {
         final String adapterUid;
         final String firmwareVersion;
+        final String v20Status;
+        final String v20Api;
+        final String v20Capabilities;
         final String updateStatus;
         final long lastFrameAt;
+        final long lastV20At;
 
-        Snapshot(String adapterUid, String firmwareVersion, String updateStatus, long lastFrameAt) {
+        Snapshot(String adapterUid, String firmwareVersion, String v20Status, String v20Api,
+                 String v20Capabilities, String updateStatus, long lastFrameAt, long lastV20At) {
             this.adapterUid = adapterUid;
             this.firmwareVersion = firmwareVersion;
+            this.v20Status = v20Status;
+            this.v20Api = v20Api;
+            this.v20Capabilities = v20Capabilities;
             this.updateStatus = updateStatus;
             this.lastFrameAt = lastFrameAt;
+            this.lastV20At = lastV20At;
         }
     }
 }

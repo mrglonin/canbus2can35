@@ -429,12 +429,12 @@ public class AppService extends Service {
                 }
             }
             connectUsb();
-            if (!quiet) AppLog.line(this, "CAN кадр в очереди " + hex(data));
+            if (!quiet) AppLog.line(this, "USB кадр в очереди " + usbFrameLabel(data) + " " + hex(data));
             return;
         }
         try {
             port.write(data, 300);
-            if (!quiet) AppLog.line(this, "CAN кадр отправлен " + hex(data));
+            if (!quiet) AppLog.line(this, "USB кадр отправлен " + usbFrameLabel(data) + " " + hex(data));
         } catch (IOException e) {
             if (!quiet) {
                 synchronized (PENDING) {
@@ -535,12 +535,12 @@ public class AppService extends Service {
             if (validChecksum(frame)) {
                 int id = frame[4] & 0xff;
                 if (id != 0x76 && id != 0x71 && id != 0x72) {
-                    AppLog.line(this, "CAN кадр получен " + CanbusControl.hex(frame));
+                    AppLog.line(this, "USB ответ адаптера " + usbFrameLabel(frame) + " " + CanbusControl.hex(frame));
                 }
                 CanbusControl.handleIncomingFrame(this, frame);
                 index = start + len;
             } else {
-                AppLog.line(this, "CAN кадр с неверной суммой " + CanbusControl.hex(frame));
+                AppLog.line(this, "USB кадр с неверной суммой " + CanbusControl.hex(frame));
                 index = start + 1;
             }
         }
@@ -586,6 +586,47 @@ public class AppService extends Service {
         }
         data[data.length - 1] = (byte) sum;
         return data;
+    }
+
+    private static String usbFrameLabel(byte[] frame) {
+        if (frame == null || frame.length < 5) return "";
+        int id = frame[4] & 0xff;
+        switch (id) {
+            case 0x20:
+                return "radio/media";
+            case 0x21:
+                return "media source";
+            case 0x22:
+                return "media title";
+            case 0x30:
+                return "AMP";
+            case 0x44:
+                return "speed limit";
+            case 0x45:
+                return "nav maneuver";
+            case 0x47:
+                return "nav distance";
+            case 0x48:
+                return "nav on/off";
+            case 0x4A:
+                return "nav text";
+            case 0x55:
+                return "firmware";
+            case 0x56:
+                return "version/UID";
+            case 0x60:
+                return "settings";
+            case 0x70:
+                return "raw stream";
+            case 0x76:
+                return "raw CAN read";
+            case 0x78:
+                return "raw CAN TX ACK";
+            case 0x79:
+                return "V20 health";
+            default:
+                return "cmd=0x" + Integer.toHexString(id).toUpperCase();
+        }
     }
 
     private static String hex(byte[] data) {
