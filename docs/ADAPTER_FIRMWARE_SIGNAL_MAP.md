@@ -230,7 +230,7 @@ Keep logger clean and separate from production state.
 | `0x70` stream switch | yes | off by default |
 | `0x76` raw ring pop | yes | only after explicit debug |
 | ring buffer C-CAN/M-CAN | yes | no UI spam unless debug/recording |
-| compressed CAN log | yes | app saves `.log.gz`, then host can commit if needed |
+| compressed CAN log | yes | app saves `.log.gz` to `Downloads`; capture is limited to `50 000` CAN frames and auto-stops/saves at the limit |
 | `0x78` TX | yes, but restricted | M-CAN default; C-CAN only unsafe lab |
 | UART bridge | no | not part of clean firmware |
 | old `0x74` TX | no | obsolete |

@@ -718,8 +718,8 @@ public class CanbusSettingsActivity extends Activity {
                 savedToast();
                 refresh();
             });
-            gridButton(canActions, "Сохранить CAN log", v -> saveSidebandLog("can", SidebandDebugState.canText(AppPrefs.canLogMode(this))));
-            gridButton(canActions, "Сжать CAN log", v -> saveSidebandLogCompressed("can", SidebandDebugState.canText(AppPrefs.canLogMode(this))));
+            gridButton(canActions, "Сохранить CAN log", v -> saveSidebandLog("can", SidebandDebugState.canExportText(AppPrefs.canLogMode(this))));
+            gridButton(canActions, "Сжать CAN log", v -> saveSidebandLogCompressed("can", SidebandDebugState.canExportText(AppPrefs.canLogMode(this))));
             canLogPreviewValue = bodyText("");
             canLogPreviewValue.setTypeface(Typeface.MONOSPACE);
             canLogPreviewValue.setTextSize(12);
@@ -897,14 +897,18 @@ public class CanbusSettingsActivity extends Activity {
     private void refreshSidebandDebug() {
         SidebandDebugState.Snapshot debug = SidebandDebugState.snapshot();
         if (canDebugStatusValue != null) {
-            canDebugStatusValue.setText(
-                    "C-CAN bus0: " + debug.cSlotCount + " кадров, " + sidebandAge(debug.cAgeMs)
-                            + " | M-CAN bus1: " + debug.mSlotCount + " кадров, " + sidebandAge(debug.mAgeMs));
+            String status = "C-CAN bus0: " + debug.cSlotCount + " кадров, " + sidebandAge(debug.cAgeMs)
+                    + " | M-CAN bus1: " + debug.mSlotCount + " кадров, " + sidebandAge(debug.mAgeMs);
+            if (!TextUtils.isEmpty(debug.canCaptureStatus)) {
+                status += "\n" + debug.canCaptureStatus;
+            }
+            canDebugStatusValue.setText(status);
         }
         if (canRecordButton != null) canRecordButton.setText(debug.canRecording ? "Остановить CAN" : "Начать CAN");
         if (canModeButton != null) canModeButton.setText("Писать: " + canModeLabel());
         if (canLogPreviewValue != null) {
-            String text = "M-CAN: " + emptyDash(debug.lastMCan) + "\nC-CAN: " + emptyDash(debug.lastCCan);
+            String text = "M-CAN: " + emptyDash(debug.lastMCan) + "\nC-CAN: " + emptyDash(debug.lastCCan)
+                    + "\nЛимит записи: " + debug.canCaptureCount + "/" + debug.canCaptureLimit;
             if (!TextUtils.isEmpty(debug.lastSaved)) text += "\nФайл: " + debug.lastSaved;
             canLogPreviewValue.setText(text);
         }

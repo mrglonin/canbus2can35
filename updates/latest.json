@@ -1,14 +1,14 @@
 {
   "schema": 1,
-  "updated_at": "2026-05-13",
+  "updated_at": "2026-05-14",
   "app": {
-    "version_name": "12.3-kia",
-    "version_code": 103,
-    "release_number": 123,
-    "asset_name": "kia_123.apk",
-    "size": 27414587,
-    "sha256": "148d670b29f33f5b938455c821a121a56ab6645f11b216a876b433a4e9816834",
-    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_123.apk"
+    "version_name": "12.4-kia",
+    "version_code": 104,
+    "release_number": 124,
+    "asset_name": "kia_124.apk",
+    "size": 27417935,
+    "sha256": "5488d3d13e79700fbf37cbc86f8bbe04c11f7fbb73f6fffcc8772386442e24f2",
+    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_124.apk"
   },
   "firmware": {
     "version": "v21",
