@@ -26,6 +26,8 @@ final class ObdMonitor {
     private static Thread worker;
     private static volatile boolean stop;
     private static volatile int generation;
+    private static long lastStreamStatusAt;
+    private static final String STREAM_STATUS = "Vehicle: пассивный CAN stream 0x70/0x76 активен";
 
     private ObdMonitor() {
     }
@@ -34,7 +36,7 @@ final class ObdMonitor {
         Context app = context.getApplicationContext();
         if (!AppPrefs.obdEnabled(app)) {
             stop();
-            if (!AppPrefs.debugCan(app)) CanbusControl.stopCanStream(app);
+            if (!AppPrefs.debugCan(app) && !AppPrefs.blindSpotEnabled(app)) CanbusControl.stopCanStream(app);
             ObdEmulator.stop();
             ObdState.status(app, "OBD: раздел выключен в настройках", false);
             return;
@@ -51,8 +53,7 @@ final class ObdMonitor {
             worker = null;
         }
         AppService.start(app);
-        CanbusControl.startCanStream(app);
-        ObdState.status(app, "OBD: raw CAN logger 0x70/0x76 активен", true);
+        statusStream(app);
         return;
         /*
         synchronized (LOCK) {
@@ -77,7 +78,9 @@ final class ObdMonitor {
 
     static void stop(Context context) {
         stop();
-        if (context != null && !AppPrefs.debugCan(context)) CanbusControl.stopCanStream(context);
+        if (context != null && !AppPrefs.debugCan(context) && !AppPrefs.blindSpotEnabled(context)) {
+            CanbusControl.stopCanStream(context);
+        }
     }
 
     static void restart(Context context) {
@@ -87,6 +90,14 @@ final class ObdMonitor {
 
     private static boolean active(int token) {
         return !stop && token == generation;
+    }
+
+    private static void statusStream(Context context) {
+        long now = System.currentTimeMillis();
+        ObdState.Snapshot snapshot = ObdState.snapshot();
+        if (STREAM_STATUS.equals(snapshot.status) && now - lastStreamStatusAt < 30000L) return;
+        lastStreamStatusAt = now;
+        ObdState.status(context, STREAM_STATUS, true);
     }
 
     private static void runLoop(Context context, int token) {

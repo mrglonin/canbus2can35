@@ -457,19 +457,24 @@ final class TabletDashboardView extends FrameLayout {
         LinearLayout raw = card("Raw CAN");
         row.addView(raw, weightedCardLp());
         canCounterValue = info(raw, "Счетчики", "");
-        canRecordButton = actionButton("", 0xff2f5f8f, v -> {
-            SidebandDebugState.Snapshot debug = SidebandDebugState.snapshot();
-            SidebandDebugState.setCanRecording(getContext(), !debug.canRecording);
-            refresh();
-        });
-        canModeButton = actionButton("", 0xff2f5f8f, v -> {
-            AppPrefs.setCanLogMode(getContext(), (AppPrefs.canLogMode(getContext()) + 1) % 3);
-            refresh();
-        });
-        addButtonRow(raw, canRecordButton, canModeButton);
-        addButtonRow(raw,
-                actionButton("Stream on", 0xff1f7a67, v -> CanbusControl.startCanStream(getContext())),
-                actionButton("Stream off", 0xff6a4752, v -> CanbusControl.stopCanStream(getContext())));
+        if (AppPrefs.debugCan(getContext())) {
+            canRecordButton = actionButton("", 0xff2f5f8f, v -> {
+                SidebandDebugState.Snapshot debug = SidebandDebugState.snapshot();
+                SidebandDebugState.setCanRecording(getContext(), !debug.canRecording);
+                refresh();
+            });
+            canModeButton = actionButton("", 0xff2f5f8f, v -> {
+                AppPrefs.setCanLogMode(getContext(), (AppPrefs.canLogMode(getContext()) + 1) % 3);
+                refresh();
+            });
+            addButtonRow(raw, canRecordButton, canModeButton);
+            addButtonRow(raw,
+                    actionButton("Stream on", 0xff1f7a67, v -> CanbusControl.startCanStream(getContext())),
+                    actionButton("Stream off", 0xff6a4752, v -> CanbusControl.stopCanStream(getContext())));
+        } else {
+            info(raw, "Режим", "Vehicle/RCTA");
+            info(raw, "Debug", "выкл");
+        }
 
         LinearLayout preview = card("Последние CAN кадры");
         content.addView(preview, sectionTopLp());

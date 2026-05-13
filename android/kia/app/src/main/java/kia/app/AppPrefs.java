@@ -39,12 +39,54 @@ final class AppPrefs {
     private static final String KEY_BLIND_SPOT_ENABLED = "blind_spot_enabled";
     private static final String KEY_BLIND_SPOT_OVERLAY = "blind_spot_overlay";
     private static final String KEY_UPDATE_CHECK_ON_LAUNCH = "update_check_on_launch";
+    private static final String KEY_DEFAULT_PROFILE_VERSION = "default_profile_version";
+
+    private static final int DEFAULT_PROFILE_VERSION = 1;
 
     private AppPrefs() {
     }
 
     static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(NAME, Context.MODE_PRIVATE);
+    }
+
+    static void applyDefaultProfileIfNeeded(Context context) {
+        SharedPreferences prefs = prefs(context);
+        if (prefs.getInt(KEY_DEFAULT_PROFILE_VERSION, 0) >= DEFAULT_PROFILE_VERSION) return;
+        prefs.edit()
+                .putBoolean(KEY_AUTO_START, true)
+                .putBoolean(KEY_BACKGROUND_AUTO_START, true)
+                .putBoolean(KEY_AUTO_HIDE, true)
+                .putInt(KEY_AUTO_HIDE_DELAY, 3)
+                .putInt(KEY_NAV_TEXT_MODE, 0)
+                .putBoolean(KEY_NAV_TBT, false)
+                .remove(KEY_NAV_OVERLAY)
+                .putBoolean(KEY_NAV_COMPASS, true)
+                .putInt(KEY_SPEED_UNIT, 0)
+                .putInt(KEY_TEMP_UNIT, 0)
+                .putBoolean(KEY_ENGINE_TEMP_ENABLED, true)
+                .putBoolean(KEY_MEDIA_ACCESS_PROMPT, true)
+                .remove(KEY_MEDIA_DEBUG)
+                .remove(KEY_MEDIA_SCAN_ALL)
+                .remove(KEY_MEDIA_OVERLAY)
+                .putBoolean(KEY_BACKGROUND_ANIMATION, false)
+                .putBoolean(KEY_OBD_ENABLED, true)
+                .putBoolean(KEY_TPMS_ENABLED, true)
+                .putBoolean(KEY_OBD_EMULATION, false)
+                .putBoolean(KEY_TPMS_AUTO_OPEN, false)
+                .putBoolean(KEY_TPMS_ALERT_OVERLAY, true)
+                .putBoolean(KEY_TPMS_ALERT_SOUND, true)
+                .putLong(KEY_TPMS_ALERT_SUPPRESSED_UNTIL, 0L)
+                .putBoolean(KEY_DEBUG, false)
+                .putBoolean(KEY_DEBUG_CAN, false)
+                .putBoolean(KEY_DEBUG_UART, false)
+                .putBoolean(KEY_UART_OVERLAY, false)
+                .putInt(KEY_CAN_LOG_MODE, 2)
+                .putBoolean(KEY_BLIND_SPOT_ENABLED, true)
+                .putBoolean(KEY_BLIND_SPOT_OVERLAY, true)
+                .putBoolean(KEY_UPDATE_CHECK_ON_LAUNCH, true)
+                .putInt(KEY_DEFAULT_PROFILE_VERSION, DEFAULT_PROFILE_VERSION)
+                .apply();
     }
 
     static boolean debug(Context context) {

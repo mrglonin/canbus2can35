@@ -4,14 +4,14 @@ Android 15/TEYES app for Kia CANBOX integration.
 
 Current package: `kia.app`
 
-Current app version: `12.1-kia` (`versionCode 101`)
+Current app version: `12.2-kia` (`versionCode 102`)
 
 Main protocol notes:
 
 - штатный canbox remains on the normal USB CDC interface;
 - TEYES app implementation details: `../../docs/TEYES_APP_IMPLEMENTATION_README_20260513.md`;
-- `0x70 01` enables the raw CAN logger;
-- `0x70 00` disables the raw CAN logger;
+- `0x70 01` enables the raw CAN stream;
+- `0x70 00` disables the raw CAN stream;
 - `0x76` reads the next raw CAN frame from the logger queue;
 - bus `0` is C-CAN;
 - bus `1` is M-CAN;
@@ -19,6 +19,8 @@ Main protocol notes:
 - Voltage uses M-CAN `0x132 DATA[0] / 10`; legacy `0x545` is only fallback.
 - RCTA/blind-spot overlay uses C-CAN `0x4F4`; legacy `0x58B` remains debug-only.
 - Media source hints never overwrite a playing MediaSession; Yandex/cloud music is shown as its real source in UI and sent to the cluster through the USB-like music path.
+- Default profile keeps Vehicle/RCTA/TPMS/media/nav active and disables debug/raw recording, media overlays, UART debug and test leftovers.
+- CAN log export can save plaintext `.log` or compressed `.log.gz` from the explicit CAN debug screen.
 
 Build:
 
@@ -29,7 +31,7 @@ Build:
 Release APK name is kept short and stable:
 
 ```text
-/Volumes/SSD/canbus/release/kia_121.apk
+/Volumes/SSD/canbus/release/kia_122.apk
 ```
 
 The release build is signed with the local Android debug keystore
@@ -39,7 +41,7 @@ head unit. A production key can be added later without changing the output path.
 The local Gradle output uses the same filename:
 
 ```text
-app/build/outputs/apk/release/kia_121.apk
+app/build/outputs/apk/release/kia_122.apk
 ```
 
 TEYES sandbox emulator:

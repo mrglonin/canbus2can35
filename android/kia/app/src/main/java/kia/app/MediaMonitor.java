@@ -26,6 +26,8 @@ final class MediaMonitor {
     private static String lastLine = "";
     private static long lastAt;
     private static long lastCandidateAt;
+    private static long lastSessionAccessWarnAt;
+    private static long lastSessionErrorAt;
     private static String activeSource = "";
     private static String activePkg = "";
     private static String activeSourceKey = "";
@@ -217,9 +219,17 @@ final class MediaMonitor {
                 return true;
             }
         } catch (SecurityException e) {
-            AppLog.line(context, "Мультимедиа: нет доступа к уведомлениям");
+            long now = System.currentTimeMillis();
+            if (now - lastSessionAccessWarnAt > 30000L) {
+                lastSessionAccessWarnAt = now;
+                AppLog.line(context, "Мультимедиа: нет доступа к уведомлениям");
+            }
         } catch (Exception e) {
-            AppLog.line(context, "Мультимедиа: ошибка сессии " + e.getClass().getSimpleName());
+            long now = System.currentTimeMillis();
+            if (now - lastSessionErrorAt > 30000L) {
+                lastSessionErrorAt = now;
+                AppLog.line(context, "Мультимедиа: ошибка сессии " + e.getClass().getSimpleName());
+            }
         }
         return false;
     }

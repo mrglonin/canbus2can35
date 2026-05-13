@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.Date;
 import java.util.Locale;
+import java.util.zip.GZIPOutputStream;
 
 final class SidebandDebugState {
     static final String ACTION_STATE = "com.kia.navi.SIDEBAND_DEBUG_STATE";
@@ -120,13 +121,29 @@ final class SidebandDebugState {
     }
 
     static synchronized File save(Context context, String prefix, String text) throws Exception {
+        return saveInternal(context, prefix, text, false);
+    }
+
+    static synchronized File saveCompressed(Context context, String prefix, String text) throws Exception {
+        return saveInternal(context, prefix, text, true);
+    }
+
+    private static File saveInternal(Context context, String prefix, String text, boolean compressed) throws Exception {
         File dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
         if (dir == null) dir = context.getFilesDir();
         if (!dir.exists()) dir.mkdirs();
-        String name = prefix + "_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".log";
+        String ext = compressed ? ".log.gz" : ".log";
+        String name = prefix + "_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ext;
         File file = new File(dir, name);
-        try (FileOutputStream out = new FileOutputStream(file)) {
-            out.write((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
+        byte[] data = (text == null ? "" : text).getBytes(StandardCharsets.UTF_8);
+        if (compressed) {
+            try (GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream(file))) {
+                out.write(data);
+            }
+        } else {
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                out.write(data);
+            }
         }
         lastSaved = file.getAbsolutePath();
         broadcast(context);

@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AppPrefs.applyDefaultProfileIfNeeded(this);
         autoHideLaunch = isUsbAttachIntent(getIntent());
         if (blockDisabledUsbAutostart(getIntent(), true)) return;
         UiUtils.enterImmersive(this);
@@ -92,6 +93,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        AppPrefs.applyDefaultProfileIfNeeded(this);
         autoHideLaunch = isUsbAttachIntent(intent);
         if (blockDisabledUsbAutostart(intent, false)) return;
         touched = false;

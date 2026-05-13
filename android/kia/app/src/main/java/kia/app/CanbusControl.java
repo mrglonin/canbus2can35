@@ -143,7 +143,7 @@ final class CanbusControl {
     static void sendUart(Context context, byte[] data) {
         byte[] payload = data == null ? new byte[0] : java.util.Arrays.copyOf(data, Math.min(data.length, 48));
         SidebandDebugState.uartTx(context, payload);
-        AppLog.line(context, "UART sideband: отключён в raw CAN logger сборке");
+        AppLog.line(context, "UART sideband: отключён в CAN sideband сборке");
     }
 
     static void sendMediaTrack(Context context, String title) {

@@ -7,6 +7,7 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
+        AppPrefs.applyDefaultProfileIfNeeded(context);
         AppLog.line(context, "Автозапуск: " + (intent == null ? "нет intent" : intent.getAction()));
         if (!AppPrefs.autoStart(context)) {
             AppLog.line(context, "Автозапуск: выключен в настройках");

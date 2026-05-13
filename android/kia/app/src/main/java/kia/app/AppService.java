@@ -152,6 +152,7 @@ public class AppService extends Service {
         super.onCreate();
         active = this;
         serviceRunning = true;
+        AppPrefs.applyDefaultProfileIfNeeded(this);
         usbManager = (UsbManager) getSystemService(USB_SERVICE);
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         AppPrefs.setObdEmulation(this, false);

@@ -129,6 +129,7 @@ public class CanbusSettingsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AppPrefs.applyDefaultProfileIfNeeded(this);
         UiUtils.enterImmersive(this);
         buildUi();
         AppService.start(this);
@@ -698,14 +699,14 @@ public class CanbusSettingsActivity extends Activity {
             if (checked) CanbusControl.startCanStream(this);
             else {
                 SidebandDebugState.setCanRecording(this, false);
-                if (!AppPrefs.obdEnabled(this)) CanbusControl.stopCanStream(this);
+                if (!AppPrefs.obdEnabled(this) && !AppPrefs.blindSpotEnabled(this)) CanbusControl.stopCanStream(this);
             }
             savedToast();
             selectTab(TAB_SETTINGS);
         }));
         if (AppPrefs.debugCan(this)) {
             canDebugStatusValue = infoRow(canDebug, "Скорости", "");
-            GridLayout canActions = grid(3);
+            GridLayout canActions = grid(2);
             canDebug.addView(canActions, matchWrap());
             canRecordButton = gridButton(canActions, "", v -> {
                 SidebandDebugState.Snapshot debug = SidebandDebugState.snapshot();
@@ -718,6 +719,7 @@ public class CanbusSettingsActivity extends Activity {
                 refresh();
             });
             gridButton(canActions, "Сохранить CAN log", v -> saveSidebandLog("can", SidebandDebugState.canText(AppPrefs.canLogMode(this))));
+            gridButton(canActions, "Сжать CAN log", v -> saveSidebandLogCompressed("can", SidebandDebugState.canText(AppPrefs.canLogMode(this))));
             canLogPreviewValue = bodyText("");
             canLogPreviewValue.setTypeface(Typeface.MONOSPACE);
             canLogPreviewValue.setTextSize(12);
@@ -1193,6 +1195,16 @@ public class CanbusSettingsActivity extends Activity {
             refresh();
         } catch (Exception e) {
             Toast.makeText(this, "Не удалось сохранить лог: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void saveSidebandLogCompressed(String prefix, String text) {
+        try {
+            File file = SidebandDebugState.saveCompressed(this, prefix, text);
+            Toast.makeText(this, "Лог сжат: " + file.getName(), Toast.LENGTH_LONG).show();
+            refresh();
+        } catch (Exception e) {
+            Toast.makeText(this, "Не удалось сжать лог: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
