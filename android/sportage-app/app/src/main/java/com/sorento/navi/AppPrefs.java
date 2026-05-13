@@ -13,6 +13,7 @@ final class AppPrefs {
     private static final String KEY_NAV_TEXT_MODE = "nav_text_mode";
     private static final String KEY_NAV_TBT = "nav_tbt";
     private static final String KEY_NAV_OVERLAY = "nav_overlay";
+    private static final String KEY_NAV_COMPASS = "nav_compass";
     private static final String KEY_SPEED_UNIT = "speed_unit";
     private static final String KEY_TEMP_UNIT = "temp_unit";
     private static final String KEY_ENGINE_TEMP_ENABLED = "engine_temp_enabled";
@@ -101,11 +102,19 @@ final class AppPrefs {
     }
 
     static boolean navOverlay(Context context) {
-        return prefs(context).getBoolean(KEY_NAV_OVERLAY, false);
+        return false;
     }
 
     static void setNavOverlay(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_NAV_OVERLAY, value).apply();
+        prefs(context).edit().remove(KEY_NAV_OVERLAY).apply();
+    }
+
+    static boolean navCompass(Context context) {
+        return prefs(context).getBoolean(KEY_NAV_COMPASS, true);
+    }
+
+    static void setNavCompass(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_NAV_COMPASS, value).apply();
     }
 
     static int speedUnit(Context context) {
@@ -163,27 +172,27 @@ final class AppPrefs {
     }
 
     static boolean mediaDebug(Context context) {
-        return prefs(context).getBoolean(KEY_MEDIA_DEBUG, false);
+        return false;
     }
 
     static void setMediaDebug(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_MEDIA_DEBUG, value).apply();
+        prefs(context).edit().remove(KEY_MEDIA_DEBUG).apply();
     }
 
     static boolean mediaScanAll(Context context) {
-        return prefs(context).getBoolean(KEY_MEDIA_SCAN_ALL, true);
+        return false;
     }
 
     static void setMediaScanAll(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_MEDIA_SCAN_ALL, value).apply();
+        prefs(context).edit().remove(KEY_MEDIA_SCAN_ALL).apply();
     }
 
     static boolean mediaOverlay(Context context) {
-        return prefs(context).getBoolean(KEY_MEDIA_OVERLAY, false);
+        return false;
     }
 
     static void setMediaOverlay(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_MEDIA_OVERLAY, value).apply();
+        prefs(context).edit().remove(KEY_MEDIA_OVERLAY).apply();
     }
 
     static boolean backgroundAnimation(Context context) {

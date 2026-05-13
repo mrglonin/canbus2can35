@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia Sportage CANBOX integration.
 
 Current package: `com.sorento.navi`
 
-Current app version: `9.6-obd-clean` (`versionCode 76`)
+Current app version: `9.7-rcta-debug` (`versionCode 77`)
 
 Main protocol notes:
 
@@ -33,5 +33,14 @@ The target TEYES screen is `2000x1200`. The sandbox launches at `1000x600` by
 default: half size, same 5:3 aspect ratio, so it does not take the full desktop.
 Use `SPORTAGE_EMULATOR_WIDTH=2000 SPORTAGE_EMULATOR_HEIGHT=1200` when a full
 logical-resolution run is needed.
+
+RCTA overlay debug:
+
+```bash
+adb shell am broadcast -a com.sorento.navi.DEBUG_RCTA --es side left
+adb shell am broadcast -a com.sorento.navi.DEBUG_RCTA --es side right
+adb shell am broadcast -a com.sorento.navi.DEBUG_RCTA --es side both
+adb shell am broadcast -a com.sorento.navi.DEBUG_RCTA --es side off
+```
 
 The repository intentionally does not track generated APK files, build folders or local Android SDK settings.

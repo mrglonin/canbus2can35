@@ -59,7 +59,10 @@ public class CanbusSettingsActivity extends Activity {
     private TextView mediaDebugValue;
     private TextView usbValue;
     private TextView navValue;
-    private TextView permissionValue;
+    private TextView navDebugValue;
+    private TextView runtimePermissionStatus;
+    private TextView notificationPermissionStatus;
+    private TextView overlayPermissionStatus;
     private TextView logValue;
     private TextView tpmsStatusValue;
     private TextView tpmsDataValue;
@@ -88,6 +91,9 @@ public class CanbusSettingsActivity extends Activity {
     private Button speedButton;
     private Button tempButton;
     private Button navModeButton;
+    private Button runtimePermissionButton;
+    private Button notificationPermissionButton;
+    private Button overlayPermissionButton;
     private EditText sasEdit;
     private ProgressBar progressBar;
     private int ampFader = 10;
@@ -128,6 +134,7 @@ public class CanbusSettingsActivity extends Activity {
         filter.addAction(VehicleDisplayState.ACTION_STATE);
         filter.addAction(TpmsState.ACTION_STATE);
         filter.addAction(AppLog.ACTION_STATE);
+        filter.addAction(NavDebugState.ACTION_STATE);
         filter.addAction(SidebandDebugState.ACTION_STATE);
         filter.addAction(BlindSpotState.ACTION_STATE);
         filter.addAction(CanbusControl.ACTION_FRAME_RECEIVED);
@@ -167,6 +174,12 @@ public class CanbusSettingsActivity extends Activity {
         if (requestCode == REQ_FIRMWARE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             startFirmwareUpdate(data.getData());
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PermissionHelper.REQ_RUNTIME) refresh();
     }
 
     private void buildUi() {
@@ -308,7 +321,10 @@ public class CanbusSettingsActivity extends Activity {
         mediaDebugValue = null;
         usbValue = null;
         navValue = null;
-        permissionValue = null;
+        navDebugValue = null;
+        runtimePermissionStatus = null;
+        notificationPermissionStatus = null;
+        overlayPermissionStatus = null;
         logValue = null;
         tpmsStatusValue = null;
         tpmsDataValue = null;
@@ -337,6 +353,9 @@ public class CanbusSettingsActivity extends Activity {
         speedButton = null;
         tempButton = null;
         navModeButton = null;
+        runtimePermissionButton = null;
+        notificationPermissionButton = null;
+        overlayPermissionButton = null;
         sasEdit = null;
         progressBar = null;
         for (int i = 0; i < tireValues.length; i++) {
@@ -481,13 +500,11 @@ public class CanbusSettingsActivity extends Activity {
             NavProtocol.setTbtMode(this, checked);
             savedToast();
         }));
-        nav.addView(check("Навигация: overlay отладка", AppPrefs.navOverlay(this), (button, checked) -> {
-            AppPrefs.setNavOverlay(this, checked);
-            if (checked && !PermissionHelper.canDrawOverlays(this)) {
-                Toast.makeText(this, "Разрешите показ поверх других окон", Toast.LENGTH_SHORT).show();
-                PermissionHelper.openOverlaySettings(this);
-            }
-            AppService.refreshOverlays(this);
+        nav.addView(check("Компас без маршрута", AppPrefs.navCompass(this), (button, checked) -> {
+            AppPrefs.setNavCompass(this, checked);
+            if (checked) AppService.start(this);
+            CompassBridge.refresh(this);
+            AppLog.line(this, "Навигация: компас без маршрута " + yes(checked));
             savedToast();
         }));
         nav.addView(check("Температура двигателя через CAN", AppPrefs.engineTempEnabled(this), (button, checked) -> {
@@ -550,52 +567,7 @@ public class CanbusSettingsActivity extends Activity {
         LinearLayout media = card();
         content.addView(media, cardLp());
         addCardTitle(media, "Мультимедиа");
-        mediaValue = infoRow(media, "Сейчас", "");
-        mediaDebugValue = infoRow(media, "Отладка", "");
-        permissionValue = infoRow(media, "Разрешения", "");
-        GridLayout mediaActions = grid(2);
-        media.addView(mediaActions, matchWrap());
-        gridButton(mediaActions, "Доступ к уведомлениям", v -> PermissionHelper.openNotificationListener(this));
-        gridButton(mediaActions, "Разрешение overlay", v -> PermissionHelper.openOverlaySettings(this));
-        gridButton(mediaActions, "Сканировать сейчас", v -> {
-            MediaMonitor.resetDebugScan();
-            MediaMonitor.scanNow(this);
-            Toast.makeText(this, "Сканирование мультимедиа запущено", Toast.LENGTH_SHORT).show();
-            refresh();
-        });
-        media.addView(check("Запрашивать доступ к мультимедиа", AppPrefs.mediaAccessPrompt(this), (button, checked) -> {
-            AppPrefs.setMediaAccessPrompt(this, checked);
-            if (checked) PermissionHelper.openNotificationListener(this);
-            AppLog.line(this, "Мультимедиа: запрос доступа " + yes(checked));
-            savedToast();
-            refresh();
-        }));
-        media.addView(check("Мультимедиа: искать все источники", AppPrefs.mediaScanAll(this), (button, checked) -> {
-            AppPrefs.setMediaScanAll(this, checked);
-            MediaMonitor.resetDebugScan();
-            MediaMonitor.scanNow(this);
-            AppLog.line(this, "Мультимедиа: расширенный поиск " + yes(checked));
-            savedToast();
-            refresh();
-        }));
-        media.addView(check("Мультимедиа: подробная отладка", AppPrefs.mediaDebug(this), (button, checked) -> {
-            AppPrefs.setMediaDebug(this, checked);
-            MediaMonitor.resetDebugScan();
-            MediaMonitor.scanNow(this);
-            AppLog.line(this, "Мультимедиа: подробная отладка " + yes(checked));
-            savedToast();
-            refresh();
-        }));
-        media.addView(check("Визуальный overlay музыки", AppPrefs.mediaOverlay(this), (button, checked) -> {
-            AppPrefs.setMediaOverlay(this, checked);
-            if (checked && !PermissionHelper.canDrawOverlays(this)) {
-                Toast.makeText(this, "Разрешите показ поверх других окон", Toast.LENGTH_SHORT).show();
-                PermissionHelper.openOverlaySettings(this);
-            }
-            AppService.refreshOverlays(this);
-            savedToast();
-            refresh();
-        }));
+        mediaValue = infoRow(media, "Источник / автор / трек / время", "");
 
         LinearLayout app = card();
         content.addView(app, cardLp());
@@ -603,10 +575,12 @@ public class CanbusSettingsActivity extends Activity {
         appVersionValue = infoRow(app, "Версия", "");
         usbValue = infoRow(app, "USB", "");
         navValue = infoRow(app, "Навигация", "");
-        GridLayout appActions = grid(2);
-        app.addView(appActions, matchWrap());
-        gridButton(appActions, "Активировать ADB", v -> activateAdb());
-        gridButton(appActions, "Открыть разработчика", v -> PermissionHelper.openDeveloperSettings(this));
+        navDebugValue = bodyText("");
+        navDebugValue.setTypeface(Typeface.MONOSPACE);
+        navDebugValue.setTextSize(12);
+        navDebugValue.setPadding(dp(12), dp(10), dp(12), dp(10));
+        navDebugValue.setBackground(rounded(0xfff7f9fc, 8));
+        app.addView(navDebugValue, new LinearLayout.LayoutParams(-1, dp(138)));
         app.addView(check("Включить раздел OBD", AppPrefs.obdEnabled(this), (button, checked) -> {
             AppPrefs.setObdEnabled(this, checked);
             if (checked) {
@@ -774,6 +748,21 @@ public class CanbusSettingsActivity extends Activity {
             scroll.addView(logValue, new ScrollView.LayoutParams(-1, -2));
             log.addView(scroll, new LinearLayout.LayoutParams(-1, dp(250)));
         }
+
+        LinearLayout permissions = card();
+        content.addView(permissions, cardLp());
+        addCardTitle(permissions, "Разрешения");
+        Button[] runtime = new Button[1];
+        runtimePermissionStatus = permissionStatusRow(permissions, "Android runtime", runtime, v -> requestRuntimePermissionsNow());
+        runtimePermissionButton = runtime[0];
+        Button[] notifications = new Button[1];
+        notificationPermissionStatus = permissionStatusRow(permissions, "Уведомления / музыка", notifications,
+                v -> PermissionHelper.openNotificationListener(this));
+        notificationPermissionButton = notifications[0];
+        Button[] overlay = new Button[1];
+        overlayPermissionStatus = permissionStatusRow(permissions, "Поверх других окон", overlay,
+                v -> PermissionHelper.openOverlaySettings(this));
+        overlayPermissionButton = overlay[0];
     }
 
     private void refresh() {
@@ -806,11 +795,8 @@ public class CanbusSettingsActivity extends Activity {
         }
         if (usbValue != null) usbValue.setText(cleanUsbStatus(AppLog.usb()));
         if (navValue != null) navValue.setText(AppLog.nav());
-        if (permissionValue != null) {
-            permissionValue.setText("Android " + yes(runtimePermissionsOk())
-                    + " | уведомления " + yes(PermissionHelper.hasNotificationAccess(this))
-                    + " | overlay " + yes(PermissionHelper.canDrawOverlays(this)));
-        }
+        if (navDebugValue != null) navDebugValue.setText(navDebugText());
+        refreshPermissionStatus();
         if (logValue != null) logValue.setText(AppPrefs.debug(this) ? AppLog.text() : "");
         if (speedMetric != null) speedMetric.setText(vehicle.speedText(this));
         if (rpmMetric != null) rpmMetric.setText(vehicle.rpm + " rpm");
@@ -863,6 +849,40 @@ public class CanbusSettingsActivity extends Activity {
         }
     }
 
+    private void refreshPermissionStatus() {
+        setPermissionStatus(runtimePermissionStatus, runtimePermissionButton, runtimePermissionsOk());
+        setPermissionStatus(notificationPermissionStatus, notificationPermissionButton, PermissionHelper.hasNotificationAccess(this));
+        setPermissionStatus(overlayPermissionStatus, overlayPermissionButton, PermissionHelper.canDrawOverlays(this));
+    }
+
+    private void setPermissionStatus(TextView status, Button button, boolean granted) {
+        if (status != null) {
+            status.setText(granted ? "есть" : "нет");
+            status.setTextColor(granted ? 0xff188038 : 0xffb42318);
+        }
+        if (button != null) button.setVisibility(granted ? View.GONE : View.VISIBLE);
+    }
+
+    private void requestRuntimePermissionsNow() {
+        if (Build.VERSION.SDK_INT < 23) {
+            refresh();
+            return;
+        }
+        java.util.ArrayList<String> missing = new java.util.ArrayList<>();
+        for (String permission : PermissionHelper.runtimePermissions()) {
+            if (!PermissionHelper.shouldRequestRuntime(this, permission)) continue;
+            if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                missing.add(permission);
+            }
+        }
+        if (missing.isEmpty()) {
+            Toast.makeText(this, "Android разрешения уже есть", Toast.LENGTH_SHORT).show();
+            refresh();
+            return;
+        }
+        requestPermissions(missing.toArray(new String[0]), PermissionHelper.REQ_RUNTIME);
+    }
+
     private String cleanVehicleStatus(VehicleDisplayState.Snapshot vehicle) {
         if (vehicle == null || vehicle.status == null) return "";
         String value = vehicle.status;
@@ -905,6 +925,19 @@ public class CanbusSettingsActivity extends Activity {
             lastTpmsOpenAt = now;
             startActivity(new Intent(this, TpmsActivity.class).putExtra("tpms_alert", true));
         }
+    }
+
+    private String navDebugText() {
+        NavDebugState.Snapshot nav = NavDebugState.snapshot();
+        return "TEYES: " + shortDebug(nav.lastTeyes) + "\n"
+                + "Intent: " + shortDebug(nav.lastEvent) + "\n"
+                + "CAN: " + shortDebug(nav.lastFrame);
+    }
+
+    private String shortDebug(String value) {
+        if (TextUtils.isEmpty(value)) return "-";
+        String clean = value.replace('\n', ' ').replace('\r', ' ').trim();
+        return clean.length() > 170 ? clean.substring(0, 170) + "..." : clean;
     }
 
     private String versionText() {
@@ -1072,13 +1105,6 @@ public class CanbusSettingsActivity extends Activity {
         }
     }
 
-    private void activateAdb() {
-        boolean ok = PermissionHelper.activateDeveloperOptionsAndAdb(this);
-        Toast.makeText(this, ok ? "ADB включён" : "Нет системных/root прав, включите на экране разработчика", Toast.LENGTH_LONG).show();
-        if (!ok) PermissionHelper.openDeveloperSettings(this);
-        refresh();
-    }
-
     private void closeSettings() {
         Intent home = new Intent(this, MainActivity.class);
         home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -1197,6 +1223,39 @@ public class CanbusSettingsActivity extends Activity {
         text.setSingleLine(true);
         row.addView(text, new LinearLayout.LayoutParams(0, -1, 1));
         return text;
+    }
+
+    private TextView permissionStatusRow(LinearLayout parent, String label, Button[] buttonOut, View.OnClickListener listener) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(16), dp(6), dp(12), dp(6));
+        row.setBackground(roundedStroke(0xfff7f9fc, 14, 0xffdfe5ef));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(62));
+        lp.setMargins(0, dp(5), 0, dp(5));
+        parent.addView(row, lp);
+
+        TextView name = new TextView(this);
+        name.setText(label);
+        name.setTextColor(0xff1f2430);
+        name.setTextSize(15.5f);
+        name.setTypeface(Typeface.DEFAULT_BOLD);
+        name.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(name, new LinearLayout.LayoutParams(0, -1, 1));
+
+        TextView status = new TextView(this);
+        status.setTextColor(0xff8a1f1f);
+        status.setTextSize(15);
+        status.setTypeface(Typeface.DEFAULT_BOLD);
+        status.setGravity(Gravity.CENTER);
+        row.addView(status, new LinearLayout.LayoutParams(dp(124), -1));
+
+        Button action = button("Запросить", 0xff151928, listener);
+        LinearLayout.LayoutParams actionLp = new LinearLayout.LayoutParams(dp(132), dp(46));
+        actionLp.setMargins(dp(10), 0, 0, 0);
+        row.addView(action, actionLp);
+        buttonOut[0] = action;
+        return status;
     }
 
     private TextView bodyText(String text) {

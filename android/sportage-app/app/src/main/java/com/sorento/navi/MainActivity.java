@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
     private TextView disabledObdView;
     private FrameLayout settingsPanel;
     private UartOverlayView uartOverlayView;
+    private BlindSpotOverlayView blindSpotOverlayView;
     private boolean touched;
     private long lastTpmsOpenAt;
 
@@ -106,6 +107,7 @@ public class MainActivity extends Activity {
         filter.addAction(VehicleDisplayState.ACTION_STATE);
         filter.addAction(TpmsState.ACTION_STATE);
         filter.addAction(CanbusControl.ACTION_STATE);
+        filter.addAction(BlindSpotState.ACTION_STATE);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -210,6 +212,10 @@ public class MainActivity extends Activity {
         uartOverlayView.setVisibility(View.GONE);
         root.addView(uartOverlayView, new FrameLayout.LayoutParams(-1, -1));
 
+        blindSpotOverlayView = new BlindSpotOverlayView(this);
+        blindSpotOverlayView.setVisibility(View.GONE);
+        root.addView(blindSpotOverlayView, new FrameLayout.LayoutParams(-1, -1));
+
         settingsPanel = new FrameLayout(this);
         settingsPanel.setVisibility(View.GONE);
         settingsPanel.setBackgroundColor(0xfff3f3f3);
@@ -275,7 +281,7 @@ public class MainActivity extends Activity {
         });
         settingsPanel.addView(amp, frame(buttonW, buttonH, left, top + buttonH + gap));
 
-        Button media = legacyButton("Мультимедиа", v -> PermissionHelper.openNotificationListener(this));
+        Button media = legacyButton("Доступ уведомлений", v -> PermissionHelper.openNotificationListener(this));
         settingsPanel.addView(media, frame(buttonW, buttonH, left, top + (buttonH + gap) * 2));
 
         RadioGroup speedGroup = new RadioGroup(this);
@@ -332,19 +338,13 @@ public class MainActivity extends Activity {
         });
         settingsPanel.addView(delay, frame(buttonW, dp(48), left, checksTop + dp(126)));
 
-        View mediaAccess = legacyCheck("Доступ к мультимедиа", AppPrefs.mediaAccessPrompt(this), (button, checked) -> {
-            AppPrefs.setMediaAccessPrompt(this, checked);
-            if (checked) PermissionHelper.openNotificationListener(this);
-        });
-        settingsPanel.addView(mediaAccess, frame(dp(360), dp(42), dp(512), dp(548)));
-
         View debug = legacyCheck("Отладка", AppPrefs.debug(this), (button, checked) -> {
             AppPrefs.setDebug(this, checked);
             if (logView != null) logView.setVisibility(checked ? View.VISIBLE : View.GONE);
             if (logScroll != null) logScroll.setVisibility(checked ? View.VISIBLE : View.GONE);
             updatePermissionText();
         });
-        settingsPanel.addView(debug, frame(dp(360), dp(42), dp(512), dp(590)));
+        settingsPanel.addView(debug, frame(dp(360), dp(42), dp(512), dp(548)));
 
         permissionView = legacyInfo("");
         settingsPanel.addView(permissionView, frame(dp(720), dp(96), dp(512), top));
@@ -691,6 +691,11 @@ public class MainActivity extends Activity {
         if (uartOverlayView != null) {
             uartOverlayView.setVisibility(View.GONE);
         }
+        if (blindSpotOverlayView != null) {
+            boolean active = AppPrefs.blindSpotEnabled(this) && BlindSpotState.snapshot().active();
+            blindSpotOverlayView.setVisibility(active ? View.VISIBLE : View.GONE);
+            if (active) blindSpotOverlayView.invalidate();
+        }
     }
 
     private void applyState(Intent intent) {
@@ -738,8 +743,7 @@ public class MainActivity extends Activity {
         handler.post(tick);
         if (!AppPrefs.autoHide(this)) return;
         handler.postDelayed(() -> {
-            boolean mediaReady = !AppPrefs.mediaAccessPrompt(this) || PermissionHelper.hasNotificationAccess(this);
-            boolean permissionsDone = runtimePermissionsOk() && mediaReady;
+            boolean permissionsDone = runtimePermissionsOk() && PermissionHelper.hasNotificationAccess(this);
             if (!touched && permissionsDone) {
                 AppLog.line(this, "Автосворачивание");
                 moveTaskToBack(true);

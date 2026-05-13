@@ -138,12 +138,36 @@ final class CanbusControl {
         send(context, textPacket(0x22, title, 16));
     }
 
+    static void sendMediaMetadata(Context context, String source, String artist, String title) {
+        sendQuiet(context, mediaSourcePacket(1, source));
+        sendQuiet(context, mediaSourcePacket(2, artist));
+        send(context, textPacket(0x22, title, 16));
+    }
+
     static void sendRawCan(Context context, int bus, int canId, byte[] data, boolean dryRun) {
-        byte[] payload = CanSideband.canTxPayload(bus, canId, data);
+        sendRawCan(context, bus, 0, canId, data, dryRun);
+    }
+
+    static void sendRawCan(Context context, int bus, int flags, int canId, byte[] data, boolean dryRun) {
+        if (!validCanTx(bus, data)) {
+            AppLog.line(context, "CAN TX: ошибка параметров bus=" + bus
+                    + " len=" + (data == null ? 0 : data.length));
+            return;
+        }
+        byte[] payload = CanSideband.canTxPayload(bus, flags, canId, data);
         AppLog.line(context, (dryRun ? "CAN TX dry-run: " : "CAN TX: ")
-                + "bus=" + bus + " id=0x" + Integer.toHexString(canId).toUpperCase(Locale.US)
+                + canBusText(bus) + " flags=" + flagsText(flags) + " id=0x" + Integer.toHexString(canId).toUpperCase(Locale.US)
                 + " data=" + hex(data));
         if (!dryRun) send(context, packet(0x74, payload));
+    }
+
+    static void sendRawCanQuiet(Context context, int bus, int canId, byte[] data) {
+        sendRawCanQuiet(context, bus, 0, canId, data);
+    }
+
+    static void sendRawCanQuiet(Context context, int bus, int flags, int canId, byte[] data) {
+        if (!validCanTx(bus, data)) return;
+        sendQuiet(context, packet(0x74, CanSideband.canTxPayload(bus, flags, canId, data)));
     }
 
     static void handleIncomingFrame(Context context, byte[] frame) {
@@ -176,8 +200,12 @@ final class CanbusControl {
             parseUartRead(context, frame);
             return;
         }
-        if (id == 0x73 || id == 0x74) {
-            AppLog.line(context, "Sideband ACK 0x" + byteHex(frame[4]) + ": " + hex(frame));
+        if (id == 0x73) {
+            AppLog.line(context, "UART TX ACK: " + ackText(frame) + " | " + hex(frame));
+            return;
+        }
+        if (id == 0x74) {
+            AppLog.line(context, "CAN TX ACK: " + ackText(frame) + " | " + hex(frame));
             return;
         }
         if (id == 0x30) {
@@ -292,6 +320,28 @@ final class CanbusControl {
         frame[3] = (byte) len;
         frame[4] = (byte) id;
         System.arraycopy(payload, 0, frame, 5, payload.length);
+        return checksum(frame);
+    }
+
+    private static byte[] mediaSourcePacket(int type, String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.length() > 16) {
+            text = text.substring(0, 16);
+        }
+        if (TextUtils.isEmpty(text)) {
+            byte[] frame = new byte[]{(byte) 0xBB, 0x41, (byte) 0xA1, 0x09, 0x21, (byte) type, 0, 0, 0};
+            return checksum(frame);
+        }
+        byte[] payload = text.getBytes(StandardCharsets.UTF_16LE);
+        int len = Math.min(payload.length, 32) + 7;
+        byte[] frame = new byte[len];
+        frame[0] = (byte) 0xBB;
+        frame[1] = 0x41;
+        frame[2] = (byte) 0xA1;
+        frame[3] = (byte) len;
+        frame[4] = 0x21;
+        frame[5] = (byte) type;
+        System.arraycopy(payload, 0, frame, 6, len - 7);
         return checksum(frame);
     }
 
@@ -419,6 +469,35 @@ final class CanbusControl {
         if (code == 2) return "блок прошивки принят";
         if (code == 0) return "адаптер отменил прошивку";
         return "ответ адаптера " + code;
+    }
+
+    private static boolean validCanTx(int bus, byte[] data) {
+        int len = data == null ? 0 : data.length;
+        return (bus == 0 || bus == 1) && len <= 8;
+    }
+
+    private static String canBusText(int bus) {
+        if (bus == 0) return "bus=0 C-CAN/CAN1";
+        if (bus == 1) return "bus=1 M-CAN/CAN2";
+        return "bus=" + bus;
+    }
+
+    private static String flagsText(int flags) {
+        int clean = flags & 0x03;
+        if (clean == 0) return "STD";
+        if (clean == 1) return "EXT";
+        if (clean == 2) return "RTR";
+        return "EXT+RTR";
+    }
+
+    private static String ackText(byte[] frame) {
+        int code = frame != null && frame.length > 5 ? frame[5] & 0xff : -1;
+        if (code == 0x00) return "00 кадр поставлен в mailbox";
+        if (code == 0x01) return "01 mailbox занят";
+        if (code == 0x02) return "02 неверный bus";
+        if (code == 0xff) return "FF неверная длина";
+        if (code < 0) return "нет payload";
+        return "код " + byteHex((byte) code);
     }
 
     private static String byteHex(byte b) {

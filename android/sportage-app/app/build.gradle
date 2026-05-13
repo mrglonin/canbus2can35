@@ -5,13 +5,14 @@ plugins {
 android {
     namespace "com.sorento.navi"
     compileSdk 35
+    buildToolsVersion "37.0.0"
 
     defaultConfig {
         applicationId "com.sorento.navi"
         minSdk 29
         targetSdk 35
-        versionCode 76
-        versionName "9.6-obd-clean"
+        versionCode 88
+        versionName "10.8-clean-release"
     }
 }
 

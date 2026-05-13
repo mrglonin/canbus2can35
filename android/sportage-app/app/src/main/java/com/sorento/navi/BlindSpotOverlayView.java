@@ -1,104 +1,81 @@
 package com.sorento.navi;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.FrameLayout;
 
-final class BlindSpotOverlayView extends View {
-    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path path = new Path();
+final class BlindSpotOverlayView extends FrameLayout {
+    private View warningIcon;
+    private View leftArrows;
+    private View rightArrows;
+
+    private final Runnable animationTick = new Runnable() {
+        @Override
+        public void run() {
+            refreshFromState();
+        }
+    };
 
     BlindSpotOverlayView(Context context) {
         super(context);
         setWillNotDraw(false);
+        setClipChildren(false);
+        setClipToPadding(false);
+        LayoutInflater.from(context).inflate(R.layout.view_blind_spot_overlay, this, true);
+        warningIcon = findViewById(R.id.rcta_warning_icon);
+        leftArrows = findViewById(R.id.rcta_left_arrows);
+        rightArrows = findViewById(R.id.rcta_right_arrows);
+        refreshFromState();
+    }
+
+    void refreshFromState() {
+        BlindSpotState.Snapshot state = BlindSpotState.snapshot();
+        boolean active = state.active();
+        setPartVisible(warningIcon, active);
+        setPartVisible(leftArrows, state.left);
+        setPartVisible(rightArrows, state.right);
+        animateArrows(state.left, state.right);
+
+        removeCallbacks(animationTick);
+        if (active && getWindowToken() != null) {
+            postDelayed(animationTick, 70L);
+        }
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        BlindSpotState.Snapshot state = BlindSpotState.snapshot();
-        if (!state.active()) return;
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        refreshFromState();
+    }
 
-        int width = getWidth();
-        int height = getHeight();
-        if (width <= 0 || height <= 0) return;
+    @Override
+    protected void onDetachedFromWindow() {
+        removeCallbacks(animationTick);
+        super.onDetachedFromWindow();
+    }
 
+    private void setPartVisible(View view, boolean visible) {
+        if (view != null) view.setVisibility(visible ? VISIBLE : GONE);
+    }
+
+    private void animateArrows(boolean left, boolean right) {
         long now = System.currentTimeMillis();
-        drawWarning(canvas, width, height);
-        if (state.left) drawArrows(canvas, true, width, height, now);
-        if (state.right) drawArrows(canvas, false, width, height, now);
-        postInvalidateDelayed(70L);
-    }
+        float phase = (now % 720L) / 720f;
+        float shift = dp(54) * phase;
+        float alpha = 0.58f + 0.42f * (1f - Math.abs(phase - 0.5f) * 2f);
 
-    private void drawWarning(Canvas canvas, int width, int height) {
-        float cx = width * 0.5f;
-        float cy = height * 0.48f;
-        float size = Math.min(width, height) * 0.105f;
-
-        path.reset();
-        path.moveTo(cx, cy - size);
-        path.lineTo(cx - size * 0.95f, cy + size * 0.72f);
-        path.lineTo(cx + size * 0.95f, cy + size * 0.72f);
-        path.close();
-
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(0xeeffd21f);
-        canvas.drawPath(path, paint);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(Math.max(4f, size * 0.08f));
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        paint.setColor(0xffffffff);
-        canvas.drawPath(path, paint);
-
-        paint.setStyle(Paint.Style.FILL);
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        paint.setColor(Color.WHITE);
-        paint.setTextSize(size * 1.24f);
-        canvas.drawText("!", cx, cy + size * 0.43f, paint);
-    }
-
-    private void drawArrows(Canvas canvas, boolean leftSide, int width, int height, long now) {
-        float areaLeft = leftSide ? 0f : width * 0.55f;
-        float areaRight = leftSide ? width * 0.45f : width;
-        float areaWidth = areaRight - areaLeft;
-        float y = height * 0.51f;
-        float size = Math.min(width, height) * 0.085f;
-        float spacing = size * 1.55f;
-        float phase = ((now % 720L) / 720f) * spacing;
-
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        paint.setStrokeWidth(Math.max(8f, size * 0.15f));
-        paint.setColor(0xffffd21f);
-
-        for (int i = -1; i < 5; i++) {
-            float x;
-            if (leftSide) {
-                x = areaRight - i * spacing - phase;
-                drawChevron(canvas, x, y, size, true);
-            } else {
-                x = areaLeft + i * spacing + phase;
-                drawChevron(canvas, x, y, size, false);
-            }
+        if (leftArrows != null) {
+            leftArrows.setTranslationX(left ? -shift : 0f);
+            leftArrows.setAlpha(left ? alpha : 1f);
+        }
+        if (rightArrows != null) {
+            rightArrows.setTranslationX(right ? shift : 0f);
+            rightArrows.setAlpha(right ? alpha : 1f);
         }
     }
 
-    private void drawChevron(Canvas canvas, float x, float y, float size, boolean pointsLeft) {
-        path.reset();
-        if (pointsLeft) {
-            path.moveTo(x + size * 0.5f, y - size * 0.55f);
-            path.lineTo(x - size * 0.5f, y);
-            path.lineTo(x + size * 0.5f, y + size * 0.55f);
-        } else {
-            path.moveTo(x - size * 0.5f, y - size * 0.55f);
-            path.lineTo(x + size * 0.5f, y);
-            path.lineTo(x - size * 0.5f, y + size * 0.55f);
-        }
-        canvas.drawPath(path, paint);
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }

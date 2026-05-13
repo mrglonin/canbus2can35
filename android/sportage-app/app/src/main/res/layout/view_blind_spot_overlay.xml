@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rcta_overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    tools:background="#22000000">
+
+    <LinearLayout
+        android:id="@+id/rcta_left_arrows"
+        android:layout_width="550dp"
+        android:layout_height="230dp"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="750dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <ImageView
+            android:layout_width="125dp"
+            android:layout_height="150dp"
+            android:layout_marginEnd="46dp"
+            android:contentDescription="@string/rcta_left_arrow"
+            android:src="@drawable/rcta_chevron_left" />
+
+        <ImageView
+            android:layout_width="100dp"
+            android:layout_height="150dp"
+            android:layout_marginEnd="46dp"
+            android:contentDescription="@string/rcta_left_arrow"
+            android:src="@drawable/rcta_chevron_left" />
+
+        <ImageView
+            android:layout_width="75dp"
+            android:layout_height="150dp"
+            android:layout_marginEnd="46dp"
+            android:contentDescription="@string/rcta_left_arrow"
+            android:src="@drawable/rcta_chevron_left" />
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="150dp"
+            android:contentDescription="@string/rcta_left_arrow"
+            android:src="@drawable/rcta_chevron_left" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/rcta_warning_icon"
+        android:layout_width="match_parent"
+        android:layout_height="204dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/rcta_warning"
+        android:src="@drawable/rcta_warning_triangle" />
+
+    <LinearLayout
+        android:id="@+id/rcta_right_arrows"
+        android:layout_width="550dp"
+        android:layout_height="230dp"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="750dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <ImageView
+            android:layout_width="108dp"
+            android:layout_height="75dp"
+            android:layout_marginEnd="46dp"
+            android:contentDescription="@string/rcta_right_arrow"
+            android:src="@drawable/rcta_chevron_right" />
+
+        <ImageView
+            android:layout_width="108dp"
+            android:layout_height="100dp"
+            android:layout_marginEnd="46dp"
+            android:contentDescription="@string/rcta_right_arrow"
+            android:src="@drawable/rcta_chevron_right" />
+
+        <ImageView
+            android:layout_width="108dp"
+            android:layout_height="125dp"
+            android:layout_marginEnd="46dp"
+            android:contentDescription="@string/rcta_right_arrow"
+            android:src="@drawable/rcta_chevron_right" />
+
+        <ImageView
+            android:layout_width="108dp"
+            android:layout_height="150dp"
+            android:contentDescription="@string/rcta_right_arrow"
+            android:src="@drawable/rcta_chevron_right" />
+    </LinearLayout>
+</FrameLayout>

@@ -44,6 +44,7 @@ public class AppService extends Service {
     private static final int STM_CDC_PRODUCT_ID = 22336;
     private static final int RAW_CAN_BURST = 3;
     private static final Queue<byte[]> PENDING = new ArrayDeque<>();
+    private static volatile AppService active;
 
     private UsbManager usbManager;
     private WindowManager windowManager;
@@ -109,6 +110,11 @@ public class AppService extends Service {
     }
 
     private static void sendFrame(Context context, byte[] data, boolean quiet) {
+        AppService service = active;
+        if (service != null) {
+            service.enqueueWrite(data, quiet);
+            return;
+        }
         Intent intent = new Intent(context, AppService.class);
         intent.putExtra(EXTRA_DATA, data);
         intent.putExtra(EXTRA_QUIET, quiet);
@@ -140,13 +146,16 @@ public class AppService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        active = this;
         serviceRunning = true;
         usbManager = (UsbManager) getSystemService(USB_SERVICE);
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         AppPrefs.setObdEmulation(this, false);
         ObdEmulator.stop();
         startForeground(NOTIFICATION_ID, notification("Запуск подключения"));
+        TeyesMediaBridge.start(this);
         MediaMonitor.start(this);
+        CompassBridge.start(this);
         ObdMonitor.start(this);
         ioThread = new HandlerThread("kia-canbox-io");
         ioThread.start();
@@ -186,6 +195,7 @@ public class AppService extends Service {
     @Override
     public void onDestroy() {
         serviceRunning = false;
+        active = null;
         debugHandler.removeCallbacks(debugPoll);
         if (ioHandler != null) ioHandler.removeCallbacks(rawCanPoll);
         debugHandler.removeCallbacks(rawCanPoll);
@@ -196,7 +206,9 @@ public class AppService extends Service {
         }
         removeSystemOverlays();
         closePort();
+        TeyesMediaBridge.stop(this);
         MediaMonitor.stop();
+        CompassBridge.stop();
         ObdMonitor.stop(this);
         TpmsMonitor.stop();
         super.onDestroy();
@@ -276,7 +288,7 @@ public class AppService extends Service {
         if (systemUartOverlay != null) systemUartOverlay.invalidate();
         if (systemMusicOverlay != null) systemMusicOverlay.invalidate();
         if (systemNavOverlay != null) systemNavOverlay.invalidate();
-        if (systemBlindSpotOverlay != null) systemBlindSpotOverlay.invalidate();
+        if (systemBlindSpotOverlay != null) systemBlindSpotOverlay.refreshFromState();
     }
 
     private void addOverlay(View view) {
@@ -382,6 +394,17 @@ public class AppService extends Service {
         int product = device.getProductId();
         return (vendor == FTDI_VENDOR_ID && product == FTDI_CANBOX_PRODUCT_ID)
                 || (vendor == STM_VENDOR_ID && product == STM_CDC_PRODUCT_ID);
+    }
+
+    private void enqueueWrite(byte[] data, boolean quiet) {
+        if (data == null) return;
+        byte[] copy = Arrays.copyOf(data, data.length);
+        Handler handler = ioHandler;
+        if (handler != null) {
+            handler.post(() -> writeOrQueue(copy, quiet));
+        } else {
+            writeOrQueue(copy, quiet);
+        }
     }
 
     private void writeOrQueue(byte[] data) {

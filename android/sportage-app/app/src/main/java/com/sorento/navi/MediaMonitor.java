@@ -19,11 +19,22 @@ import java.util.List;
 import java.util.Locale;
 
 final class MediaMonitor {
+    private static final long SOURCE_LOCK_MS = 8000L;
+    private static final int SOURCE_SWITCH_MARGIN = 25;
     private static Handler handler;
     private static Runnable poll;
     private static String lastLine = "";
     private static long lastAt;
     private static long lastCandidateAt;
+    private static String activeSource = "";
+    private static String activePkg = "";
+    private static String activeSourceKey = "";
+    private static int activePriority;
+    private static long activeSourceAt;
+    private static String hintSource = "";
+    private static String hintPkg = "";
+    private static int hintPriority;
+    private static long hintUntil;
 
     private static final class NotificationCandidate {
         String pkg;
@@ -35,6 +46,7 @@ final class MediaMonitor {
         String category;
         long postTime;
         int score;
+        int playbackRank;
         MediaSession.Token token;
     }
 
@@ -43,6 +55,8 @@ final class MediaMonitor {
 
     static void start(Context context) {
         Context app = context.getApplicationContext();
+        TeyesMusicWidgetBridge.start(app);
+        TeyesMediaBridge.start(app);
         if (handler == null) handler = new Handler(Looper.getMainLooper());
         if (poll == null) {
             poll = () -> {
@@ -57,12 +71,53 @@ final class MediaMonitor {
     static void stop() {
         if (handler != null && poll != null) handler.removeCallbacks(poll);
         poll = null;
+        TeyesMusicWidgetBridge.stop();
     }
 
     static void scanNow(Context context) {
-        boolean found = MediaNotificationListener.refresh(context);
-        if (!found) scanSessions(context);
+        TeyesMusicWidgetBridge.scanNow(context);
+        TeyesMediaBridge.scanNow(context);
+        MediaNotificationListener.refresh(context);
+        scanSessions(context);
         scanCandidates(context);
+    }
+
+    static boolean reportExternal(Context context, String source, String pkg, String artist, String title, long durationMs) {
+        return reportExternal(context, source, pkg, artist, title, durationMs, 95);
+    }
+
+    static boolean reportExternal(Context context, String source, String pkg, String artist, String title, long durationMs, int priority) {
+        if (context == null) return false;
+        if (TextUtils.isEmpty(source) && TextUtils.isEmpty(title) && TextUtils.isEmpty(artist)) return false;
+        return emit(context, source, pkg, artist, title, durationMs, priority);
+    }
+
+    static void reportSourceHint(Context context, String source, String pkg, int priority, long ttlMs) {
+        if (context == null || TextUtils.isEmpty(source)) return;
+        long now = System.currentTimeMillis();
+        String sourceKey = sourceKey(source, pkg);
+        boolean changed = !sameSource(source, pkg, activeSource, activePkg);
+        hintSource = source;
+        hintPkg = pkg;
+        hintPriority = priority;
+        hintUntil = now + Math.max(1000L, ttlMs);
+        activeSource = source;
+        activePkg = pkg;
+        activeSourceKey = sourceKey;
+        activePriority = changed ? priority : Math.max(activePriority, priority);
+        activeSourceAt = now;
+        if (changed || TextUtils.isEmpty(lastLine)) {
+            String line = "Мультимедиа: " + dash(source) + " / - / - / --:--";
+            if (!TextUtils.equals(line, lastLine) && now - lastAt > 750L) {
+                lastLine = line;
+                lastAt = now;
+                AppLog.setMedia(context, line);
+                CanbusControl.sendMediaMetadata(context, source, "", source);
+                if (AppPrefs.debug(context)) {
+                    AppLog.line(context, "Мультимедиа: TEYES widget hint=" + source + " pkg=" + pkg);
+                }
+            }
+        }
     }
 
     static void resetDebugScan() {
@@ -81,9 +136,13 @@ final class MediaMonitor {
             }
         }
         String artist = firstText(candidate.artist, candidate.sub, candidate.big);
-        if (emit(context, candidate.label + " [увед]", candidate.pkg, artist, candidate.title, -1)) {
+        int priority = candidate.token != null
+                ? priorityForPlayback(candidate.playbackRank)
+                : (allowedMediaPackage(candidate.pkg) ? 90 : (looksTrackLike(candidate) ? 82 : 65));
+        if (emit(context, sourceLabel(context, candidate.pkg) + " [увед]", candidate.pkg, artist, candidate.title, -1, priority)) {
             AppLog.line(context, "Уведомление: пакет=" + candidate.pkg
                     + " score=" + candidate.score
+                    + " playback=" + candidate.playbackRank
                     + " category=" + candidate.category
                     + " трек=" + candidate.title
                     + " текст=" + artist);
@@ -115,6 +174,7 @@ final class MediaMonitor {
         Object token = e.getParcelable("android.mediaSession");
         if (token instanceof MediaSession.Token) {
             candidate.token = (MediaSession.Token) token;
+            candidate.playbackRank = playbackRank(context, candidate.token);
         }
         candidate.title = firstText(
                 text(e, "android.title"),
@@ -131,19 +191,24 @@ final class MediaMonitor {
         if (isNoise(candidate.label, candidate.title, candidate.artist, candidate.sub, candidate.big)) return null;
         boolean mediaCategory = Notification.CATEGORY_TRANSPORT.equals(n.category)
                 || Notification.CATEGORY_SERVICE.equals(n.category) && candidate.token != null;
-        boolean mediaPkg = looksMedia(pkg) || looksMedia(candidate.label);
-        boolean scanAllMatch = AppPrefs.mediaScanAll(context) && looksTrackLike(candidate);
+        boolean mediaPkg = allowedMediaPackage(pkg) || looksMedia(candidate.label);
+        boolean scanAllMatch = looksTrackLike(candidate);
         if (candidate.token != null) {
-            candidate.score = 1000 + (mediaCategory ? 200 : 0) + (mediaPkg ? 100 : 0);
+            candidate.score = 650
+                    + (candidate.playbackRank * 450)
+                    + (mediaCategory ? 200 : 0)
+                    + (mediaPkg ? 140 : 0)
+                    + freshness(candidate.postTime);
             return candidate;
         }
         if (TextUtils.isEmpty(candidate.title)) return null;
         if (!mediaCategory && !mediaPkg && !scanAllMatch) return null;
-        candidate.score = (mediaCategory ? 700 : 0)
-                + (mediaPkg ? 450 : 0)
-                + (scanAllMatch ? 200 : 0)
+        candidate.score = (mediaCategory ? 850 : 0)
+                + (mediaPkg ? 600 : 0)
+                + (scanAllMatch ? 420 : 0)
                 + (!TextUtils.isEmpty(candidate.artist) ? 80 : 0)
-                + (!TextUtils.isEmpty(candidate.sub) ? 20 : 0);
+                + (!TextUtils.isEmpty(candidate.sub) ? 20 : 0)
+                + freshness(candidate.postTime);
         return candidate;
     }
 
@@ -189,22 +254,59 @@ final class MediaMonitor {
         if (TextUtils.isEmpty(title) && fallback != null) title = fallback.title;
         if (TextUtils.isEmpty(artist) && fallback != null) artist = firstText(fallback.artist, fallback.sub, fallback.big);
         if (TextUtils.isEmpty(title) && TextUtils.isEmpty(artist)) return false;
-        if (emit(context, label(context, pkg), pkg, artist, title, duration)) {
+        int priority = priorityForPlayback(rank(c.getPlaybackState()));
+        if (emit(context, sourceLabel(context, pkg), pkg, artist, title, duration, priority)) {
             AppLog.line(context, "Сессия: пакет=" + pkg + " состояние=" + state(c.getPlaybackState()) + " трек=" + title + " автор=" + artist);
         }
         return true;
     }
 
-    private static boolean emit(Context context, String source, String pkg, String artist, String title, long durationMs) {
-        String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title) + " / " + duration(durationMs);
+    private static boolean emit(Context context, String source, String pkg, String artist, String title, long durationMs, int priority) {
         long now = System.currentTimeMillis();
+        boolean hasHint = now < hintUntil && !TextUtils.isEmpty(hintSource);
+        if (hasHint && !sameSource(source, pkg, hintSource, hintPkg)) {
+            if (isGenericTeyesSource(source, pkg)) {
+                source = hintSource;
+                pkg = hintPkg;
+                priority = Math.max(priority, hintPriority);
+            } else if (priority < hintPriority + SOURCE_SWITCH_MARGIN) {
+                if (AppPrefs.debug(context)) {
+                    AppLog.line(context, "Мультимедиа: TEYES widget удержал " + hintSource
+                            + ", пропущен " + source + " pkg=" + pkg + " priority=" + priority + "/" + hintPriority);
+                }
+                return false;
+            }
+        }
+        String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title) + " / " + duration(durationMs);
+        String sourceKey = sourceKey(source, pkg);
+        boolean sameSource = sameSource(source, pkg, activeSource, activePkg);
+        boolean locked = !TextUtils.isEmpty(activeSourceKey) && now - activeSourceAt < SOURCE_LOCK_MS;
+        if (!sameSource && locked && priority < activePriority + SOURCE_SWITCH_MARGIN) {
+            if (AppPrefs.debug(context)) {
+                AppLog.line(context, "Мультимедиа: источник удержан " + activeSourceKey
+                        + ", пропущен " + sourceKey + " priority=" + priority + "/" + activePriority);
+            }
+            return false;
+        }
         if (!TextUtils.equals(line, lastLine) || now - lastAt > 3000) {
+            activeSource = source;
+            activePkg = pkg;
+            activeSourceKey = sourceKey;
+            activePriority = priority;
+            activeSourceAt = now;
             lastLine = line;
             lastAt = now;
             AppLog.setMedia(context, line);
-            CanbusControl.sendMediaTrack(context, !TextUtils.isEmpty(title) ? title : source);
+            CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(title) ? title : source);
             AppLog.line(context, "Мультимедиа: источник=" + source + " пакет=" + pkg + " трек=" + title + " автор=" + artist);
             return true;
+        }
+        if (sameSource) {
+            activeSource = source;
+            activePkg = pkg;
+            activeSourceKey = sourceKey;
+            activeSourceAt = now;
+            activePriority = Math.max(activePriority, priority);
         }
         return false;
     }
@@ -245,8 +347,33 @@ final class MediaMonitor {
         return 0;
     }
 
+    private static int playbackRank(Context context, MediaSession.Token token) {
+        if (token == null) return 0;
+        try {
+            return rank(new MediaController(context, token).getPlaybackState());
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private static int freshness(long postTime) {
+        if (postTime <= 0) return 0;
+        long age = Math.max(0L, System.currentTimeMillis() - postTime);
+        if (age < 10_000L) return 180;
+        if (age < 60_000L) return 120;
+        if (age < 5 * 60_000L) return 50;
+        return 0;
+    }
+
     private static int state(PlaybackState s) {
         return s == null ? -1 : s.getState();
+    }
+
+    private static int priorityForPlayback(int playbackRank) {
+        if (playbackRank >= 3) return 145;
+        if (playbackRank == 2) return 120;
+        if (playbackRank == 1) return 70;
+        return 35;
     }
 
     private static String text(Bundle b, String key) {
@@ -306,11 +433,38 @@ final class MediaMonitor {
                 || "com.sorento.navi".equals(pkg)
                 || "android".equals(pkg)
                 || "com.android.systemui".equals(pkg)
+                || "com.google.android.gms".equals(pkg)
+                || "com.google.android.as".equals(pkg)
+                || "com.android.vending".equals(pkg)
+                || "com.android.settings".equals(pkg)
+                || "com.android.launcher3".equals(pkg)
                 || "ru.yandex.yandexnavi".equals(pkg)) {
             return true;
         }
         String p = pkg.toLowerCase(Locale.US);
-        return p.contains("tpms") || p.contains("obd") || p.contains("canbus") || p.contains("navinfo");
+        return p.contains("tpms") || p.contains("obd") || p.contains("canbus") || p.contains("navinfo")
+                || p.contains("account") || p.contains("setupwizard");
+    }
+
+    private static boolean allowedMediaPackage(String pkg) {
+        if (pkg == null) return false;
+        String p = pkg.toLowerCase(Locale.US);
+        return "ru.yandex.music".equals(p)
+                || "com.yandex.music".equals(p)
+                || "com.spotify.music".equals(p)
+                || "com.google.android.apps.youtube.music".equals(p)
+                || "com.vkontakte.android".equals(p)
+                || "ru.mts.music".equals(p)
+                || "com.apple.android.music".equals(p)
+                || "com.yf.teyesspotify".equals(p)
+                || "com.spd.media".equals(p)
+                || "com.spd.radio".equals(p)
+                || "com.spd.spdmedia".equals(p)
+                || "com.spd.bluetooth".equals(p)
+                || "com.alink.bluetooth".equals(p)
+                || "com.alink.carplay".equals(p)
+                || "com.alink.androidauto".equals(p)
+                || "com.teyes.music.widget".equals(p);
     }
 
     private static boolean looksMedia(String pkg) {
@@ -346,6 +500,9 @@ final class MediaMonitor {
                 || all.contains("скачан") || all.contains("скачано") || all.contains("загруз")
                 || all.contains("установ") || all.contains("обновлен") || all.contains("обновлён")
                 || all.contains("permission") || all.contains("разрешен") || all.contains("разрешён")
+                || all.contains("sign in") || all.contains("account") || all.contains("аккаунт")
+                || all.contains("вход в аккаунт") || all.contains("google play services")
+                || all.contains("сервисы google play")
                 || all.contains("нет уведом") || all.contains("notification listener")
                 || all.contains("android system") || all.contains("system intelligence");
     }
@@ -371,6 +528,42 @@ final class MediaMonitor {
         } catch (Exception ignored) {
         }
         return pkg;
+    }
+
+    private static String sourceLabel(Context context, String pkg) {
+        String label = label(context, pkg);
+        String probe = ((pkg == null ? "" : pkg) + " " + (label == null ? "" : label)).toLowerCase(Locale.US);
+        if (probe.contains("yandex") || probe.contains("яндекс")) return "Яндекс Музыка";
+        if (probe.contains("spotify")) return "Spotify";
+        if (probe.contains("youtube")) return "YouTube Music";
+        if (probe.contains("carplay")) return "CarPlay";
+        if (probe.contains("androidauto") || probe.contains("android auto")) return "Android Auto";
+        if (probe.contains("bluetooth") || probe.contains("btmusic")) return "Bluetooth";
+        if (probe.contains("radio") || probe.contains("fm")) return "Радио";
+        if (probe.contains("teyes")) return label == null ? "TEYES" : label.replace("Teyes", "TEYES");
+        return label;
+    }
+
+    private static String sourceKey(String source, String pkg) {
+        return dash(pkg).toLowerCase(Locale.US) + "|" + dash(source).toLowerCase(Locale.US);
+    }
+
+    private static boolean sameSource(String source, String pkg, String otherSource, String otherPkg) {
+        return TextUtils.equals(sourceKey(source, pkg), sourceKey(otherSource, otherPkg))
+                || (!TextUtils.isEmpty(source) && !TextUtils.isEmpty(otherSource)
+                && source.trim().equalsIgnoreCase(otherSource.trim()));
+    }
+
+    private static boolean isGenericTeyesSource(String source, String pkg) {
+        String p = dash(pkg).toLowerCase(Locale.US);
+        String s = dash(source).toLowerCase(Locale.US);
+        return "com.spd.media".equals(p)
+                || "com.spd.spdmedia".equals(p)
+                || "com.teyes.music.widget".equals(p)
+                || s.equals("teyes")
+                || s.equals("teyes media")
+                || s.equals("teyes video")
+                || s.equals("-");
     }
 
     private static String dash(String value) {

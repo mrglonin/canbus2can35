@@ -50,10 +50,14 @@ final class CanSideband {
     }
 
     static byte[] canTxPayload(int bus, int canId, byte[] data) {
+        return canTxPayload(bus, 0, canId, data);
+    }
+
+    static byte[] canTxPayload(int bus, int flags, int canId, byte[] data) {
         byte[] safe = data == null ? new byte[0] : Arrays.copyOf(data, Math.min(data.length, 8));
         byte[] payload = new byte[15];
         payload[0] = (byte) (bus == 1 ? 1 : 0);
-        payload[1] = 0x00;
+        payload[1] = (byte) (flags & 0x03);
         payload[2] = (byte) (canId & 0xff);
         payload[3] = (byte) ((canId >> 8) & 0xff);
         payload[4] = (byte) ((canId >> 16) & 0xff);
@@ -87,12 +91,30 @@ final class CanSideband {
         }
 
         String busName() {
-            return bus == 0 ? "C-CAN" : "M-CAN";
+            if (bus == 0) return "C-CAN/CAN1";
+            if (bus == 1) return "M-CAN/CAN2";
+            return "CAN?";
+        }
+
+        String flagText() {
+            if (flags == 0) return "STD";
+            StringBuilder sb = new StringBuilder();
+            if ((flags & 0x01) != 0) sb.append("EXT");
+            if ((flags & 0x02) != 0) {
+                if (sb.length() > 0) sb.append('+');
+                sb.append("RTR");
+            }
+            int extra = flags & ~0x03;
+            if (extra != 0) {
+                if (sb.length() > 0) sb.append('+');
+                sb.append("flags=0x").append(Integer.toHexString(flags).toUpperCase(Locale.US));
+            }
+            return sb.length() == 0 ? "STD" : sb.toString();
         }
 
         String text() {
-            return String.format(Locale.US, "status=%d bus=%d %s id=0x%03X dlc=%d data=%s",
-                    valid, bus, busName(), canId, dlc, CanbusControl.hex(data));
+            return String.format(Locale.US, "status=%d bus=%d %s flags=%s id=0x%03X dlc=%d data=%s",
+                    valid, bus, busName(), flagText(), canId, dlc, CanbusControl.hex(data));
         }
     }
 }

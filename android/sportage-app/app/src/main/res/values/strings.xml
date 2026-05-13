@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Sportage</string>
+    <string name="rcta_warning">Предупреждение заднего хода</string>
+    <string name="rcta_left_arrow">Предупреждение слева</string>
+    <string name="rcta_right_arrow">Предупреждение справа</string>
 </resources>

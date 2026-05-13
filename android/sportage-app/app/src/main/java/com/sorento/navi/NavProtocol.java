@@ -35,6 +35,8 @@ final class NavProtocol {
     private static final byte[] naviOnFrame = NAV_ON.clone();
     private static final byte[] speedFrame = SPEED.clone();
     private static final long FINISH_HOLD_MS = 5000L;
+    private static final long NAV_REPEAT_MS = 1000L;
+    private static final long TEYES_ROUTE_GRACE_MS = 12000L;
 
     private static String street;
     private static String speedLimit;
@@ -42,8 +44,18 @@ final class NavProtocol {
     private static boolean exceeded;
     private static long lastStreetAt;
     private static long finishHoldUntil;
+    private static long lastTeyesRouteAt;
+    private static boolean teyesRouteActive;
     private static Handler handler;
     private static Runnable finishClearRunnable;
+    private static Runnable repeatRunnable;
+    private static Context repeatContext;
+    private static boolean navActive;
+    private static byte[] lastNavFrame;
+    private static byte[] lastManeuverFrame;
+    private static byte[] lastEtaFrame;
+    private static byte[] lastSpeedFrame;
+    private static byte[] lastTextFrame;
 
     private NavProtocol() {
     }
@@ -67,6 +79,64 @@ final class NavProtocol {
         } catch (Exception e) {
             AppLog.setNav(context, "Навигация: ошибка " + e.getClass().getSimpleName() + " " + e.getMessage());
         }
+    }
+
+    static void handleTeyesNavInfo(Context context, Intent intent) {
+        if (context == null || intent == null) return;
+        String state = extraText(intent, "state");
+        NavDebugState.teyes(context, "com.yf.navinfo " + extras(intent));
+        if (!teyesStateAllowsRoute(state)) {
+            finishTeyesRouteIfStale(context);
+            return;
+        }
+
+        String direction = extraText(intent, "direction");
+        int directionLr = intent.getIntExtra("direction_lr", 0);
+        String[] distance = teyesDistance(intent);
+        String position = firstText(extraText(intent, "position"), extraText(intent, "describe"));
+        String total = extraText(intent, "total_distance");
+        boolean hasRoute = isFinishDirection(direction)
+                || distance != null
+                || !TextUtils.isEmpty(total)
+                || hasMeaningfulDirection(direction);
+        if (!hasRoute) {
+            finishTeyesRouteIfStale(context);
+            AppLog.setNav(context, "Навигация TEYES: ожидание маршрута");
+            return;
+        }
+
+        lastTeyesRouteAt = System.currentTimeMillis();
+        teyesRouteActive = true;
+        Intent on = new Intent(ACTION_NAVI_ON);
+        on.putExtra("navi_on", true);
+        handleNaviOn(context, on);
+
+        String imageId = teyesDirectionToImageId(direction, directionLr);
+        Intent maneuver = new Intent(ACTION_MANEUVER);
+        maneuver.putExtra("imageId", imageId);
+        if (distance != null) {
+            maneuver.putExtra("distance", distance[0]);
+            maneuver.putExtra("unit", distance[1]);
+        }
+        if (!TextUtils.isEmpty(position)) maneuver.putExtra("street", position);
+        handleManeuver(context, maneuver);
+
+        if (!TextUtils.isEmpty(total)) {
+            Intent eta = new Intent(ACTION_ETA);
+            eta.putExtra("edistance", total);
+            handleEta(context, eta);
+        }
+        String limit = teyesSpeedLimit(intent);
+        if (!TextUtils.isEmpty(limit)) {
+            Intent speed = new Intent(ACTION_SPEED);
+            speed.putExtra("speed_limit", limit);
+            handleSpeed(context, speed);
+        }
+
+        String app = extraText(intent, "app");
+        AppLog.setNav(context, "Навигация TEYES: " + safe(app)
+                + " / " + safe(direction)
+                + " / " + safe(position));
     }
 
     private static void handleManeuver(Context context, Intent intent) {
@@ -379,6 +449,86 @@ final class NavProtocol {
         }
     }
 
+    private static String teyesDirectionToImageId(String direction, int directionLr) {
+        String p = direction == null ? "" : direction.toLowerCase(Locale.US);
+        boolean left = directionLr == 1 || p.contains("left") || p.contains("лев");
+        boolean right = directionLr == 2 || p.contains("right") || p.contains("прав");
+        if (p.contains("finish") || p.contains("arriv") || p.contains("destination") || p.contains("финиш")) {
+            return "context_ra_finish";
+        }
+        if (p.contains("ferry")) return "context_ra_boardferry";
+        if (p.contains("round") || p.contains("circular") || p.contains("circle") || p.contains("круг")) {
+            return (p.contains("exit") || p.contains("out")) ? "context_ra_out_circular_movement" : "context_ra_in_circular_movement";
+        }
+        if (p.contains("uturn") || p.contains("u_turn") || p.contains("turn_back") || p.contains("развор")) {
+            return left ? "context_ra_turn_back_left" : "context_ra_turn_back_right";
+        }
+        if (left || right) {
+            String side = left ? "left" : "right";
+            if (p.contains("exit")) return "context_ra_exit_" + side;
+            if (p.contains("take")) return "context_ra_take_" + side;
+            if (p.contains("hard") || p.contains("sharp")) return "context_ra_hard_turn_" + side;
+            return "context_ra_turn_" + side;
+        }
+        if (p.contains("forward") || p.contains("straight") || p.contains("continue") || p.contains("прям")) {
+            return "context_ra_forward";
+        }
+        return "context_ra_forward";
+    }
+
+    private static String[] teyesDistance(Intent intent) {
+        float meters = intent.getFloatExtra("distance_val", -1f);
+        if (meters > 0f) {
+            if (meters >= 1000f) {
+                return new String[]{String.format(Locale.US, "%.1f", meters / 1000f), "км"};
+            }
+            return new String[]{String.valueOf(Math.round(meters)), "м"};
+        }
+        String value = firstText(extraText(intent, "distance_val_str"), extraText(intent, "distance"));
+        if (TextUtils.isEmpty(value)) return null;
+        String unit = firstText(extraText(intent, "distance_unit"), "м");
+        return new String[]{value, unit};
+    }
+
+    private static String teyesSpeedLimit(Intent intent) {
+        String value = firstText(
+                extraText(intent, "speed_limit"),
+                extraText(intent, "speedLimit"),
+                extraText(intent, "limit"),
+                extraText(intent, "max_speed"),
+                extraText(intent, "maxSpeed"),
+                extraText(intent, "road_limit"),
+                extraText(intent, "roadLimit"),
+                extraText(intent, "camera_speed"),
+                extraText(intent, "cameraSpeed")
+        );
+        if (TextUtils.isEmpty(value)) return null;
+        Matcher matcher = Pattern.compile("(\\d{1,3})").matcher(value);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static boolean teyesStateAllowsRoute(String state) {
+        if (TextUtils.isEmpty(state)) return true;
+        String s = state.toLowerCase(Locale.US).trim();
+        return !(s.equals("0") || s.equals("false") || s.equals("off")
+                || s.equals("close") || s.equals("closed")
+                || s.equals("stop") || s.equals("stopped")
+                || s.equals("idle") || s.equals("none"));
+    }
+
+    private static boolean hasMeaningfulDirection(String direction) {
+        if (TextUtils.isEmpty(direction)) return false;
+        String d = direction.toLowerCase(Locale.US).trim();
+        return !(d.equals("0") || d.equals("none") || d.equals("unknown")
+                || d.equals("null") || d.contains("loading") || d.contains("ожидан"));
+    }
+
+    private static boolean isFinishDirection(String direction) {
+        if (TextUtils.isEmpty(direction)) return false;
+        String d = direction.toLowerCase(Locale.US);
+        return d.contains("finish") || d.contains("arriv") || d.contains("destination") || d.contains("финиш");
+    }
+
     private static void showStreet(Context context) {
         if (isFinishHoldActive()) return;
         int mode = AppPrefs.navTextMode(context);
@@ -412,6 +562,7 @@ final class NavProtocol {
             byte[] frame = naviOnFrame;
             frame[5] = 0;
             send(app, frame.clone());
+            stopRepeaterIfIdle();
             AppLog.setNav(app, "Навигация: финиш очищен после 5 сек.");
         };
         long delay = Math.max(0L, until - System.currentTimeMillis());
@@ -459,8 +610,85 @@ final class NavProtocol {
 
     private static void send(Context context, byte[] frame) {
         complete(frame);
+        rememberFrame(context, frame);
         NavDebugState.frame(context, CanbusControl.hex(frame));
         AppService.sendFrame(context, frame);
+    }
+
+    private static void rememberFrame(Context context, byte[] frame) {
+        if (context == null || frame == null || frame.length < 6) return;
+        int cmd = frame[4] & 0xff;
+        byte[] copy = frame.clone();
+        if (cmd == 0x48) {
+            navActive = (frame[5] & 0xff) != 0;
+            lastNavFrame = copy;
+            if (!navActive) {
+                lastManeuverFrame = null;
+                lastEtaFrame = null;
+                lastSpeedFrame = null;
+                lastTextFrame = null;
+            }
+        } else if (cmd == 0x45) {
+            lastManeuverFrame = copy;
+        } else if (cmd == 0x47) {
+            lastEtaFrame = copy;
+        } else if (cmd == 0x44) {
+            lastSpeedFrame = copy;
+        } else if (cmd == 0x4A) {
+            lastTextFrame = copy;
+        }
+        if (navActive || isFinishHoldActive()) {
+            ensureRepeater(context.getApplicationContext());
+        } else {
+            stopRepeaterIfIdle();
+        }
+    }
+
+    private static void ensureRepeater(Context context) {
+        if (context == null) return;
+        repeatContext = context.getApplicationContext();
+        Handler h = handler();
+        if (repeatRunnable != null) return;
+        repeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                Context app = repeatContext;
+                if (app == null || (!navActive && !isFinishHoldActive())) {
+                    repeatRunnable = null;
+                    return;
+                }
+                repeatFrame(app, lastNavFrame);
+                repeatFrame(app, lastManeuverFrame);
+                repeatFrame(app, lastEtaFrame);
+                repeatFrame(app, lastSpeedFrame);
+                repeatFrame(app, lastTextFrame);
+                handler().postDelayed(this, NAV_REPEAT_MS);
+            }
+        };
+        h.postDelayed(repeatRunnable, NAV_REPEAT_MS);
+    }
+
+    private static void repeatFrame(Context context, byte[] frame) {
+        if (context == null || frame == null) return;
+        AppService.sendFrame(context, frame.clone());
+    }
+
+    private static void stopRepeaterIfIdle() {
+        if (navActive || isFinishHoldActive() || repeatRunnable == null || handler == null) return;
+        handler.removeCallbacks(repeatRunnable);
+        repeatRunnable = null;
+    }
+
+    private static void finishTeyesRouteIfStale(Context context) {
+        long now = System.currentTimeMillis();
+        if (teyesRouteActive && now - lastTeyesRouteAt > TEYES_ROUTE_GRACE_MS) {
+            teyesRouteActive = false;
+            Intent off = new Intent(ACTION_NAVI_ON);
+            off.putExtra("navi_on", false);
+            handleNaviOn(context, off);
+        } else if (teyesRouteActive) {
+            AppLog.setNav(context, "Навигация TEYES: удержание последнего маршрута");
+        }
     }
 
     private static void complete(byte[] frame) {
@@ -489,6 +717,24 @@ final class NavProtocol {
     private static String trim(String value, int max) {
         if (value == null) return null;
         return value.length() > max ? value.substring(0, max) : value;
+    }
+
+    private static String firstText(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            if (!TextUtils.isEmpty(value)) return value.trim();
+        }
+        return null;
+    }
+
+    private static String extraText(Intent intent, String key) {
+        if (intent == null || key == null || !intent.hasExtra(key)) return null;
+        try {
+            Object value = intent.getExtras() == null ? null : intent.getExtras().get(key);
+            return value == null ? null : String.valueOf(value).trim();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static String safe(String value) {
