@@ -118,6 +118,7 @@
         </receiver>
 
         <receiver android:name=".UsbPermissionReceiver" android:exported="false" />
+        <receiver android:name=".TpmsAlertActionReceiver" android:exported="false" />
 
         <provider
             android:name=".UpdateApkProvider"

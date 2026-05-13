@@ -24,6 +24,8 @@ public class QaScenarioReceiver extends BroadcastReceiver {
             nav(context, scenario);
         } else if (scenario.startsWith("rcta_")) {
             rcta(context, scenario);
+        } else if (scenario.startsWith("tpms_")) {
+            tpms(context, scenario);
         } else if (scenario.startsWith("vehicle")) {
             vehicle(context);
         } else if (scenario.startsWith("compass")) {
@@ -116,6 +118,31 @@ public class QaScenarioReceiver extends BroadcastReceiver {
             BlindSpotState.fromCan(context, 0x4F4, hex("0001C00000000002"));
         }
         AppService.refreshOverlays(context);
+    }
+
+    private static void tpms(Context context, String scenario) {
+        AppPrefs.setTpmsEnabled(context, true);
+        AppPrefs.setTpmsAlertOverlay(context, true);
+        AppPrefs.setTpmsAlertSound(context, true);
+        AppPrefs.suppressTpmsAlertUntil(context, 0L);
+
+        if ("tpms_close".equals(scenario)) {
+            TpmsAlertManager.suppressAfterUserClose(context);
+            return;
+        }
+        if ("tpms_clear".equals(scenario) || "tpms_normal".equals(scenario)) {
+            TpmsState.clear(context);
+            return;
+        }
+
+        if ("tpms_low".equals(scenario)) {
+            TpmsState.clear(context);
+            TpmsState.status(context, "TPMS: QA низкое давление", true);
+            TpmsState.tire(context, 0, 1.1f, 27, 4, false);
+        } else if ("tpms_high".equals(scenario)) {
+            TpmsState.status(context, "TPMS: QA высокое давление", true);
+            TpmsState.tire(context, 3, 3.6f, 29, 2, false);
+        }
     }
 
     private static void vehicle(Context context) {

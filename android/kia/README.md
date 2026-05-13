@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia CANBOX integration.
 
 Current package: `kia.app`
 
-Current app version: `11.9-kia` (`versionCode 99`)
+Current app version: `12.0-kia` (`versionCode 100`)
 
 Main protocol notes:
 
@@ -29,7 +29,7 @@ Build:
 Release APK name is kept short and stable:
 
 ```text
-/Volumes/SSD/canbus/release/kia_119.apk
+/Volumes/SSD/canbus/release/kia_120.apk
 ```
 
 The release build is signed with the local Android debug keystore
@@ -39,7 +39,7 @@ head unit. A production key can be added later without changing the output path.
 The local Gradle output uses the same filename:
 
 ```text
-app/build/outputs/apk/release/kia_119.apk
+app/build/outputs/apk/release/kia_120.apk
 ```
 
 TEYES sandbox emulator:
@@ -76,6 +76,8 @@ adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a k
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario rcta_left
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario rcta_right
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario rcta_unknown
+adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario tpms_low
+adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario tpms_close
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario vehicle
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario compass --ei step 9
 ```

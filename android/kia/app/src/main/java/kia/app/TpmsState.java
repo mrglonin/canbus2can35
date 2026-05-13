@@ -42,6 +42,7 @@ final class TpmsState {
     static synchronized void clear(Context context) {
         state = new Snapshot();
         broadcast(context);
+        TpmsAlertManager.onTpmsUpdate(context, new Snapshot(state));
     }
 
     private static void broadcast(Context context) {

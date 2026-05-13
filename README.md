@@ -235,10 +235,10 @@ cd /Volumes/SSD/canbus/repo/android/kia
 После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_119.apk
+/Volumes/SSD/canbus/release/kia_120.apk
 ```
 
-Номер в имени берется из `versionName`: `11.9-kia` -> `kia_119.apk`.
+Номер в имени берется из `versionName`: `12.0-kia` -> `kia_120.apk`.
 
 ## Что намеренно удалено
 

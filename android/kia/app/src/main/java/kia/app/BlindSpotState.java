@@ -31,6 +31,7 @@ final class BlindSpotState {
             right = false;
             rearUnknown = false;
             eventAt = 0L;
+            RctaAlertManager.clear(context);
         }
         broadcast(context);
         AppService.refreshOverlays(context);
@@ -96,6 +97,8 @@ final class BlindSpotState {
         if (left || right || rearUnknown) {
             eventAt = now;
             RctaAlertManager.onWarning(context, left || rearUnknown, right || rearUnknown);
+        } else {
+            RctaAlertManager.clear(context);
         }
         if (changed) {
             String label = !left && !right && !rearUnknown ? "нет предупреждений"
