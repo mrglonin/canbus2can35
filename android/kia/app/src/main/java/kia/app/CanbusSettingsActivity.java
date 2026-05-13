@@ -112,7 +112,6 @@ public class CanbusSettingsActivity extends Activity {
     private int ampTreble = 10;
     private int ampVolume = 6;
     private int ampMode = 2;
-    private long lastTpmsOpenAt;
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -422,7 +421,7 @@ public class CanbusSettingsActivity extends Activity {
     }
 
     private void buildTpmsTab() {
-        sectionHeader("Настройки TPMS", "Состояние данных, пороги давления, автопоказ и звуковое предупреждение.");
+        sectionHeader("Настройки TPMS", "Состояние данных, пороги давления, overlay и звуковое предупреждение.");
 
         LinearLayout state = card();
         content.addView(state, cardLp());
@@ -434,9 +433,10 @@ public class CanbusSettingsActivity extends Activity {
         addCardTitle(alerts, "Предупреждения давления");
         tpmsLowValue = thresholdRow(alerts, "Низкое давление", AppPrefs.tpmsLowBar(this), -0.1f, 0.1f, true);
         tpmsHighValue = thresholdRow(alerts, "Высокое давление", AppPrefs.tpmsHighBar(this), -0.1f, 0.1f, false);
-        alerts.addView(check("Автооткрытие экрана TPMS при предупреждении", AppPrefs.tpmsAutoOpen(this), (button, checked) -> {
+        alerts.addView(check("Показывать TPMS поверх всех экранов", AppPrefs.tpmsAutoOpen(this), (button, checked) -> {
             AppPrefs.setTpmsAutoOpen(this, checked);
-            AppLog.line(this, "TPMS: автооткрытие " + yes(checked));
+            AppService.refreshOverlays(this);
+            AppLog.line(this, "TPMS: overlay " + yes(checked));
             savedToast();
         }));
         alerts.addView(check("Звуковой сигнал вместе с уведомлением", AppPrefs.tpmsAlertSound(this), (button, checked) -> {
@@ -981,20 +981,8 @@ public class CanbusSettingsActivity extends Activity {
         if (!AppPrefs.tpmsEnabled(this)) return;
         if (!AppPrefs.tpmsAutoOpen(this)) return;
         if (TpmsAlertManager.isSuppressed(this)) return;
-        TpmsState.Snapshot snapshot = TpmsState.snapshot();
-        if (snapshot == null || snapshot.tires == null) return;
-        boolean alert = false;
-        for (TpmsState.Tire tire : snapshot.tires) {
-            if (tire != null && tire.alert()) {
-                alert = true;
-                break;
-            }
-        }
-        long now = System.currentTimeMillis();
-        if (alert && now - lastTpmsOpenAt > 6000L) {
-            lastTpmsOpenAt = now;
-            startActivity(new Intent(this, TpmsActivity.class).putExtra("tpms_alert", true));
-        }
+        if (TpmsAlertManager.alertMessage(TpmsState.snapshot()).length() == 0) return;
+        AppService.refreshOverlays(this);
     }
 
     private String navDebugText() {

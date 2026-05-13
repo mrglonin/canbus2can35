@@ -51,7 +51,6 @@ public class MainActivity extends Activity {
     private BlindSpotOverlayView blindSpotOverlayView;
     private boolean touched;
     private boolean autoHideLaunch;
-    private long lastTpmsOpenAt;
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -695,20 +694,8 @@ public class MainActivity extends Activity {
         if (!AppPrefs.tpmsEnabled(this)) return;
         if (!AppPrefs.tpmsAutoOpen(this)) return;
         if (TpmsAlertManager.isSuppressed(this)) return;
-        TpmsState.Snapshot snapshot = TpmsState.snapshot();
-        if (snapshot == null || snapshot.tires == null) return;
-        boolean alert = false;
-        for (TpmsState.Tire tire : snapshot.tires) {
-            if (tire != null && tire.alert()) {
-                alert = true;
-                break;
-            }
-        }
-        long now = System.currentTimeMillis();
-        if (alert && now - lastTpmsOpenAt > 6000L) {
-            lastTpmsOpenAt = now;
-            startActivity(new Intent(this, TpmsActivity.class).putExtra("tpms_alert", true));
-        }
+        if (TpmsAlertManager.alertMessage(TpmsState.snapshot()).length() == 0) return;
+        AppService.refreshOverlays(this);
     }
 
     private void scheduleAutoHide() {

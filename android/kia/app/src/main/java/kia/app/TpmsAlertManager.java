@@ -17,7 +17,6 @@ final class TpmsAlertManager {
     private static final int NOTIFICATION_ID = 73;
     private static final long USER_DISMISS_SUPPRESS_MS = 5L * 60L * 1000L;
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
-    private static long lastOpenAt;
     private static long lastSoundAt;
 
     private TpmsAlertManager() {
@@ -26,25 +25,19 @@ final class TpmsAlertManager {
     static void onTpmsUpdate(Context context, TpmsState.Snapshot snapshot) {
         if (context == null || snapshot == null || !AppPrefs.tpmsEnabled(context)) return;
         TpmsState.Tire tire = firstAlert(snapshot);
-        if (tire == null) return;
+        if (tire == null) {
+            clearAlert(context);
+            return;
+        }
 
         long now = System.currentTimeMillis();
         if (AppPrefs.tpmsAlertSuppressed(context, now)) return;
 
         String message = warningMessage(snapshot, tire);
         showNotification(context, message);
-
-        if (AppPrefs.tpmsAutoOpen(context) && now - lastOpenAt > 8000L) {
-            lastOpenAt = now;
-            Intent intent = new Intent(context, TpmsActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putExtra("tpms_alert", true);
-            try {
-                context.startActivity(intent);
-                AppLog.line(context, "TPMS: открыт экран предупреждения");
-            } catch (Exception e) {
-                AppLog.line(context, "TPMS: экран предупреждения не открыт " + e.getClass().getSimpleName());
-            }
+        if (AppPrefs.tpmsAutoOpen(context)) {
+            AppService.start(context);
+            AppService.refreshOverlays(context);
         }
 
         if (AppPrefs.tpmsAlertSound(context) && now - lastSoundAt > 2500L) {
@@ -61,11 +54,25 @@ final class TpmsAlertManager {
         if (context == null) return;
         long now = System.currentTimeMillis();
         AppPrefs.suppressTpmsAlertUntil(context, now + USER_DISMISS_SUPPRESS_MS);
-        lastOpenAt = now;
         lastSoundAt = now;
+        cancelNotification(context);
+        AppService.refreshOverlays(context);
+        AppLog.line(context, "TPMS: предупреждение закрыто, повтор через 5 минут");
+    }
+
+    static String alertMessage(TpmsState.Snapshot snapshot) {
+        TpmsState.Tire tire = firstAlert(snapshot);
+        return tire == null ? "" : warningMessage(snapshot, tire);
+    }
+
+    private static void clearAlert(Context context) {
+        cancelNotification(context);
+        AppService.refreshOverlays(context);
+    }
+
+    private static void cancelNotification(Context context) {
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(NOTIFICATION_ID);
-        AppLog.line(context, "TPMS: предупреждение закрыто, повтор через 5 минут");
     }
 
     private static TpmsState.Tire firstAlert(TpmsState.Snapshot snapshot) {
@@ -125,18 +132,17 @@ final class TpmsAlertManager {
     }
 
     private static void playTone(Context context) {
-        playToneOnStream(AudioManager.STREAM_ALARM, 100, 0L);
-        playToneOnStream(AudioManager.STREAM_MUSIC, 95, 140L);
+        playToneOnStream(AudioManager.STREAM_ALARM, ToneGenerator.TONE_SUP_ERROR, 100, 360, 0L);
+        playToneOnStream(AudioManager.STREAM_MUSIC, ToneGenerator.TONE_PROP_BEEP2, 95, 220, 430L);
+        playToneOnStream(AudioManager.STREAM_MUSIC, ToneGenerator.TONE_PROP_BEEP2, 95, 220, 760L);
     }
 
-    private static void playToneOnStream(int stream, int volume, long delayMs) {
+    private static void playToneOnStream(int stream, int toneId, int volume, int durationMs, long delayMs) {
         HANDLER.postDelayed(() -> {
             try {
                 ToneGenerator tone = new ToneGenerator(stream, volume);
-                tone.startTone(ToneGenerator.TONE_SUP_ERROR, 360);
-                HANDLER.postDelayed(() -> tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 260), 420);
-                HANDLER.postDelayed(() -> tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 260), 760);
-                HANDLER.postDelayed(tone::release, 1150);
+                tone.startTone(toneId, durationMs);
+                HANDLER.postDelayed(tone::release, durationMs + 100L);
             } catch (Exception ignored) {
             }
         }, delayMs);

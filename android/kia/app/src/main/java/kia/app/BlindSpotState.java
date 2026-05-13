@@ -64,7 +64,10 @@ final class BlindSpotState {
         boolean changed = left != nextLeft || right != nextRight;
         left = nextLeft;
         right = nextRight;
-        if (left || right) eventAt = now;
+        if (left || right) {
+            eventAt = now;
+            RctaAlertManager.onWarning(context, left, right);
+        }
         if (changed) {
             String label = !left && !right ? "нет предупреждений" : left && right ? "слева и справа" : left ? "слева" : "справа";
             AppLog.line(context, "RCTA: " + label + " " + raw);
