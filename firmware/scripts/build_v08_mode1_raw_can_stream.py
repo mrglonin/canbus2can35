@@ -7,7 +7,7 @@ off by default and is controlled over the stock CDC USB protocol:
   0x70  payload 01/03 = logger on, 00/04 = logger off
   0x76  pop one raw CAN frame from the RAM ring
   0x77  read decoded vehicle snapshot for OBD-like UI
-  0x78  one-shot raw CAN TX, bus 0=C-CAN/CAN1, bus 1=M-CAN/CAN2
+  0x78  one-shot raw CAN TX, bus 1=M-CAN/CAN2 only
   0x79  V21 health/capabilities response
   0x7A  inject one Raise/RZC FD source-status frame into the stock parser
 
@@ -730,16 +730,10 @@ can_send_from_frame:
     push {r4-r7, lr}
     mov r4, r0
     ldrb r0, [r4, #5]
-    cmp r0, #0
-    beq can_tx_can1
     cmp r0, #1
     beq can_tx_can2
     movs r0, #2
     pop {r4-r7, pc}
-
-can_tx_can1:
-    ldr r5, =CAN1_BASE
-    b can_tx_have_base
 
 can_tx_can2:
     ldr r5, =CAN2_BASE
@@ -1034,7 +1028,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
             "0x70": "raw CAN stream start/stop only",
             "0x76": "pop one raw C-CAN/M-CAN frame from RAM ring",
             "0x77": "read decoded vehicle/RCTA snapshot: speed/rpm/temperatures/voltage/brake/gear plus latest 0x4F4 without raw stream",
-            "0x78": "one-shot raw CAN TX: payload bus, flags, id_le32, dlc, data[8]",
+            "0x78": "one-shot raw CAN TX on M-CAN only: payload bus=1, flags, id_le32, dlc, data[8]",
             "0x79": "V21 health/capabilities response, no CAN connection required",
             "0x7A": "inject one Raise/RZC FD source-status frame into the stock media/source parser",
         },
@@ -1058,8 +1052,8 @@ def build(args: argparse.Namespace) -> dict[str, object]:
             "bit10": "outside temperature",
         },
         "raw_frame_payload": "status, bus(0=C-CAN 1=M-CAN), flags(bit0=EXT bit1=RTR), dlc, reserved, id_le32, data[8]",
-        "can_tx_payload": "bus(0=C-CAN/CAN1 1=M-CAN/CAN2), flags(bit0=EXT bit1=RTR), id_le32, dlc, data[8]",
-        "can_tx_ack": "0=queued, 1=no free mailbox, 2=bad bus, 0xff=bad command length",
+        "can_tx_payload": "bus must be 1 (M-CAN/CAN2), flags(bit0=EXT bit1=RTR), id_le32, dlc, data[8]",
+        "can_tx_ack": "0=queued, 1=no free mailbox, 2=bad/blocked bus, 0xff=bad command length",
         "removed": ["UART sideband", "0x74 raw CAN TX command"],
         "hook_policy": "hooks run after the stock FIFO read, then return with the stock release-FIFO arguments restored",
         "stub": {"address": f"0x{STUB_ADDR:08x}", "size": len(patch_blob), "symbols": {k: f"0x{v:08x}" for k, v in sym_addr.items()}},

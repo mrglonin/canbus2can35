@@ -44,6 +44,7 @@ final class TabletDashboardView extends FrameLayout {
     private TextView adapterVersionValue;
     private TextView navStatusValue;
     private TextView navDebugValue;
+    private TextView navAdapterValue;
     private TextView mediaStatusValue;
     private TextView vehicleStatusValue;
     private TextView speedValue;
@@ -59,7 +60,6 @@ final class TabletDashboardView extends FrameLayout {
     private TextView updateReleaseValue;
     private TextView firmwareOtaStatusValue;
     private TextView firmwareOtaAssetValue;
-    private Button navModeButton;
     private Button canRecordButton;
     private Button canModeButton;
     private Button updateInstallButton;
@@ -104,6 +104,7 @@ final class TabletDashboardView extends FrameLayout {
         if (adapterVersionValue != null) adapterVersionValue.setText(can.firmwareVersion);
         if (navStatusValue != null) navStatusValue.setText(AppLog.nav());
         if (navDebugValue != null) navDebugValue.setText(navDebugText());
+        if (navAdapterValue != null) navAdapterValue.setText(NavProtocol.adapterStateText());
         if (mediaStatusValue != null) mediaStatusValue.setText(AppLog.media());
         if (vehicleStatusValue != null) vehicleStatusValue.setText(cleanVehicle(vehicle));
         if (speedValue != null) speedValue.setText(vehicle.speedText(getContext()));
@@ -139,7 +140,6 @@ final class TabletDashboardView extends FrameLayout {
                 firmwareOtaFlashButton.setText(firmware.downloading ? "Загрузка" : "Скачать / прошить");
             }
         }
-        if (navModeButton != null) navModeButton.setText(navModeText());
         if (canRecordButton != null) canRecordButton.setText(debug.canRecording ? "Остановить запись" : "Начать запись");
         if (canModeButton != null) canModeButton.setText("Лог: " + canModeLabel());
     }
@@ -309,11 +309,7 @@ final class TabletDashboardView extends FrameLayout {
         LinearLayout nav = card("Навигация");
         row.addView(nav, weightedCardLp());
         navStatusValue = info(nav, "Статус", "");
-        nav.addView(switchRow("Компас", AppPrefs.navCompass(getContext()), (button, checked) -> {
-            AppPrefs.setNavCompass(getContext(), checked);
-            CompassBridge.refresh(getContext());
-            toast("Компас " + yes(checked));
-        }), controlLp());
+        info(nav, "Адаптер", "0x7A + 0x48/45/47/4A/44");
         addButtonRow(nav,
                 actionButton("Навигация", 0xff2f5f8f, v -> selectTab(TAB_NAV)),
                 actionButton("Журнал", 0xff2f5f8f, v -> selectTab(TAB_DIAG)));
@@ -354,33 +350,20 @@ final class TabletDashboardView extends FrameLayout {
     private void buildNavigation() {
         LinearLayout row = row();
         content.addView(row, sectionLp());
-        LinearLayout status = card("Маршрут и TBT");
+        LinearLayout status = card("Маршрут");
         row.addView(status, weightedCardLp());
         navStatusValue = info(status, "Состояние", "");
-        navModeButton = actionButton("", 0xff2f5f8f, v -> {
-            int next = (AppPrefs.navTextMode(getContext()) + 1) % 3;
-            NavProtocol.setTextMode(getContext(), next);
-            refresh();
-        });
-        status.addView(navModeButton, buttonLp());
-        status.addView(switchRow("TBT-иконки", AppPrefs.navTbt(getContext()), (button, checked) -> {
-            NavProtocol.setTbtMode(getContext(), checked);
-            toast("TBT " + yes(checked));
-        }), controlLp());
-        status.addView(switchRow("Компас без маршрута", AppPrefs.navCompass(getContext()), (button, checked) -> {
-            AppPrefs.setNavCompass(getContext(), checked);
-            CompassBridge.refresh(getContext());
-            toast("Компас " + yes(checked));
-        }), controlLp());
+        status.addView(body("Фиксированный режим: навигация отдает source, on/off, maneuver, ETA/distance, street и speed limit отдельными командами. Компас включен всегда и не подменяет активный маневр."), textBlockLp());
 
-        LinearLayout live = card("Живые данные");
+        LinearLayout live = card("Что уходит в адаптер");
         row.addView(live, weightedCardLp());
-        live.addView(body("Маршрут, TBT, текст и компас обновляются штатными командами адаптера V21."), textBlockLp());
+        navAdapterValue = mono("");
+        live.addView(navAdapterValue, monoLp(160, 140));
         addButtonRow(live,
-                actionButton("Скан медиа", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
+                actionButton("Обновить", 0xff2f5f8f, v -> refresh()),
                 actionButton("Диагностика", 0xfff2b84b, v -> selectTab(TAB_DIAG)));
 
-        LinearLayout debug = card("Последние данные");
+        LinearLayout debug = card("Входящие данные");
         content.addView(debug, sectionTopLp());
         navDebugValue = mono("");
         debug.addView(navDebugValue, monoLp(128, 112));
@@ -514,6 +497,7 @@ final class TabletDashboardView extends FrameLayout {
         adapterVersionValue = null;
         navStatusValue = null;
         navDebugValue = null;
+        navAdapterValue = null;
         mediaStatusValue = null;
         vehicleStatusValue = null;
         speedValue = null;
@@ -529,7 +513,6 @@ final class TabletDashboardView extends FrameLayout {
         updateReleaseValue = null;
         firmwareOtaStatusValue = null;
         firmwareOtaAssetValue = null;
-        navModeButton = null;
         canRecordButton = null;
         canModeButton = null;
         updateInstallButton = null;
@@ -578,12 +561,6 @@ final class TabletDashboardView extends FrameLayout {
     private LinearLayout.LayoutParams controlLp() {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(compactMode ? 48 : 54));
         lp.setMargins(0, dp(6), 0, 0);
-        return lp;
-    }
-
-    private LinearLayout.LayoutParams buttonLp() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(compactMode ? 42 : 48));
-        lp.setMargins(0, dp(8), 0, 0);
         return lp;
     }
 
@@ -777,7 +754,7 @@ final class TabletDashboardView extends FrameLayout {
     private String subtitle(int tab) {
         switch (tab) {
             case TAB_NAV:
-                return "Маршрут, TBT, компас и тестовые кадры";
+                return "Маршрут и штатные команды адаптера";
             case TAB_MEDIA:
                 return "Источник, артист, трек и отправка на адаптер";
             case TAB_VEHICLE:
@@ -840,13 +817,6 @@ final class TabletDashboardView extends FrameLayout {
         String clean = value.trim();
         int max = 1700;
         return clean.length() > max ? clean.substring(clean.length() - max) : clean;
-    }
-
-    private String navModeText() {
-        int mode = AppPrefs.navTextMode(getContext());
-        if (mode == 1) return "Текст: speed limit";
-        if (mode == 2) return "Текст: по превышению";
-        return "Текст: улица";
     }
 
     private String updateText(AppUpdater.Snapshot update) {

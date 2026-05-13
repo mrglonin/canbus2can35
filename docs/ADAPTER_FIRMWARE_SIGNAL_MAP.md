@@ -231,7 +231,7 @@ Keep logger clean and separate from production state.
 | `0x76` raw ring pop | yes | only after explicit debug |
 | ring buffer C-CAN/M-CAN | yes | no UI spam unless debug/recording |
 | compressed CAN log | yes | app saves `.log.gz` to `Downloads`; capture is limited to `50 000` CAN frames and auto-stops/saves at the limit |
-| `0x78` TX | yes, but restricted | M-CAN default; C-CAN only unsafe lab |
+| `0x78` TX | yes, but restricted | V21 production accepts M-CAN only; C-CAN returns bad/blocked bus |
 | UART bridge | no | not part of clean firmware |
 | old `0x74` TX | no | obsolete |
 
@@ -258,7 +258,7 @@ Keep:
 - `0x20/0x21/0x22`, `0x44/0x45/0x47/0x48/0x4A`;
 - compact `0x77` snapshot;
 - clean debug logger for CAN-C and M-CAN;
-- guarded raw TX, preferably M-CAN only.
+- guarded raw TX, M-CAN only in production.
 
 ## Target update periods
 

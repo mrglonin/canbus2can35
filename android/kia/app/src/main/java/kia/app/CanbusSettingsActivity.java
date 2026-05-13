@@ -99,7 +99,6 @@ public class CanbusSettingsActivity extends Activity {
     private Button uartRecordButton;
     private Button speedButton;
     private Button tempButton;
-    private Button navModeButton;
     private Button runtimePermissionButton;
     private Button notificationPermissionButton;
     private Button overlayPermissionButton;
@@ -374,7 +373,6 @@ public class CanbusSettingsActivity extends Activity {
         uartRecordButton = null;
         speedButton = null;
         tempButton = null;
-        navModeButton = null;
         runtimePermissionButton = null;
         notificationPermissionButton = null;
         overlayPermissionButton = null;
@@ -512,31 +510,10 @@ public class CanbusSettingsActivity extends Activity {
 
         LinearLayout nav = card();
         content.addView(nav, cardLp());
-        addCardTitle(nav, "Навигация и CAN-параметры");
-        GridLayout navButtons = grid(2);
-        nav.addView(navButtons, matchWrap());
-        navModeButton = gridButton(navButtons, "", v -> {
-            int next = (AppPrefs.navTextMode(this) + 1) % 3;
-            NavProtocol.setTextMode(this, next);
-            savedToast();
-            refresh();
-        });
-        nav.addView(check("Тип навигации TBT", AppPrefs.navTbt(this), (button, checked) -> {
-            NavProtocol.setTbtMode(this, checked);
-            savedToast();
-        }));
-        nav.addView(check("Компас без маршрута", AppPrefs.navCompass(this), (button, checked) -> {
-            AppPrefs.setNavCompass(this, checked);
-            if (checked) AppService.start(this);
-            CompassBridge.refresh(this);
-            AppLog.line(this, "Навигация: компас без маршрута " + yes(checked));
-            savedToast();
-        }));
-        nav.addView(check("Температура двигателя через CAN", AppPrefs.engineTempEnabled(this), (button, checked) -> {
-            AppPrefs.setEngineTempEnabled(this, checked);
-            CanbusControl.setEngineTemp(this, checked);
-            savedToast();
-        }));
+        addCardTitle(nav, "Навигация в адаптер");
+        TextView navText = bodyText("Режим фиксированный: source через 0x7A, маршрут через 0x48, маневр/компас через 0x45, ETA/distance через 0x47, улица через 0x4A, speed limit через 0x44. Переключателей компаса/TBT/text-mode больше нет.");
+        navText.setTextColor(0xff3a414b);
+        nav.addView(navText, matchWrap());
 
         LinearLayout blindSpot = card();
         content.addView(blindSpot, cardLp());
@@ -605,7 +582,7 @@ public class CanbusSettingsActivity extends Activity {
         navDebugValue.setTextSize(12);
         navDebugValue.setPadding(dp(12), dp(10), dp(12), dp(10));
         navDebugValue.setBackground(rounded(0xfff7f9fc, 8));
-        app.addView(navDebugValue, new LinearLayout.LayoutParams(-1, dp(138)));
+        app.addView(navDebugValue, new LinearLayout.LayoutParams(-1, dp(230)));
         app.addView(check("Включить раздел OBD", AppPrefs.obdEnabled(this), (button, checked) -> {
             AppPrefs.setObdEnabled(this, checked);
             if (checked) {
@@ -877,7 +854,6 @@ public class CanbusSettingsActivity extends Activity {
         if (runtimeMetric != null) runtimeMetric.setText(vehicle.runtimeText());
         if (speedButton != null) speedButton.setText("Скорость: " + AppPrefs.speedUnitLabel(this));
         if (tempButton != null) tempButton.setText("Температура: " + (AppPrefs.tempUnit(this) == 1 ? "°F" : "°C"));
-        if (navModeButton != null) navModeButton.setText(navModeText());
         AppService.refreshOverlays(this);
         refreshSidebandDebug();
         refreshUartOverlayVisibility();
@@ -993,7 +969,8 @@ public class CanbusSettingsActivity extends Activity {
 
     private String navDebugText() {
         NavDebugState.Snapshot nav = NavDebugState.snapshot();
-        return "TEYES: " + shortDebug(nav.lastTeyes) + "\n"
+        return NavProtocol.adapterStateText() + "\n"
+                + "TEYES: " + shortDebug(nav.lastTeyes) + "\n"
                 + "Intent: " + shortDebug(nav.lastEvent) + "\n"
                 + "CAN: " + shortDebug(nav.lastFrame);
     }
@@ -1562,13 +1539,6 @@ public class CanbusSettingsActivity extends Activity {
             if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
         }
         return true;
-    }
-
-    private String navModeText() {
-        int mode = AppPrefs.navTextMode(this);
-        if (mode == 1) return "Текст навигации: ограничение скорости";
-        if (mode == 2) return "Текст навигации: по превышению";
-        return "Текст навигации: названия улиц";
     }
 
     private String canModeLabel() {

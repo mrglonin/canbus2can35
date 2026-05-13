@@ -41,7 +41,7 @@ final class AppPrefs {
     private static final String KEY_UPDATE_CHECK_ON_LAUNCH = "update_check_on_launch";
     private static final String KEY_DEFAULT_PROFILE_VERSION = "default_profile_version";
 
-    private static final int DEFAULT_PROFILE_VERSION = 1;
+    private static final int DEFAULT_PROFILE_VERSION = 2;
 
     private AppPrefs() {
     }
@@ -130,19 +130,19 @@ final class AppPrefs {
     }
 
     static int navTextMode(Context context) {
-        return prefs(context).getInt(KEY_NAV_TEXT_MODE, 0);
+        return 0;
     }
 
     static void setNavTextMode(Context context, int mode) {
-        prefs(context).edit().putInt(KEY_NAV_TEXT_MODE, mode).apply();
+        prefs(context).edit().putInt(KEY_NAV_TEXT_MODE, 0).apply();
     }
 
     static boolean navTbt(Context context) {
-        return prefs(context).getBoolean(KEY_NAV_TBT, false);
+        return false;
     }
 
     static void setNavTbt(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_NAV_TBT, value).apply();
+        prefs(context).edit().putBoolean(KEY_NAV_TBT, false).apply();
     }
 
     static boolean navOverlay(Context context) {
@@ -154,11 +154,11 @@ final class AppPrefs {
     }
 
     static boolean navCompass(Context context) {
-        return prefs(context).getBoolean(KEY_NAV_COMPASS, true);
+        return true;
     }
 
     static void setNavCompass(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_NAV_COMPASS, value).apply();
+        prefs(context).edit().putBoolean(KEY_NAV_COMPASS, true).apply();
     }
 
     static int speedUnit(Context context) {

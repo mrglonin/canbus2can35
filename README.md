@@ -69,7 +69,7 @@ V21 команды:
 | `0x70` | raw CAN stream on/off только для debug |
 | `0x76` | pop raw CAN frame из ring buffer только для debug |
 | `0x77` | compact Vehicle/RCTA snapshot без raw-потока в APK |
-| `0x78` | one-shot raw CAN TX |
+| `0x78` | one-shot raw CAN TX только M-CAN (`bus=1`) |
 | `0x79` | V21 health/capabilities, проверка что адаптер жив |
 | `0x7A` | inject Raise/RZC `FD .. 09 ...` source-status в штатный parser прошивки |
 
@@ -208,8 +208,8 @@ Source byte scanner после проверки:
 4. BT audio: `0x7A FD 06 09 0B 04 00`, затем проверенные поля `0x22`/`0x20 1F`.
 5. FM/AM: отдельные ветки `0x02` и `0x09`, не смешивать с USB/BT.
 6. Vehicle/RCTA: обычный режим через `0x77` snapshot; raw stream не включать без debug.
-7. Raw CAN `0x78` оставить для диагностики, точечного TX и будущих редких
-   сценариев, но не использовать как основной путь media/nav.
+7. Raw CAN `0x78` оставить только для диагностики M-CAN, точечного TX и будущих
+   редких сценариев, но не использовать как основной путь media/nav.
 
 Локальная панель для live-тестов сейчас находится вне git:
 
@@ -241,10 +241,10 @@ cd /Volumes/SSD/canbus/repo/android/kia
 После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_124.apk
+/Volumes/SSD/canbus/release/kia_125.apk
 ```
 
-Номер в имени берется из `versionName`: `12.4-kia` -> `kia_124.apk`.
+Номер в имени берется из `versionName`: `12.5-kia` -> `kia_125.apk`.
 
 ## Что намеренно удалено
 

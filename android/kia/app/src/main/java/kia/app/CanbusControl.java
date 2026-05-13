@@ -700,11 +700,11 @@ final class CanbusControl {
 
     private static boolean validCanTx(int bus, byte[] data) {
         int len = data == null ? 0 : data.length;
-        return (bus == 0 || bus == 1) && len <= 8;
+        return bus == 1 && len <= 8;
     }
 
     private static String canBusText(int bus) {
-        if (bus == 0) return "bus=0 C-CAN/CAN1";
+        if (bus == 0) return "bus=0 C-CAN/CAN1 blocked";
         if (bus == 1) return "bus=1 M-CAN/CAN2";
         return "bus=" + bus;
     }

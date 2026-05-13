@@ -24,6 +24,8 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private static final float MAX_LOCATION_ACCURACY_M = 50f;
 
     private static CompassBridge instance;
+    private static String lastStatus = "ожидание GPS bearing";
+    private static long lastSentAt;
 
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -66,6 +68,11 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         if (context == null) return;
         if (AppPrefs.navCompass(context)) start(context);
         else if (instance != null) instance.stopInternal();
+    }
+
+    static synchronized String statusText() {
+        String age = lastSentAt == 0 ? "нет отправки" : ((System.currentTimeMillis() - lastSentAt) / 1000L) + " сек назад";
+        return lastStatus + " / " + age;
     }
 
     private void startInternal() {
@@ -185,6 +192,9 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         if (!AppPrefs.navCompass(context)) return;
         long now = System.currentTimeMillis();
         if (lastHeadingAt == 0 || now - lastHeadingAt > HEADING_MAX_AGE_MS) {
+            synchronized (CompassBridge.class) {
+                lastStatus = "0x45 compass: нет свежего GPS bearing";
+            }
             if (AppPrefs.debug(context) && now - lastLogAt > 10000L) {
                 lastLogAt = now;
                 AppLog.line(context, "Компас: нет свежего GPS bearing, 0x45 не отправляю");
@@ -194,6 +204,12 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         float heading = currentHeading(now);
         int uiStep = compassDisplayStep(heading);
         CanbusControl.sendCompassStepQuiet(context, uiStep);
+        synchronized (CompassBridge.class) {
+            int sent = (36 - uiStep) % 36;
+            lastSentAt = now;
+            lastStatus = String.format(Locale.US, "0x45 compass: %.0f deg ui=%02X sent=%02X source=%s",
+                    heading, uiStep, sent, headingSource);
+        }
         if (AppPrefs.debug(context) && now - lastLogAt > 5000L) {
             lastLogAt = now;
             AppLog.line(context, String.format(Locale.US,

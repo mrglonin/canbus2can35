@@ -1,6 +1,6 @@
 # Прошивка v21: штатный canbox + compact Vehicle/RCTA snapshot
 
-Дата: 2026-05-13.
+Дата: 2026-05-14.
 
 v21 построена от авторской `04350008` и сохраняет штатный canbox/update-loader.
 USB identity не меняется: `0483:5740`, stock CDC/proprietary protocol.
@@ -15,7 +15,8 @@ USB identity не меняется: `0483:5740`, stock CDC/proprietary protocol.
 - M-CAN `0x132 DATA[0]` пишется в snapshot как voltage mV (`DATA[0] / 10 V` в APK).
 - Последний `0x4F4` blind spot/RCTA копируется в snapshot: valid, bus, dlc, id, data8.
 - `0x70/0x76` оставлены только для debug/raw log.
-- `0x7A`, `0x78`, update-loader `0x55`, UID/version `0x56` не менялись.
+- `0x7A`, update-loader `0x55`, UID/version `0x56` не менялись.
+- `0x78` оставлен только как guarded diagnostic TX в M-CAN; bus `0`/C-CAN теперь отклоняется `ACK 02`.
 
 ## Файлы
 
@@ -32,7 +33,7 @@ firmware/trusted/v21/21_v08_mode1_v21.report.json
 | `0x70` | raw CAN stream on/off только для debug |
 | `0x76` | pop один raw C-CAN/M-CAN frame только для debug |
 | `0x77` | compact Vehicle/RCTA snapshot |
-| `0x78` | one-shot raw CAN TX |
+| `0x78` | one-shot raw CAN TX только в M-CAN (`bus=1`) |
 | `0x79` | V21 health/capabilities |
 | `0x7A` | inject Raise/RZC `FD .. 09 ...` media/navigation source status |
 

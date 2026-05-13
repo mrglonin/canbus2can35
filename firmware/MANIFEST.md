@@ -26,8 +26,8 @@ UID: 37 FF DA 05 42 47 30 38 59 41 22 43
 | `trusted/v18_v19/19_v08_mode1_raw_can_stream_obd_snapshot_can_tx_STLINK64K.bin` | `a94208b4d5ebee90f8e1b17f276a10e8b3fbbc98832232dc2da2d7c5b03be756` | ST-Link full image для v19. |
 | `trusted/v20/20_v08_mode1_v20_USB.bin` | `b790f7b1077358c0bac5e6eee81f96efea2fbcf90e0b39bdaf2e3e799953f95b` | USB-update: v19 + `0x79` V20 health/capabilities и исправленный выход после `0x77`. |
 | `trusted/v20/20_v08_mode1_v20_STLINK64K.bin` | `10ef4cbccc7cd8802cecf9a8ef4dc1c32e38edbc9eda17b9cd80a0cbea9f22f0` | ST-Link full image для v20. |
-| `trusted/v21/21_v08_mode1_v21_USB.bin` | `cd3a674711ec20a5fbdf193d2aeff07336cbddd9c51dbbb846aa54580b018079` | USB-update: v20 + `0x77` Vehicle/RCTA snapshot, M-CAN `0x132` voltage, latest `0x4F4`, raw stream только debug. |
-| `trusted/v21/21_v08_mode1_v21_STLINK64K.bin` | `be814b5a2e0d1da18648a4a5815a59e0a1fe3d2599c19de8698ceb09bec8b348` | ST-Link full image для v21. |
+| `trusted/v21/21_v08_mode1_v21_USB.bin` | `d008f4b5c24d46c26cefd104892d245446fcb09719ce2f660a353d0108070d5d` | USB-update: v20 + `0x77` Vehicle/RCTA snapshot, M-CAN `0x132` voltage, latest `0x4F4`, raw stream только debug, `0x78` TX только M-CAN. |
+| `trusted/v21/21_v08_mode1_v21_STLINK64K.bin` | `ff5b78753055c0b1df958309d601a08449fb048470ce027419d883365039d4f8` | ST-Link full image для v21. |
 
 ## USB sideband commands
 

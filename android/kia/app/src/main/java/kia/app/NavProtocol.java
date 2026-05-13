@@ -57,6 +57,12 @@ final class NavProtocol {
     private static byte[] lastSpeedFrame;
     private static byte[] lastTextFrame;
     private static boolean navSourceSent;
+    private static String routeState = "off";
+    private static String lastManeuverValue = "-";
+    private static String lastDistanceValue = "-";
+    private static String lastEtaValue = "-";
+    private static String lastSpeedValue = "-";
+    private static String lastStreetValue = "-";
 
     private NavProtocol() {
     }
@@ -82,11 +88,32 @@ final class NavProtocol {
         }
     }
 
+    static String adapterStateText() {
+        String state;
+        if (navActive) {
+            state = "active";
+        } else if (isFinishHoldActive()) {
+            state = "finish hold";
+        } else {
+            state = routeState;
+        }
+        return "route: " + safe(state) + "\n"
+                + "source 0x7A: " + (navSourceSent ? "nav sent" : "idle") + "\n"
+                + "0x48 nav: " + frameLine(lastNavFrame) + "\n"
+                + "0x45 maneuver: " + safe(lastManeuverValue)
+                + " dist=" + safe(lastDistanceValue) + " frame=" + frameLine(lastManeuverFrame) + "\n"
+                + "0x47 ETA/dist: " + safe(lastEtaValue) + " frame=" + frameLine(lastEtaFrame) + "\n"
+                + "0x4A street: " + safe(lastStreetValue) + " frame=" + frameLine(lastTextFrame) + "\n"
+                + "0x44 speed limit: " + safe(lastSpeedValue) + " frame=" + frameLine(lastSpeedFrame) + "\n"
+                + CompassBridge.statusText();
+    }
+
     static void handleTeyesNavInfo(Context context, Intent intent) {
         if (context == null || intent == null) return;
         String state = extraText(intent, "state");
         NavDebugState.teyes(context, "com.yf.navinfo " + extras(intent));
         if (!teyesStateAllowsRoute(state)) {
+            routeState = "ignored " + safe(state);
             AppLog.setNav(context, "Навигация TEYES: не активное ведение " + safe(state));
             finishTeyesRouteIfStale(context);
             return;
@@ -102,6 +129,7 @@ final class NavProtocol {
                 || !TextUtils.isEmpty(total)
                 || hasMeaningfulDirection(direction);
         if (!hasRoute) {
+            routeState = "waiting route";
             finishTeyesRouteIfStale(context);
             AppLog.setNav(context, "Навигация TEYES: ожидание маршрута");
             return;
@@ -109,6 +137,7 @@ final class NavProtocol {
 
         lastTeyesRouteAt = System.currentTimeMillis();
         teyesRouteActive = true;
+        routeState = "active TEYES";
         Intent on = new Intent(ACTION_NAVI_ON);
         on.putExtra("navi_on", true);
         handleNaviOn(context, on);
@@ -150,10 +179,12 @@ final class NavProtocol {
         }
         if (intent.hasExtra("imageId") && imageId != null) {
             currentImageId = imageId;
+            lastManeuverValue = imageId;
             applyManeuverIcon(context, frame, imageId);
         }
 
         if (intent.hasExtra("distance")) {
+            lastDistanceValue = safe(intent.getStringExtra("distance")) + " " + safe(intent.getStringExtra("unit"));
             float value = parseFloat(intent.getStringExtra("distance"));
             if (value != 0f) {
                 int whole = (int) value;
@@ -174,10 +205,13 @@ final class NavProtocol {
             } else {
                 frame[12] = (byte) ((frame[12] & 0x0f) | 0xA0);
             }
+        } else if (intent.hasExtra("imageId")) {
+            lastDistanceValue = "-";
         }
 
         send(context, frame.clone());
         if (finish) {
+            routeState = "finish hold";
             holdFinish(context);
         }
         String nextStreet = intent.getStringExtra("street");
@@ -185,6 +219,7 @@ final class NavProtocol {
             long now = System.currentTimeMillis();
             boolean changed = !TextUtils.equals(street, nextStreet);
             street = nextStreet;
+            lastStreetValue = TextUtils.isEmpty(street) ? "-" : street;
             if (changed || now - lastStreetAt >= 3000) {
                 showStreet(context);
                 lastStreetAt = now;
@@ -195,27 +230,19 @@ final class NavProtocol {
 
     static void setTbtMode(Context context, boolean enabled) {
         AppPrefs.setNavTbt(context, enabled);
-        if (currentImageId != null) {
-            applyManeuverIcon(context, maneuverFrame, currentImageId);
-        }
-        send(context, maneuverFrame.clone());
-        AppLog.setNav(context, "Навигация TBT: " + (enabled ? "включена" : "выключена"));
+        AppLog.setNav(context, "Навигация TBT: штатный classic mode");
     }
 
     static void setTextMode(Context context, int mode) {
-        int safeMode = Math.max(0, Math.min(2, mode));
-        AppPrefs.setNavTextMode(context, safeMode);
-        if (safeMode == 1) {
-            showSpeed(context);
-        } else {
-            showStreet(context);
-        }
-        AppLog.setNav(context, "Навигация: режим текста " + safeMode);
+        AppPrefs.setNavTextMode(context, 0);
+        showStreet(context);
+        AppLog.setNav(context, "Навигация: 0x4A всегда улица, speed limit отдельно через 0x44");
     }
 
     private static void handleSpeed(Context context, Intent intent) {
         if (!intent.hasExtra("speed_limit")) return;
         speedLimit = intent.getStringExtra("speed_limit");
+        lastSpeedValue = TextUtils.isEmpty(speedLimit) ? "-" : speedLimit.trim() + " km/h";
         showSpeed(context);
         String speed = speedLimit == null ? "" : speedLimit.trim();
         if (speed.isEmpty()) return;
@@ -234,6 +261,7 @@ final class NavProtocol {
     private static void handleEta(Context context, Intent intent) {
         String value = intent.getStringExtra("edistance");
         if (value == null) return;
+        lastEtaValue = value;
         Matcher matcher = ETA_PATTERN.matcher(value);
         if (!matcher.find()) {
             AppLog.setNav(context, "Навигация: ETA не распознано " + value);
@@ -264,15 +292,18 @@ final class NavProtocol {
         boolean on = intent.getBooleanExtra("navi_on", false);
         if (on) {
             cancelFinishHold();
+            routeState = "active";
             if (!navSourceSent) {
                 CanbusControl.sendNavigationSourceQuiet(context);
                 navSourceSent = true;
             }
         } else if (isFinishHoldActive()) {
+            routeState = "finish hold";
             scheduleFinishClear(context, finishHoldUntil);
             AppLog.setNav(context, "Навигация: финиш удерживается 5 сек.");
             return;
         } else {
+            routeState = "off";
             navSourceSent = false;
         }
         frame[5] = on ? (byte) 1 : 0;
@@ -283,13 +314,6 @@ final class NavProtocol {
     private static void handleExceeded(Context context, Intent intent) {
         if (!intent.hasExtra("exceeded")) return;
         exceeded = intent.getBooleanExtra("exceeded", false);
-        if (AppPrefs.navTextMode(context) == 2) {
-            if (exceeded) {
-                showSpeed(context);
-            } else {
-                showStreet(context);
-            }
-        }
         AppLog.setNav(context, "Навигация: превышение " + exceeded);
     }
 
@@ -543,17 +567,12 @@ final class NavProtocol {
 
     private static void showStreet(Context context) {
         if (isFinishHoldActive()) return;
-        int mode = AppPrefs.navTextMode(context);
-        if (mode == 1 || (mode == 2 && exceeded)) return;
+        lastStreetValue = TextUtils.isEmpty(street) ? "-" : street;
         send(context, textFrame(trim(street, 16)));
     }
 
     private static void showSpeed(Context context) {
-        if (isFinishHoldActive()) return;
-        int mode = AppPrefs.navTextMode(context);
-        if (mode == 0 || (mode == 2 && !exceeded)) return;
-        String text = speedLimit == null ? null : speedLimit.trim() + " km/h";
-        send(context, textFrame(text));
+        if (speedLimit == null) lastSpeedValue = "-";
     }
 
     private static void holdFinish(Context context) {
@@ -574,6 +593,7 @@ final class NavProtocol {
             byte[] frame = naviOnFrame;
             frame[5] = 0;
             navSourceSent = false;
+            routeState = "off";
             send(app, frame.clone());
             stopRepeaterIfIdle();
             AppLog.setNav(app, "Навигация: финиш очищен после 5 сек.");
@@ -625,6 +645,7 @@ final class NavProtocol {
         complete(frame);
         rememberFrame(context, frame);
         NavDebugState.frame(context, CanbusControl.hex(frame));
+        QaState.frame(context, frame);
         AppService.sendFrame(context, frame);
     }
 
@@ -635,12 +656,6 @@ final class NavProtocol {
         if (cmd == 0x48) {
             navActive = (frame[5] & 0xff) != 0;
             lastNavFrame = copy;
-            if (!navActive) {
-                lastManeuverFrame = null;
-                lastEtaFrame = null;
-                lastSpeedFrame = null;
-                lastTextFrame = null;
-            }
         } else if (cmd == 0x45) {
             lastManeuverFrame = copy;
         } else if (cmd == 0x47) {
@@ -700,6 +715,7 @@ final class NavProtocol {
             off.putExtra("navi_on", false);
             handleNaviOn(context, off);
         } else if (teyesRouteActive) {
+            routeState = "hold last route";
             AppLog.setNav(context, "Навигация TEYES: удержание последнего маршрута");
         }
     }
@@ -752,6 +768,10 @@ final class NavProtocol {
 
     private static String safe(String value) {
         return TextUtils.isEmpty(value) ? "-" : value.toLowerCase(Locale.US);
+    }
+
+    private static String frameLine(byte[] frame) {
+        return frame == null ? "-" : CanbusControl.hex(frame);
     }
 
     private static String extras(Intent intent) {
