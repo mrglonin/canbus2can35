@@ -31,6 +31,20 @@ firmware/local/
 firmware/scripts/
 firmware/**/*.report.json
 
+# Private protocol notes stay local only.
+docs/ADAPTER_FIRMWARE_SIGNAL_MAP.md
+docs/APK_V20_REWORK_PLAN.md
+docs/FIRMWARE_ADAPTER_OWNED_LOGIC_TARGET.md
+docs/FIRMWARE_V18_OBD_SNAPSHOT.md
+docs/FIRMWARE_V19_CAN_TX.md
+docs/FIRMWARE_V20_ADAPTER.md
+docs/FIRMWARE_V21_ADAPTER.md
+docs/FM_UART_TO_MCAN_TRACE.md
+docs/PROGRAMMER_FIRMWARE_DECODE.md
+docs/PROGRAMMER_FIRMWARE_UART_CHECK.md
+docs/TEYES_APP_IMPLEMENTATION_README_20260513.md
+docs/TRUSTED_FIRMWARE_FACTS.md
+
 # Local captures and reverse-engineering workspaces are intentionally external.
 logs/
 re/
