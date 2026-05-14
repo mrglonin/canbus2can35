@@ -134,19 +134,19 @@ final class AppPrefs {
     }
 
     static int navTextMode(Context context) {
-        return 0;
+        return clamp(prefs(context).getInt(KEY_NAV_TEXT_MODE, 0), 0, 2);
     }
 
     static void setNavTextMode(Context context, int mode) {
-        prefs(context).edit().putInt(KEY_NAV_TEXT_MODE, 0).apply();
+        prefs(context).edit().putInt(KEY_NAV_TEXT_MODE, clamp(mode, 0, 2)).apply();
     }
 
     static boolean navTbt(Context context) {
-        return false;
+        return prefs(context).getBoolean(KEY_NAV_TBT, false);
     }
 
     static void setNavTbt(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_NAV_TBT, false).apply();
+        prefs(context).edit().putBoolean(KEY_NAV_TBT, value).apply();
     }
 
     static boolean navOverlay(Context context) {
@@ -158,11 +158,11 @@ final class AppPrefs {
     }
 
     static boolean navCompass(Context context) {
-        return true;
+        return prefs(context).getBoolean(KEY_NAV_COMPASS, true);
     }
 
     static void setNavCompass(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_NAV_COMPASS, true).apply();
+        prefs(context).edit().putBoolean(KEY_NAV_COMPASS, value).apply();
     }
 
     static int speedUnit(Context context) {

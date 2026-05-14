@@ -164,7 +164,7 @@ final class CanbusControl {
                 send(context, textPacket(0x22, title, 16));
                 break;
             case FM_RADIO:
-                send(context, textPacket(0x21, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                send(context, textPacket(0x20, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
                 break;
             case AM_RADIO:
                 send(context, textPacket(0x20, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
@@ -453,8 +453,10 @@ final class CanbusControl {
         if (text.contains("phone") || text.contains("телефон")) return MediaSource.BT_PHONE;
         if (text.contains("bluetooth") || text.contains("bt")) return MediaSource.BLUETOOTH_AUDIO;
         if (text.contains("интернет") || text.contains("network")) return MediaSource.CLOUD_MUSIC;
+        if (text.equals("am") || text.startsWith("am ") || text.contains("am радио") || text.contains("am radio")) {
+            return MediaSource.AM_RADIO;
+        }
         if (text.contains("fm") || text.contains("радио") || text.contains("radio")) return MediaSource.FM_RADIO;
-        if (text.contains("am ")) return MediaSource.AM_RADIO;
         if (text.contains("яндекс") || text.contains("yandex") || text.contains("spotify")
                 || text.contains("youtube") || text.contains("cloud") || text.contains("teyes music")) {
             return MediaSource.CLOUD_MUSIC;

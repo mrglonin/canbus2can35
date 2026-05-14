@@ -7,9 +7,9 @@
 
 | Часть | Актуально |
 |---|---|
-| Android APK | `13.0-kia`, `versionCode 110`, `kia_130.apk` |
-| APK artifact | `updates/kia_130.apk` и `/Volumes/SSD/canbus/release/kia_130.apk` |
-| APK sha256 | `f2fc36da568548f99cf935292409e07e5358f14fa48968d9740c10126811fcd7` |
+| Android APK | `13.1-kia`, `versionCode 111`, `kia_131.apk` |
+| APK artifact | `updates/kia_131.apk` и `/Volumes/SSD/canbus/release/kia_131.apk` |
+| APK sha256 | `e1b1018a3b1d5fa24d2091bfeb5a4d191b1b9e943669f3d0d64154ff0e5f38cb` |
 | Firmware update channel | `v22-full-raw` |
 | Firmware sha256 | `b1256de76cc8c1eabaabefd9f1e77ff4f5988d24a68289514405fa849ce92c4d` |
 | Runtime defaults | Vehicle/RCTA/TPMS/media/nav включены, raw CAN/debug/UART/старые тесты выключены |
@@ -44,7 +44,7 @@ CANBUS/навигация в адаптер:
 |---|---|
 | `/Volumes/SSD/canbus/repo` | Этот git-репозиторий. |
 | `/Volumes/SSD/canbus/tools` | Локальные toolchain/OpenOCD/SDK, приватные утилиты и рабочие заметки, не git. |
-| `/Volumes/SSD/canbus/release` | Готовые APK/прошивки с короткими именами, включая `kia_130.apk`. |
+| `/Volumes/SSD/canbus/release` | Готовые APK/прошивки с короткими именами, включая `kia_131.apk`. |
 
 В публичной части репозитория остаются приложение, проверенные CAN-таблицы,
 доверенные release-бинарники, hardware/recovery заметки и короткая
@@ -96,10 +96,10 @@ cd /Volumes/SSD/canbus/repo/android/kia
 После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_130.apk
+/Volumes/SSD/canbus/release/kia_131.apk
 ```
 
-Номер в имени берется из `versionName`: `13.0-kia` -> `kia_130.apk`.
+Номер в имени берется из `versionName`: `13.1-kia` -> `kia_131.apk`.
 
 ## Документы
 

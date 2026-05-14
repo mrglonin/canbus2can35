@@ -301,7 +301,6 @@ final class MediaMonitor {
         }
         String pretty = formatMediaText(context, source, artist, title, durationMs, false);
         String clusterTitle = formatMediaText(context, source, artist, title, durationMs, true);
-        rememberPreview(source, pkg, artist, title, durationMs);
         String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title)
                 + " / " + duration(durationMs) + " / " + dash(pretty);
         String sourceKey = sourceKey(source, pkg);
@@ -314,6 +313,7 @@ final class MediaMonitor {
             }
             return false;
         }
+        rememberPreview(source, pkg, artist, title, durationMs);
         if (!TextUtils.equals(line, lastLine)) {
             activeSource = source;
             activePkg = pkg;
@@ -351,8 +351,11 @@ final class MediaMonitor {
         String sourceKey = sourceKey(source, pkg);
         boolean sameSource = sameSource(source, pkg, activeSource, activePkg);
         boolean locked = !TextUtils.isEmpty(activeSourceKey) && now - activeSourceAt < SOURCE_LOCK_MS;
+        if (sameSource && activePriority >= 120) {
+            activeSourceAt = now;
+            return;
+        }
         if (!sameSource && locked && activePriority >= 120) return;
-        if (sameSource && activePriority >= 120 && now - activeSourceAt < SOURCE_LOCK_MS) return;
         String canKey = clusterEventKey("source", source, pkg, "", "", -1);
         if (TextUtils.equals(canKey, lastClusterEventKey)) return;
         rememberPreview(source, pkg, "", source, -1);

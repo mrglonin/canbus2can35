@@ -24,12 +24,16 @@ final class TeyesMusicWidgetBridge {
     private static Context appContext;
     private static long lastPokeAt;
     private static long lastLogAt;
+    private static long lastEmptyLogAt;
     private static String lastSongType = "";
+    private static String lastWidgetLogKey = "";
     private static String currentSource = "";
     private static String currentSongType = "";
     private static String currentTitle = "";
+    private static String currentDisplayTitle = "";
     private static String currentArtist = "";
     private static String currentFrequency = "";
+    private static String currentSearchState = "";
     private static String currentAppName = "";
     private static int currentProgress = -1;
     private static long currentAt;
@@ -64,12 +68,17 @@ final class TeyesMusicWidgetBridge {
         appContext = context.getApplicationContext();
         pokeWidget(appContext);
         WidgetState state = queryWidgetState(appContext);
-        if (state == null || TextUtils.isEmpty(state.source)) return false;
+        if (state == null || TextUtils.isEmpty(state.source)) {
+            logEmptyState(appContext);
+            return false;
+        }
         currentSource = state.source;
         currentSongType = clean(state.songType);
         currentTitle = clean(state.title);
+        currentDisplayTitle = clean(state.displayTitle());
         currentArtist = clean(state.artist);
         currentFrequency = clean(state.frequency);
+        currentSearchState = clean(state.searchState);
         currentAppName = clean(state.appName);
         currentProgress = state.progress;
         currentAt = System.currentTimeMillis();
@@ -78,12 +87,16 @@ final class TeyesMusicWidgetBridge {
             MediaMonitor.reportExternal(appContext, state.source, PACKAGE,
                     state.displayArtist(), state.displayTitle(), -1, state.priority());
         }
-        if (!TextUtils.equals(lastSongType, state.songType)) {
+        String logKey = state.source + "|" + state.songType + "|" + state.displayTitle() + "|" + state.searchState;
+        if (!TextUtils.equals(lastSongType, state.songType) || !TextUtils.equals(lastWidgetLogKey, logKey)) {
             lastSongType = state.songType;
+            lastWidgetLogKey = logKey;
             AppLog.line(appContext, "TEYES widget: источник=" + state.source
                     + " songType=" + state.songType
                     + " title=" + state.displayTitle()
-                    + " artist=" + state.displayArtist());
+                    + " artist=" + state.displayArtist()
+                    + " freq=" + state.frequency
+                    + " search=" + state.searchState);
         }
         return true;
     }
@@ -100,12 +113,20 @@ final class TeyesMusicWidgetBridge {
         return currentTitle;
     }
 
+    static synchronized String currentDisplayTitle() {
+        return currentDisplayTitle;
+    }
+
     static synchronized String currentArtist() {
         return currentArtist;
     }
 
     static synchronized String currentFrequency() {
         return currentFrequency;
+    }
+
+    static synchronized String currentSearchState() {
+        return currentSearchState;
     }
 
     static synchronized String currentAppName() {
@@ -158,7 +179,13 @@ final class TeyesMusicWidgetBridge {
                     best.artist = firstValue(cursor,
                             "song_artist", "songArtist", "artist", "singer", "author", "station", "station_name");
                     best.frequency = firstValue(cursor,
-                            "freq", "frequency", "radio_freq", "fm", "radio_frequency");
+                            "freq", "frequency", "radio_freq", "fm", "radio_frequency",
+                            "freq_text", "frequency_text", "radio_text", "radioText",
+                            "station_freq", "stationFrequency", "current_freq", "currentFrequency");
+                    best.searchState = firstValue(cursor,
+                            "search", "scan", "seek", "isSearching", "isSeeking", "isScanning",
+                            "searching", "seeking", "scanning", "search_state", "seek_state", "scan_state",
+                            "radio_search", "radio_seek", "radio_scan", "auto_search", "auto_scan");
                     best.appName = clean(appName);
                 }
             } while (cursor.moveToNext());
@@ -206,10 +233,11 @@ final class TeyesMusicWidgetBridge {
 
     private static String sourceFromSongType(String songType, String appName) {
         String type = clean(songType);
-        if (TextUtils.isEmpty(type)) return null;
+        String appSource = sourceFromAppName(appName);
+        if (TextUtils.isEmpty(type)) return appSource;
         String t = type.toLowerCase(Locale.US);
         if (t.contains("bluetooth")) return "Bluetooth";
-        if (t.contains("local_radio")) return "Радио";
+        if (t.contains("local_radio")) return "FM радио";
         if (t.contains("network_radio")) return "Интернет-радио";
         if (t.contains("local_music")) return "USB";
         if (t.contains("cloud_music") || t.contains("network_music")) {
@@ -220,9 +248,29 @@ final class TeyesMusicWidgetBridge {
         }
         if (t.contains("carplay")) return "CarPlay";
         if (t.contains("android_auto") || t.contains("androidauto")) return "Android Auto";
-        if (t.contains("radio")) return "Радио";
+        if (t.contains("radio")) return t.contains("am") ? "AM 24" : "FM радио";
         if (t.contains("music")) return "TEYES Media";
+        return appSource;
+    }
+
+    private static String sourceFromAppName(String appName) {
+        String app = clean(appName);
+        if (TextUtils.isEmpty(app)) return null;
+        String p = app.toLowerCase(Locale.US);
+        if (p.contains("bluetooth") || p.equals("bt") || p.contains("btmusic")) return "Bluetooth";
+        if (p.contains("янд") || p.contains("yandex")) return "Яндекс Музыка";
+        if (p.contains("carplay")) return "CarPlay";
+        if (p.contains("android auto") || p.contains("androidauto")) return "Android Auto";
+        if (p.contains("am ") || p.equals("am") || p.contains("am radio")) return "AM 24";
+        if (p.contains("radio") || p.contains("радио") || p.contains("fm")) return "FM радио";
         return null;
+    }
+
+    private static void logEmptyState(Context context) {
+        long now = System.currentTimeMillis();
+        if (now - lastEmptyLogAt < 30_000L) return;
+        lastEmptyLogAt = now;
+        AppLog.line(context, "TEYES widget: источник не найден");
     }
 
     private static String clean(String value) {
@@ -236,6 +284,7 @@ final class TeyesMusicWidgetBridge {
         String songType;
         String source;
         String title;
+        String searchState;
         String artist;
         String frequency;
         String appName;
@@ -248,11 +297,14 @@ final class TeyesMusicWidgetBridge {
         String displayTitle() {
             String cleanTitle = clean(title);
             String cleanFreq = clean(frequency);
+            if (isRadioSource() && isSearching()) {
+                return TextUtils.isEmpty(cleanFreq) ? "Поиск станции" : "Поиск " + cleanFreq;
+            }
             if (!TextUtils.isEmpty(cleanFreq) && !TextUtils.isEmpty(cleanTitle)
                     && !cleanTitle.toLowerCase(Locale.US).contains(cleanFreq.toLowerCase(Locale.US))) {
-                return cleanTitle + cleanFreq;
+                return cleanTitle + " " + cleanFreq;
             }
-            return first(cleanTitle, clean(appName), source);
+            return first(cleanTitle, cleanFreq, clean(appName), source);
         }
 
         String displayArtist() {
@@ -267,6 +319,21 @@ final class TeyesMusicWidgetBridge {
             if (p.contains("янд") || p.contains("teyes music") || p.contains("internet")) return 126;
             if (p.contains("usb")) return 115;
             return 105;
+        }
+
+        private boolean isRadioSource() {
+            String s = clean(source);
+            String p = s == null ? "" : s.toLowerCase(Locale.US);
+            return p.contains("радио") || p.contains("radio") || p.startsWith("fm") || p.startsWith("am");
+        }
+
+        private boolean isSearching() {
+            String state = clean(searchState);
+            if (TextUtils.isEmpty(state)) return false;
+            String p = state.toLowerCase(Locale.US);
+            return p.equals("1") || p.equals("true") || p.equals("yes")
+                    || p.contains("search") || p.contains("seek") || p.contains("scan")
+                    || p.contains("поиск") || p.contains("скан");
         }
 
         private static String first(String... values) {

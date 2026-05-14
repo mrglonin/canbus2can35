@@ -20,7 +20,7 @@ final class TeyesMediaBridge {
     private static final int TRANSACTION_GET_NOW_PLAYING = 6;
     private static final int TRANSACTION_GET_NOW_PLAYING_BY_TYPE = 7;
     private static final long POLL_MS = 1000L;
-    private static final int[] MEDIA_TYPES = {0, 1, 2, 3};
+    private static final int[] MEDIA_TYPES = {0, 1, 2, 3, 4, 7, 8, 9};
     private static int nextMediaTypeIndex;
 
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
@@ -30,6 +30,8 @@ final class TeyesMediaBridge {
     private static boolean binding;
     private static long lastBindAttemptAt;
     private static long lastBindLogAt;
+    private static String lastScanLog = "";
+    private static long lastScanLogAt;
 
     private static final Runnable POLL = new Runnable() {
         @Override
@@ -92,15 +94,40 @@ final class TeyesMediaBridge {
             return false;
         }
         NowPlaying nowPlaying = readBestNowPlaying(remote);
-        if (nowPlaying == null || !nowPlaying.hasUsefulData()) return false;
+        if (nowPlaying == null || !nowPlaying.hasUsefulData()) {
+            if (reportWidgetFallback(appContext, "нет nowPlaying")) return true;
+            logScan(appContext, "TEYES media: нет данных nowPlaying");
+            return false;
+        }
         String source = sourceLabel(nowPlaying);
-        if (!isUsbSource(source, nowPlaying)) return false;
         String selected = TeyesMusicWidgetBridge.currentSource();
-        if (!TextUtils.isEmpty(selected) && !isUsbText(selected)) return false;
+        if (TeyesMusicWidgetBridge.currentAgeMs() <= 5_000L && isKnownSourceText(selected)) {
+            source = normalizeSource(selected);
+        }
+        if (!isSupportedSource(source, nowPlaying)) {
+            logScan(appContext, "TEYES media: пропуск source=" + source
+                    + " type=" + nowPlaying.requestedType
+                    + " status=" + nowPlaying.playStatus);
+            return false;
+        }
         String title = clean(nowPlaying.songTitle);
         String artist = clean(nowPlaying.songArtist);
         if (TextUtils.isEmpty(title)) title = fileName(nowPlaying.fullPath);
-        return MediaMonitor.reportExternal(appContext, source, PACKAGE, artist, title, nowPlaying.durationMs, nowPlaying.priority());
+        if (isRadioText(source)) {
+            title = radioTitle(title, source);
+        } else if (TextUtils.isEmpty(title)) {
+            title = fallbackTitle(source);
+        }
+        String pkg = packageForSource(source);
+        boolean sent = MediaMonitor.reportExternal(appContext, source, pkg, artist, title,
+                nowPlaying.durationMs, nowPlaying.priority());
+        if (isRadioText(source)) {
+            logScan(appContext, "TEYES media: radio source=" + source
+                    + " title=" + title
+                    + " type=" + nowPlaying.requestedType
+                    + " status=" + nowPlaying.playStatus);
+        }
+        return sent;
     }
 
     private static void ensureBound(Context context) {
@@ -128,7 +155,11 @@ final class TeyesMediaBridge {
     private static NowPlaying readBestNowPlaying(IBinder binder) {
         NowPlaying best = null;
         best = choose(best, readNowPlaying(binder, -1));
-        for (int i = 0; i < 3; i++) {
+        int[] preferred = preferredTypes(TeyesMusicWidgetBridge.currentSource());
+        for (int type : preferred) {
+            best = choose(best, readNowPlaying(binder, type));
+        }
+        for (int i = 0; i < 4; i++) {
             int type = MEDIA_TYPES[nextMediaTypeIndex % MEDIA_TYPES.length];
             nextMediaTypeIndex = (nextMediaTypeIndex + 1) % MEDIA_TYPES.length;
             best = choose(best, readNowPlaying(binder, type));
@@ -165,6 +196,11 @@ final class TeyesMediaBridge {
 
     private static String sourceLabel(NowPlaying nowPlaying) {
         if (nowPlaying == null) return "TEYES";
+        if (nowPlaying.requestedType == 4) return "Bluetooth";
+        if (nowPlaying.requestedType == 5) return "CarPlay";
+        if (nowPlaying.requestedType == 6) return "Android Auto";
+        if (nowPlaying.requestedType == 7) return "FM радио";
+        if (nowPlaying.requestedType == 8 || nowPlaying.requestedType == 9) return "AM 24";
         String probe = (clean(nowPlaying.fullPath) + " " + clean(nowPlaying.songTitle) + " " + clean(nowPlaying.songArtist))
                 .toLowerCase(Locale.US);
         if (probe.contains("bluetooth") || probe.contains("btmusic")) return "Bluetooth";
@@ -174,10 +210,6 @@ final class TeyesMediaBridge {
         if ((nowPlaying.deviceMask & 0x01) != 0) return "USB";
         if ((nowPlaying.deviceMask & 0x02) != 0) return "USB";
         if ((nowPlaying.deviceMask & 0x10) != 0) return "USB";
-        if (nowPlaying.requestedType == 4) return "Bluetooth";
-        if (nowPlaying.requestedType == 5) return "CarPlay";
-        if (nowPlaying.requestedType == 6) return "Android Auto";
-        if (nowPlaying.requestedType == 7 || nowPlaying.requestedType == 9) return "Радио";
         if (nowPlaying.requestedType == 1 || nowPlaying.requestedType == 2) return "USB";
         if (nowPlaying.mediaType == 2) return "TEYES Media";
         if (nowPlaying.mediaType == 3) return "TEYES Video";
@@ -194,11 +226,142 @@ final class TeyesMediaBridge {
                 || (nowPlaying.deviceMask & 0x13) != 0;
     }
 
+    private static boolean isSupportedSource(String source, NowPlaying nowPlaying) {
+        return isUsbSource(source, nowPlaying)
+                || isRadioText(source)
+                || isBluetoothText(source)
+                || isCloudText(source)
+                || isTeyesText(source);
+    }
+
+    private static int[] preferredTypes(String selected) {
+        String source = normalizeSource(selected);
+        if (TeyesMusicWidgetBridge.currentAgeMs() > 5_000L || TextUtils.isEmpty(source)) {
+            return new int[0];
+        }
+        if (isRadioText(source)) return new int[]{7, 8, 9};
+        if (isBluetoothText(source)) return new int[]{4};
+        if (isUsbText(source)) return new int[]{1, 2};
+        if (isCloudText(source)) return new int[]{0, 3};
+        return new int[0];
+    }
+
+    private static boolean reportWidgetFallback(Context context, String reason) {
+        if (TeyesMusicWidgetBridge.currentAgeMs() > 5_000L) return false;
+        String source = normalizeSource(TeyesMusicWidgetBridge.currentSource());
+        if (!isKnownSourceText(source)) return false;
+        String title = firstNonEmpty(
+                TeyesMusicWidgetBridge.currentDisplayTitle(),
+                TeyesMusicWidgetBridge.currentFrequency(),
+                TeyesMusicWidgetBridge.currentTitle(),
+                source);
+        String artist = TeyesMusicWidgetBridge.currentArtist();
+        int priority = isRadioText(source) ? 135 : isBluetoothText(source) ? 128 : isUsbText(source) ? 115 : 105;
+        boolean sent = MediaMonitor.reportExternal(context, source, packageForSource(source),
+                artist, title, -1, priority);
+        logScan(context, "TEYES media: " + reason + ", fallback=" + source + " title=" + title);
+        return sent;
+    }
+
     private static boolean isUsbText(String value) {
         String text = clean(value);
         if (TextUtils.isEmpty(text)) return false;
         String p = text.toLowerCase(Locale.US);
         return p.contains("usb") || p.contains("local_music") || p.contains("local music");
+    }
+
+    private static boolean isRadioText(String value) {
+        String text = clean(value);
+        if (TextUtils.isEmpty(text)) return false;
+        String p = text.toLowerCase(Locale.US);
+        return p.contains("радио") || p.contains("radio") || p.equals("fm")
+                || p.startsWith("fm ") || p.equals("am") || p.startsWith("am ");
+    }
+
+    private static boolean isBluetoothText(String value) {
+        String text = clean(value);
+        if (TextUtils.isEmpty(text)) return false;
+        String p = text.toLowerCase(Locale.US);
+        return p.contains("bluetooth") || p.equals("bt") || p.startsWith("bt ");
+    }
+
+    private static boolean isCloudText(String value) {
+        String text = clean(value);
+        if (TextUtils.isEmpty(text)) return false;
+        String p = text.toLowerCase(Locale.US);
+        return p.contains("янд") || p.contains("yandex") || p.contains("cloud")
+                || p.contains("teyes music") || p.contains("интернет")
+                || p.contains("network") || p.contains("spotify") || p.contains("youtube");
+    }
+
+    private static boolean isTeyesText(String value) {
+        String text = clean(value);
+        if (TextUtils.isEmpty(text)) return false;
+        String p = text.toLowerCase(Locale.US);
+        return p.contains("teyes") || p.contains("media") || p.contains("music");
+    }
+
+    private static boolean isKnownSourceText(String value) {
+        return isUsbText(value) || isRadioText(value) || isBluetoothText(value)
+                || isCloudText(value) || isTeyesText(value);
+    }
+
+    private static String normalizeSource(String source) {
+        String text = clean(source);
+        if (TextUtils.isEmpty(text)) return text;
+        String p = text.toLowerCase(Locale.US);
+        if (p.equals("am") || p.startsWith("am ")) return text;
+        if (p.equals("fm") || p.startsWith("fm ")) return text;
+        if (p.contains("radio") || p.contains("радио")) {
+            return p.contains("am") ? "AM 24" : "FM радио";
+        }
+        return text;
+    }
+
+    private static String packageForSource(String source) {
+        if (isRadioText(source)) return "com.spd.radio";
+        if (isBluetoothText(source)) return "com.android.bluetooth";
+        return PACKAGE;
+    }
+
+    private static String fallbackTitle(String source) {
+        if (isRadioText(source)) {
+            return radioTitle(null, source);
+        }
+        return source;
+    }
+
+    private static String radioTitle(String candidate, String source) {
+        if (TeyesMusicWidgetBridge.currentAgeMs() <= 5_000L) {
+            String display = TeyesMusicWidgetBridge.currentDisplayTitle();
+            if (!TextUtils.isEmpty(clean(display))) return display;
+            String frequency = TeyesMusicWidgetBridge.currentFrequency();
+            String title = TeyesMusicWidgetBridge.currentTitle();
+            if (!TextUtils.isEmpty(clean(frequency)) && !TextUtils.isEmpty(clean(title))
+                    && !title.toLowerCase(Locale.US).contains(frequency.toLowerCase(Locale.US))) {
+                return clean(title) + " " + clean(frequency);
+            }
+            return firstNonEmpty(frequency, title, candidate, source);
+        }
+        return firstNonEmpty(candidate, source);
+    }
+
+    private static String firstNonEmpty(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            String out = clean(value);
+            if (!TextUtils.isEmpty(out)) return out;
+        }
+        return null;
+    }
+
+    private static void logScan(Context context, String message) {
+        long now = System.currentTimeMillis();
+        if (TextUtils.equals(message, lastScanLog) && now - lastScanLogAt < 15_000L) return;
+        if (!TextUtils.equals(message, lastScanLog) && now - lastScanLogAt < 2_000L) return;
+        lastScanLog = message;
+        lastScanLogAt = now;
+        AppLog.line(context, message);
     }
 
     private static String clean(String value) {
@@ -254,10 +417,12 @@ final class TeyesMediaBridge {
         }
 
         boolean hasUsefulData() {
-            if (playStatus <= 0) return false;
             if (!TextUtils.isEmpty(clean(songTitle)) || !TextUtils.isEmpty(clean(songArtist))) return true;
             String path = clean(fullPath);
-            return !TextUtils.isEmpty(path) && !path.toLowerCase(Locale.US).endsWith("/");
+            if (!TextUtils.isEmpty(path) && !path.toLowerCase(Locale.US).endsWith("/")) return true;
+            return playStatus > 0 && (requestedType == 1 || requestedType == 2 || requestedType == 4
+                    || requestedType == 7 || requestedType == 8 || requestedType == 9
+                    || (deviceMask & 0x13) != 0);
         }
 
         int priority() {

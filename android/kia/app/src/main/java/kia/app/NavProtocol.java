@@ -34,12 +34,14 @@ final class NavProtocol {
     private static final byte[] TEXT = {(byte) 0xBB, 0x41, (byte) 0xA1, 0, 0x4A, (byte) 0xF0};
     private static final byte[] SPEED = {(byte) 0xBB, 0x41, (byte) 0xA1, 0x08, 0x44, 0, 0, 0};
     private static final Pattern ETA_PATTERN = Pattern.compile("([\\d.,]+)\\s*(\\D+)");
+    private static final Pattern SPEED_LIMIT_TEXT_PATTERN = Pattern.compile("(?:^|\\D)(\\d{1,3})\\s*(?:км/ч|km/h|kph)", Pattern.CASE_INSENSITIVE);
     private static final byte[] maneuverFrame = MANEUVER.clone();
     private static final byte[] etaFrame = ETA.clone();
     private static final byte[] naviOnFrame = NAV_ON.clone();
     private static final byte[] speedFrame = SPEED.clone();
     private static final long FINISH_HOLD_MS = 5000L;
     private static final long TEYES_ROUTE_GRACE_MS = 12000L;
+    private static final long NAV_REPLAY_MS = 1000L;
 
     private static String street;
     private static String speedLimit;
@@ -51,6 +53,8 @@ final class NavProtocol {
     private static boolean teyesRouteActive;
     private static Handler handler;
     private static Runnable finishClearRunnable;
+    private static Runnable navReplayRunnable;
+    private static Context navReplayContext;
     private static boolean navActive;
     private static byte[] lastNavFrame;
     private static byte[] lastManeuverFrame;
@@ -66,6 +70,9 @@ final class NavProtocol {
     private static String lastEtaValue = "-";
     private static String lastSpeedValue = "-";
     private static String lastStreetValue = "-";
+    private static String lastRouteClearLog = "";
+    private static long lastRouteClearLogAt;
+    private static long lastWaitingRouteLogAt;
 
     private NavProtocol() {
     }
@@ -141,6 +148,25 @@ final class NavProtocol {
         String state = extraText(intent, "state");
         String app = firstText(extraText(intent, "app"), extraText(intent, "package"), extraText(intent, "pkg"));
         NavDebugState.teyes(context, event);
+        if (teyesStateIsExplicitOff(state)) {
+            clearRouteNow(context, "Навигация TEYES: выключена, компас активен", true);
+            return;
+        }
+        if (teyesStateIsPreviewOrFailure(state)) {
+            if (teyesRouteActive) {
+                finishTeyesRouteIfStale(context);
+                if (teyesRouteActive) {
+                    routeState = "active TEYES";
+                    AppLog.setNav(context, "Навигация TEYES: " + previewLabel(state)
+                            + ", активный маршрут не затираю");
+                }
+            } else {
+                routeState = previewLabel(state);
+                AppLog.setNav(context, "Навигация TEYES: " + previewLabel(state)
+                        + ", маршрут не включён");
+            }
+            return;
+        }
         if (!teyesStateAllowsRoute(state)) {
             routeState = "ignored " + safe(state);
             AppLog.setNav(context, "Навигация TEYES: не активное ведение " + safe(state));
@@ -159,27 +185,20 @@ final class NavProtocol {
                 || hasMeaningfulDirection(direction);
         if (!hasRoute) {
             if (isOpenState(state) && isKnownNavigationApp(app)) {
-                lastTeyesRouteAt = System.currentTimeMillis();
-                teyesRouteActive = true;
-                routeState = "active TEYES waiting details";
-                Intent on = new Intent(ACTION_NAVI_ON);
-                on.putExtra("navi_on", true);
-                handleNaviOn(context, on);
-                AppLog.setNav(context, "Навигация TEYES: " + safe(app) + " активна, жду маневр");
+                beginWaitingRoute(context, app);
                 return;
             }
             routeState = "waiting route";
             finishTeyesRouteIfStale(context);
-            AppLog.setNav(context, "Навигация TEYES: ожидание маршрута");
+            if (!teyesRouteActive) {
+                AppLog.setNav(context, "Навигация TEYES: ожидание маршрута");
+            }
             return;
         }
 
         lastTeyesRouteAt = System.currentTimeMillis();
         teyesRouteActive = true;
-        routeState = "active TEYES";
-        Intent on = new Intent(ACTION_NAVI_ON);
-        on.putExtra("navi_on", true);
-        handleNaviOn(context, on);
+        ensureNavigationOn(context, "active TEYES");
 
         String imageId = teyesDirectionToImageId(direction, directionLr);
         Intent maneuver = new Intent(ACTION_MANEUVER);
@@ -190,13 +209,16 @@ final class NavProtocol {
         }
         if (!TextUtils.isEmpty(position)) maneuver.putExtra("street", position);
         handleManeuver(context, maneuver);
+        if (TextUtils.isEmpty(position) && TextUtils.equals(lastStreetValue, "Жду маршрут")) {
+            showStatusText(context, "Маршрут активен");
+        }
 
         if (!TextUtils.isEmpty(total)) {
             Intent eta = new Intent(ACTION_ETA);
             eta.putExtra("edistance", total);
             handleEta(context, eta);
         }
-        String limit = teyesSpeedLimit(intent);
+        String limit = teyesSpeedLimit(intent, event);
         if (!TextUtils.isEmpty(limit)) {
             Intent speed = new Intent(ACTION_SPEED);
             speed.putExtra("speed_limit", limit);
@@ -250,6 +272,8 @@ final class NavProtocol {
         send(context, frame.clone());
         if (finish) {
             routeState = "finish hold";
+            teyesRouteActive = false;
+            showStatusText(context, "Вы приехали");
             holdFinish(context);
         }
         String nextStreet = intent.getStringExtra("street");
@@ -263,18 +287,22 @@ final class NavProtocol {
                 lastStreetAt = now;
             }
         }
-        AppLog.setNav(context, "Навигация: маневр " + safe(imageId) + " " + safe(street));
+        if (finish) {
+            AppLog.setNav(context, "Навигация: маршрут завершён, вы приехали");
+        } else {
+            AppLog.setNav(context, "Навигация: маневр " + safe(imageId) + " " + safe(street));
+        }
     }
 
     static void setTbtMode(Context context, boolean enabled) {
         AppPrefs.setNavTbt(context, enabled);
-        AppLog.setNav(context, "Навигация TBT: штатный classic mode");
+        AppLog.setNav(context, "Навигация TBT: " + (enabled ? "включено" : "выключено"));
     }
 
     static void setTextMode(Context context, int mode) {
-        AppPrefs.setNavTextMode(context, 0);
+        AppPrefs.setNavTextMode(context, mode);
         showStreet(context);
-        AppLog.setNav(context, "Навигация: 0x4A всегда улица, speed limit отдельно через 0x44");
+        AppLog.setNav(context, "Навигация: " + navTextModeLabel(context));
     }
 
     private static void handleSpeed(Context context, Intent intent) {
@@ -290,6 +318,7 @@ final class NavProtocol {
             frame[5] = 1;
             frame[6] = (byte) (value & 0xff);
             send(context, frame.clone());
+            showStreet(context);
             AppLog.setNav(context, "Навигация: лимит " + value + " km/h");
         } catch (NumberFormatException e) {
             AppLog.setNav(context, "Навигация: лимит не число " + speed);
@@ -326,35 +355,18 @@ final class NavProtocol {
 
     private static void handleNaviOn(Context context, Intent intent) {
         if (!intent.hasExtra("navi_on")) return;
-        byte[] frame = naviOnFrame;
         boolean on = intent.getBooleanExtra("navi_on", false);
         if (on) {
-            cancelFinishHold();
-            routeState = "active";
-            if (!navSourceSent) {
-                CanbusControl.sendNavigationSourceQuiet(context);
-                navSourceSent = true;
-            }
-        } else if (isFinishHoldActive()) {
-            routeState = "finish hold";
-            scheduleFinishClear(context, finishHoldUntil);
-            AppLog.setNav(context, "Навигация: финиш удерживается 5 сек.");
-            return;
+            ensureNavigationOn(context, "active");
         } else {
-            routeState = "off";
-            navSourceSent = false;
+            clearRouteNow(context, "Навигация: выключена, компас активен", true);
         }
-        if (navActive == on) {
-            return;
-        }
-        frame[5] = on ? (byte) 1 : 0;
-        send(context, frame.clone());
-        AppLog.setNav(context, "Навигация: " + (on ? "включена" : "выключена"));
     }
 
     private static void handleExceeded(Context context, Intent intent) {
         if (!intent.hasExtra("exceeded")) return;
         exceeded = intent.getBooleanExtra("exceeded", false);
+        showStreet(context);
         AppLog.setNav(context, "Навигация: превышение " + exceeded);
     }
 
@@ -563,7 +575,7 @@ final class NavProtocol {
         return new String[]{value, unit};
     }
 
-    private static String teyesSpeedLimit(Intent intent) {
+    private static String teyesSpeedLimit(Intent intent, String event) {
         String value = firstText(
                 extraText(intent, "speed_limit"),
                 extraText(intent, "speedLimit"),
@@ -573,24 +585,94 @@ final class NavProtocol {
                 extraText(intent, "road_limit"),
                 extraText(intent, "roadLimit"),
                 extraText(intent, "camera_speed"),
-                extraText(intent, "cameraSpeed")
+                extraText(intent, "cameraSpeed"),
+                extraText(intent, "speed_limit_val"),
+                extraText(intent, "speed_limit_value"),
+                extraText(intent, "limit_speed"),
+                extraText(intent, "limitSpeed"),
+                extraText(intent, "navi_speed_limit"),
+                extraText(intent, "road_speed_limit"),
+                extraText(intent, "speedLimitText")
         );
+        String direct = speedLimitNumber(value);
+        if (!TextUtils.isEmpty(direct)) return direct;
+        Bundle extras = intent == null ? null : intent.getExtras();
+        if (extras != null) {
+            for (String key : extras.keySet()) {
+                if (!looksSpeedLimitKey(key)) continue;
+                String parsed = speedLimitNumber(extraText(intent, key));
+                if (!TextUtils.isEmpty(parsed)) return parsed;
+            }
+        }
+        return speedLimitFromText(event);
+    }
+
+    private static boolean looksSpeedLimitKey(String key) {
+        if (TextUtils.isEmpty(key)) return false;
+        String k = key.toLowerCase(Locale.US);
+        return k.contains("speed") || k.contains("limit") || k.contains("max")
+                || k.contains("road") || k.contains("camera")
+                || k.contains("огранич") || k.contains("скорост");
+    }
+
+    private static String speedLimitNumber(String value) {
         if (TextUtils.isEmpty(value)) return null;
         Matcher matcher = Pattern.compile("(\\d{1,3})").matcher(value);
-        return matcher.find() ? matcher.group(1) : null;
+        while (matcher.find()) {
+            int parsed;
+            try {
+                parsed = Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {
+                continue;
+            }
+            if (parsed > 0 && parsed <= 200) return String.valueOf(parsed);
+        }
+        return null;
+    }
+
+    private static String speedLimitFromText(String value) {
+        if (TextUtils.isEmpty(value)) return null;
+        Matcher matcher = SPEED_LIMIT_TEXT_PATTERN.matcher(value);
+        while (matcher.find()) {
+            String parsed = speedLimitNumber(matcher.group(1));
+            if (!TextUtils.isEmpty(parsed)) return parsed;
+        }
+        return null;
     }
 
     private static boolean teyesStateAllowsRoute(String state) {
         if (TextUtils.isEmpty(state)) return true;
         String s = state.toLowerCase(Locale.US).trim();
-        return !(s.equals("0") || s.equals("false") || s.equals("off")
+        return !teyesStateIsExplicitOff(s) && !teyesStateIsPreviewOrFailure(s);
+    }
+
+    private static boolean teyesStateIsExplicitOff(String state) {
+        if (TextUtils.isEmpty(state)) return false;
+        String s = state.toLowerCase(Locale.US).trim();
+        return s.equals("0") || s.equals("false") || s.equals("off")
                 || s.equals("close") || s.equals("closed")
                 || s.equals("stop") || s.equals("stopped")
                 || s.equals("idle") || s.equals("none")
-                || s.contains("preview") || s.contains("search")
+                || s.contains("navigator mode=off")
+                || s.contains("выключ") || s.contains("закры")
+                || s.contains("останов");
+    }
+
+    private static boolean teyesStateIsPreviewOrFailure(String state) {
+        if (TextUtils.isEmpty(state)) return false;
+        String s = state.toLowerCase(Locale.US).trim();
+        return s.contains("preview") || s.contains("search")
                 || s.contains("failed") || s.contains("fail")
-                || s.contains("error") || s.contains("ошиб")
-                || s.contains("navigator mode=off"));
+                || s.contains("error") || s.contains("ошиб");
+    }
+
+    private static String previewLabel(String state) {
+        String s = state == null ? "" : state.toLowerCase(Locale.US);
+        if (s.contains("failed") || s.contains("fail") || s.contains("error") || s.contains("ошиб")) {
+            return "ошибка маршрута";
+        }
+        if (s.contains("search")) return "поиск маршрута";
+        return "предпросмотр маршрута";
     }
 
     private static boolean isOpenState(String state) {
@@ -621,14 +703,69 @@ final class NavProtocol {
         return d.contains("finish") || d.contains("arriv") || d.contains("destination") || d.contains("финиш");
     }
 
+    private static void beginWaitingRoute(Context context, String app) {
+        long now = System.currentTimeMillis();
+        boolean first = !teyesRouteActive || !navActive;
+        lastTeyesRouteAt = now;
+        teyesRouteActive = true;
+        ensureNavigationOn(context, "waiting route");
+        showStatusText(context, "Жду маршрут");
+        if (first || now - lastWaitingRouteLogAt > 5000L) {
+            lastWaitingRouteLogAt = now;
+            AppLog.setNav(context, "Навигация TEYES: " + safe(app) + " открыта, жду маршрут");
+        }
+    }
+
+    private static void ensureNavigationOn(Context context, String state) {
+        cancelFinishHold();
+        routeState = TextUtils.isEmpty(state) ? "active" : state;
+        if (!navSourceSent) {
+            CanbusControl.sendNavigationSourceQuiet(context);
+            navSourceSent = true;
+        }
+        if (!navActive) {
+            byte[] frame = naviOnFrame;
+            frame[5] = 1;
+            send(context, frame.clone());
+            AppLog.setNav(context, "Навигация: включена");
+        }
+        startNavReplay(context);
+    }
+
     private static void showStreet(Context context) {
         if (isFinishHoldActive()) return;
-        lastStreetValue = TextUtils.isEmpty(street) ? "-" : street;
-        send(context, textFrame(trim(street, 16)));
+        String value = navTextValue(context);
+        lastStreetValue = TextUtils.isEmpty(value) ? "-" : value;
+        send(context, textFrame(trim(value, 16)));
     }
 
     private static void showSpeed(Context context) {
         if (speedLimit == null) lastSpeedValue = "-";
+    }
+
+    private static void showStatusText(Context context, String value) {
+        lastStreetValue = TextUtils.isEmpty(value) ? "-" : value;
+        send(context, textFrame(trim(value, 16)));
+    }
+
+    private static String navTextValue(Context context) {
+        String limit = speedLimitText();
+        int mode = AppPrefs.navTextMode(context);
+        if (mode == 1 && !TextUtils.isEmpty(limit)) return limit;
+        if (mode == 2 && exceeded && !TextUtils.isEmpty(limit)) return limit;
+        return street;
+    }
+
+    private static String speedLimitText() {
+        String speed = speedLimit == null ? "" : speedLimit.trim();
+        return speed.isEmpty() ? null : speed + " km/h";
+    }
+
+    private static String navTextModeLabel(Context context) {
+        int mode = AppPrefs.navTextMode(context);
+        if (mode == 1) return "0x4A показывает ограничение скорости";
+        if (mode == 2) return "0x4A показывает лимит только при превышении";
+        return "0x4A показывает улицу, speed limit отдельно через 0x44";
     }
 
     private static void holdFinish(Context context) {
@@ -645,13 +782,7 @@ final class NavProtocol {
         }
         finishClearRunnable = () -> {
             if (finishHoldUntil != until) return;
-            finishHoldUntil = 0L;
-            byte[] frame = naviOnFrame;
-            frame[5] = 0;
-            navSourceSent = false;
-            routeState = "off";
-            send(app, frame.clone());
-            AppLog.setNav(app, "Навигация: финиш очищен после 5 сек.");
+            clearRouteNow(app, "Навигация: маршрут завершён, компас активен", true);
         };
         long delay = Math.max(0L, until - System.currentTimeMillis());
         h.postDelayed(finishClearRunnable, delay);
@@ -667,6 +798,80 @@ final class NavProtocol {
 
     private static boolean isFinishHoldActive() {
         return finishHoldUntil > System.currentTimeMillis();
+    }
+
+    private static void clearRouteNow(Context context, String message, boolean sendOffFrame) {
+        boolean changed = navActive || teyesRouteActive || isFinishHoldActive() || !"off".equals(routeState);
+        stopNavReplay();
+        cancelFinishHold();
+        teyesRouteActive = false;
+        lastTeyesRouteAt = 0L;
+        navSourceSent = false;
+        routeState = "off";
+        street = null;
+        speedLimit = null;
+        currentImageId = null;
+        exceeded = false;
+        lastStreetAt = 0L;
+        lastManeuverValue = "-";
+        lastDistanceValue = "-";
+        lastEtaValue = "-";
+        lastSpeedValue = "-";
+        lastStreetValue = "-";
+        lastManeuverFrame = null;
+        lastEtaFrame = null;
+        lastSpeedFrame = null;
+        lastTextFrame = null;
+        byte[] frame = naviOnFrame;
+        frame[5] = 0;
+        complete(frame);
+        if (sendOffFrame && navActive) {
+            send(context, frame.clone());
+        } else {
+            navActive = false;
+            lastNavFrame = frame.clone();
+        }
+        long now = System.currentTimeMillis();
+        if (changed || !TextUtils.equals(lastRouteClearLog, message) || now - lastRouteClearLogAt > 5000L) {
+            lastRouteClearLog = message;
+            lastRouteClearLogAt = now;
+            AppLog.setNav(context, message);
+        }
+    }
+
+    private static void startNavReplay(Context context) {
+        if (context == null) return;
+        navReplayContext = context.getApplicationContext();
+        Handler h = handler();
+        if (navReplayRunnable == null) {
+            navReplayRunnable = () -> {
+                Context app = navReplayContext;
+                if (app == null || (!navActive && !isFinishHoldActive())) {
+                    stopNavReplay();
+                    return;
+                }
+                replayNavFrames(app);
+                Handler next = handler();
+                if (navReplayRunnable != null) next.postDelayed(navReplayRunnable, NAV_REPLAY_MS);
+            };
+        }
+        h.removeCallbacks(navReplayRunnable);
+        h.postDelayed(navReplayRunnable, NAV_REPLAY_MS);
+    }
+
+    private static void stopNavReplay() {
+        if (handler != null && navReplayRunnable != null) {
+            handler.removeCallbacks(navReplayRunnable);
+        }
+        navReplayContext = null;
+    }
+
+    private static void replayNavFrames(Context context) {
+        if (lastNavFrame != null && navActive) send(context, lastNavFrame.clone());
+        if (lastManeuverFrame != null) send(context, lastManeuverFrame.clone());
+        if (lastEtaFrame != null) send(context, lastEtaFrame.clone());
+        if (lastTextFrame != null) send(context, lastTextFrame.clone());
+        if (lastSpeedFrame != null) send(context, lastSpeedFrame.clone());
     }
 
     private static Handler handler() {
@@ -725,13 +930,10 @@ final class NavProtocol {
     private static void finishTeyesRouteIfStale(Context context) {
         long now = System.currentTimeMillis();
         if (teyesRouteActive && now - lastTeyesRouteAt > TEYES_ROUTE_GRACE_MS) {
-            teyesRouteActive = false;
-            Intent off = new Intent(ACTION_NAVI_ON);
-            off.putExtra("navi_on", false);
-            handleNaviOn(context, off);
+            clearRouteNow(context, "Навигация TEYES: маршрут пропал, компас активен", true);
         } else if (teyesRouteActive) {
-            routeState = "hold last route";
-            AppLog.setNav(context, "Навигация TEYES: удержание последнего маршрута");
+            routeState = "waiting route update";
+            AppLog.setNav(context, "Навигация TEYES: жду обновление маршрута");
         }
     }
 

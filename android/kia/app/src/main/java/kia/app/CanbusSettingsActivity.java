@@ -97,6 +97,7 @@ public class CanbusSettingsActivity extends Activity {
     private Button canModeButton;
     private Button speedButton;
     private Button tempButton;
+    private Button navModeButton;
     private Button runtimePermissionButton;
     private Button notificationPermissionButton;
     private Button overlayPermissionButton;
@@ -379,6 +380,7 @@ public class CanbusSettingsActivity extends Activity {
         canModeButton = null;
         speedButton = null;
         tempButton = null;
+        navModeButton = null;
         runtimePermissionButton = null;
         notificationPermissionButton = null;
         overlayPermissionButton = null;
@@ -507,9 +509,33 @@ public class CanbusSettingsActivity extends Activity {
         LinearLayout nav = card();
         content.addView(nav, cardLp());
         addCardTitle(nav, "Навигация в адаптер");
-        TextView navText = bodyText("Режим фиксированный: адаптер держит последние валидные кадры и не моргает nav off/on. Ниже видно, что именно готово к отправке.");
+        TextView navText = bodyText("Старт навигатора сразу отправляет source/on и текст ожидания. При активном маршруте последние валидные 0x48/0x45/0x47/0x4A/0x44 повторяются раз в секунду, финиш отправляется отдельным флагом.");
         navText.setTextColor(0xff3a414b);
         nav.addView(navText, matchWrap());
+        GridLayout navActions = grid(2);
+        nav.addView(navActions, matchWrap());
+        navModeButton = gridButton(navActions, "", v -> {
+            int next = (AppPrefs.navTextMode(this) + 1) % 3;
+            NavProtocol.setTextMode(this, next);
+            savedToast();
+            refresh();
+        });
+        nav.addView(check("TBT-иконки манёвров", AppPrefs.navTbt(this), (button, checked) -> {
+            NavProtocol.setTbtMode(this, checked);
+            savedToast();
+            refresh();
+        }));
+        nav.addView(check("Компас когда маршрута нет", AppPrefs.navCompass(this), (button, checked) -> {
+            AppPrefs.setNavCompass(this, checked);
+            if (checked) AppService.start(this);
+            CompassBridge.refresh(this);
+            AppLog.line(this, "Навигация: компас без маршрута " + yes(checked));
+            savedToast();
+            refresh();
+        }));
+        TextView limitHint = bodyText("Ограничение скорости берётся из TEYES/Yandex/2GIS broadcast extras: speed_limit/speedLimit/limit/max_speed/roadLimit/cameraSpeed, а также из текста с km/h или км/ч.");
+        limitHint.setTextColor(0xff6d7280);
+        nav.addView(limitHint, matchWrap());
         addNavAdapterTable(nav);
 
         LinearLayout blindSpot = card();
@@ -806,6 +832,7 @@ public class CanbusSettingsActivity extends Activity {
         if (runtimeMetric != null) runtimeMetric.setText(vehicle.runtimeText());
         if (speedButton != null) speedButton.setText("Скорость: " + AppPrefs.speedUnitLabel(this));
         if (tempButton != null) tempButton.setText("Температура: " + (AppPrefs.tempUnit(this) == 1 ? "°F" : "°C"));
+        if (navModeButton != null) navModeButton.setText(navModeText());
         AppService.refreshOverlays(this);
         refreshSidebandDebug();
         if (AppPrefs.uartOverlay(this)) AppPrefs.setUartOverlay(this, false);
@@ -1491,6 +1518,13 @@ public class CanbusSettingsActivity extends Activity {
         if (mode == 0) return "M-CAN";
         if (mode == 1) return "C-CAN";
         return "оба CAN";
+    }
+
+    private String navModeText() {
+        int mode = AppPrefs.navTextMode(this);
+        if (mode == 1) return "0x4A: лимит скорости";
+        if (mode == 2) return "0x4A: лимит при превышении";
+        return "0x4A: улица";
     }
 
     private String sidebandAge(long ms) {
