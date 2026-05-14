@@ -353,7 +353,7 @@ final class TabletDashboardView extends FrameLayout {
         LinearLayout status = card("Маршрут");
         row.addView(status, weightedCardLp());
         navStatusValue = info(status, "Состояние", "");
-        status.addView(body("Фиксированный режим: навигация отдает source, on/off, maneuver, ETA/distance, street и speed limit отдельными командами. Компас включен всегда и не подменяет активный маневр."), textBlockLp());
+        status.addView(body("Фиксированный режим: навигация отдает source, on/off, maneuver, ETA/distance, street и speed limit отдельными командами. Компас работает только без активного маршрута, чтобы не затирать 0x45 маневра."), textBlockLp());
 
         LinearLayout live = card("Что уходит в адаптер");
         row.addView(live, weightedCardLp());

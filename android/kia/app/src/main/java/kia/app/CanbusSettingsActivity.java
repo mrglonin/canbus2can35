@@ -60,6 +60,7 @@ public class CanbusSettingsActivity extends Activity {
     private TextView blindSpotStatusValue;
     private TextView mediaValue;
     private TextView mediaDebugValue;
+    private Button mediaFormatButton;
     private TextView usbValue;
     private TextView navValue;
     private TextView navDebugValue;
@@ -570,6 +571,13 @@ public class CanbusSettingsActivity extends Activity {
         content.addView(media, cardLp());
         addCardTitle(media, "Мультимедиа");
         mediaValue = infoRow(media, "Источник / автор / трек / время", "");
+        GridLayout mediaActions = grid(2);
+        media.addView(mediaActions, new LinearLayout.LayoutParams(-1, -2));
+        mediaFormatButton = gridButton(mediaActions, "", v -> {
+            AppPrefs.setMediaTextFormat(this, (AppPrefs.mediaTextFormat(this) + 1) % 5);
+            AppLog.line(this, "Мультимедиа: формат строки " + AppPrefs.mediaTextFormatLabel(this));
+            refresh();
+        });
 
         LinearLayout app = card();
         content.addView(app, cardLp());
@@ -837,6 +845,7 @@ public class CanbusSettingsActivity extends Activity {
         if (tpmsLowValue != null) tpmsLowValue.setText(String.format(Locale.US, "%.1f Bar", AppPrefs.tpmsLowBar(this)));
         if (tpmsHighValue != null) tpmsHighValue.setText(String.format(Locale.US, "%.1f Bar", AppPrefs.tpmsHighBar(this)));
         if (mediaValue != null) mediaValue.setText(AppLog.media());
+        if (mediaFormatButton != null) mediaFormatButton.setText("Формат: " + AppPrefs.mediaTextFormatLabel(this));
         if (mediaDebugValue != null) {
             mediaDebugValue.setText((AppPrefs.mediaDebug(this) ? "подробная" : "обычная")
                     + " | поиск " + (AppPrefs.mediaScanAll(this) ? "все источники" : "медиа")

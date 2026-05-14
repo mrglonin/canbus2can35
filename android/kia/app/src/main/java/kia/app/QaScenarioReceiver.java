@@ -89,6 +89,24 @@ public class QaScenarioReceiver extends BroadcastReceiver {
             failed.putExtra("state", "route failed network error navigator mode=Off");
             failed.putExtra("app", "2GIS");
             NavProtocol.handleTeyesNavInfo(context, failed);
+        } else if ("nav_teyes_open".equals(scenario)) {
+            Intent open = new Intent("com.yf.navinfo");
+            open.putExtra("state", "open");
+            open.putExtra("app", "ru.yandex.yandexnavi");
+            NavProtocol.handleTeyesNavInfo(context, open);
+        } else if ("nav_teyes_active".equals(scenario)) {
+            Intent teyes = new Intent("com.yf.navinfo");
+            teyes.putExtra("state", "open");
+            teyes.putExtra("app", "ru.yandex.yandexnavi");
+            teyes.putExtra("distance_val", 120f);
+            teyes.putExtra("distance_val_str", "120");
+            teyes.putExtra("distance_unit", "м");
+            teyes.putExtra("total_distance", "4.2 км");
+            teyes.putExtra("describe", "через 7 мин");
+            teyes.putExtra("position", "Дружбы");
+            teyes.putExtra("direction", "turn right");
+            teyes.putExtra("direction_lr", 2);
+            NavProtocol.handleTeyesNavInfo(context, teyes);
         } else if ("nav_finish".equals(scenario)) {
             Intent finish = new Intent("kia.app.ACTION_MANEUVER_DATA");
             finish.putExtra("imageId", "context_ra_finish");

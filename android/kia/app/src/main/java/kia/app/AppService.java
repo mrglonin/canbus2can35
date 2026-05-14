@@ -5,8 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -63,8 +65,15 @@ public class AppService extends Service {
     private NavOverlayView systemNavOverlay;
     private TpmsOverlayView systemTpmsOverlay;
     private BlindSpotOverlayView systemBlindSpotOverlay;
+    private boolean navInfoReceiverRegistered;
     private final ByteArrayOutputStream incoming = new ByteArrayOutputStream();
     private final Handler debugHandler = new Handler(Looper.getMainLooper());
+    private final BroadcastReceiver navInfoReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            NavProtocol.handleTeyesNavInfo(AppService.this, intent);
+        }
+    };
     private HandlerThread ioThread;
     private Handler ioHandler;
     private final Runnable debugPoll = new Runnable() {
@@ -176,6 +185,7 @@ public class AppService extends Service {
         AppPrefs.setObdEmulation(this, false);
         ObdEmulator.stop();
         startForeground(NOTIFICATION_ID, notification("Запуск подключения"));
+        registerNavInfoReceiver();
         TeyesMediaBridge.start(this);
         MediaMonitor.start(this);
         CompassBridge.start(this);
@@ -232,12 +242,40 @@ public class AppService extends Service {
         }
         removeSystemOverlays();
         closePort();
+        unregisterNavInfoReceiver();
         TeyesMediaBridge.stop(this);
         MediaMonitor.stop();
         CompassBridge.stop();
         ObdMonitor.stop(this);
         TpmsMonitor.stop();
         super.onDestroy();
+    }
+
+    private void registerNavInfoReceiver() {
+        if (navInfoReceiverRegistered) return;
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(NavProtocol.ACTION_TEYES_NAV_INFO);
+        filter.addAction(NavProtocol.ACTION_TEYES_MAP_ASSISTANT);
+        filter.addAction(NavProtocol.ACTION_MOBILE_NAVIGATION);
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(navInfoReceiver, filter, Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(navInfoReceiver, filter);
+            }
+            navInfoReceiverRegistered = true;
+        } catch (Exception e) {
+            AppLog.line(this, "Навигация TEYES: receiver не зарегистрирован " + e.getClass().getSimpleName());
+        }
+    }
+
+    private void unregisterNavInfoReceiver() {
+        if (!navInfoReceiverRegistered) return;
+        try {
+            unregisterReceiver(navInfoReceiver);
+        } catch (Exception ignored) {
+        }
+        navInfoReceiverRegistered = false;
     }
 
     private Notification notification(String text) {

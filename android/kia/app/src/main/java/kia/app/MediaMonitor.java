@@ -80,8 +80,8 @@ final class MediaMonitor {
     static void scanNow(Context context) {
         TeyesMusicWidgetBridge.scanNow(context);
         TeyesMediaBridge.scanNow(context);
-        MediaNotificationListener.refresh(context);
         scanSessions(context);
+        MediaNotificationListener.refresh(context);
         scanCandidates(context);
     }
 
@@ -115,6 +115,7 @@ final class MediaMonitor {
     static boolean reportNotification(Context context, StatusBarNotification sbn) {
         NotificationCandidate candidate = notificationCandidate(context, sbn);
         if (candidate == null) return false;
+        if (!sourceAllowsPackage(TeyesMusicWidgetBridge.currentSource(), candidate.pkg, true)) return false;
         if (candidate.token != null) {
             try {
                 if (reportController(context, new MediaController(context, candidate.token), candidate)) {
@@ -206,11 +207,13 @@ final class MediaMonitor {
             if (manager == null) return false;
             List<MediaController> sessions = manager.getActiveSessions(new ComponentName(context, MediaNotificationListener.class));
             if (sessions == null || sessions.isEmpty()) return false;
+            String selected = TeyesMusicWidgetBridge.currentSource();
             MediaController best = null;
             int bestRank = 0;
             for (MediaController c : sessions) {
                 if (c == null || ignorePackage(context, c.getPackageName())) continue;
-                int rank = rank(c.getPlaybackState()) * 100 + (looksMedia(c.getPackageName()) ? 20 : 0);
+                if (!sourceAllowsPackage(selected, c.getPackageName(), false)) continue;
+                int rank = sourceSessionRank(selected, c);
                 if (rank > bestRank) {
                     bestRank = rank;
                     best = c;
@@ -250,8 +253,12 @@ final class MediaMonitor {
         if (TextUtils.isEmpty(title) && fallback != null) title = fallback.title;
         if (TextUtils.isEmpty(artist) && fallback != null) artist = firstText(fallback.artist, fallback.sub, fallback.big);
         if (TextUtils.isEmpty(title) && TextUtils.isEmpty(artist)) return false;
-        int priority = priorityForPlayback(rank(c.getPlaybackState()));
-        if (emit(context, sourceLabel(context, pkg), pkg, artist, title, duration, priority)) {
+        String selected = TeyesMusicWidgetBridge.currentSource();
+        int priority = sourceSessionPriority(selected, pkg, c.getPlaybackState());
+        String source = sourceLabel(context, pkg);
+        if (isBluetoothSource(selected) && isBluetoothPackage(pkg)) source = "Bluetooth";
+        if (isCloudSource(selected) && isCloudPackage(pkg)) source = TextUtils.isEmpty(selected) ? source : selected;
+        if (emit(context, source, pkg, artist, title, duration, priority)) {
             AppLog.line(context, "Сессия: пакет=" + pkg + " состояние=" + state(c.getPlaybackState()) + " трек=" + title + " автор=" + artist);
         }
         return true;
@@ -267,7 +274,10 @@ final class MediaMonitor {
                 priority = Math.max(priority, Math.min(hintPriority, 90));
             }
         }
-        String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title) + " / " + duration(durationMs);
+        String pretty = formatMediaText(context, source, artist, title, durationMs, false);
+        String clusterTitle = formatMediaText(context, source, artist, title, durationMs, true);
+        String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title)
+                + " / " + duration(durationMs) + " / " + dash(pretty);
         String sourceKey = sourceKey(source, pkg);
         boolean sameSource = sameSource(source, pkg, activeSource, activePkg);
         boolean locked = !TextUtils.isEmpty(activeSourceKey) && now - activeSourceAt < SOURCE_LOCK_MS;
@@ -288,10 +298,10 @@ final class MediaMonitor {
             lastAt = now;
             AppLog.setMedia(context, line);
             if (priority >= 120 || isRadioSource(source, pkg)) {
-                String canKey = clusterEventKey("meta", source, pkg, artist, title, durationMs);
+                String canKey = clusterEventKey("meta", source, pkg, artist, clusterTitle, durationMs);
                 if (!TextUtils.equals(canKey, lastClusterEventKey)) {
                     lastClusterEventKey = canKey;
-                    CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(title) ? title : source);
+                    CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(clusterTitle) ? clusterTitle : source);
                 }
             } else if (AppPrefs.debug(context)) {
                 AppLog.line(context, "Мультимедиа: stale/paused не отправлен в CAN source=" + source + " priority=" + priority);
@@ -398,6 +408,155 @@ final class MediaMonitor {
         return 35;
     }
 
+    private static int sourceSessionRank(String selectedSource, MediaController controller) {
+        if (controller == null) return 0;
+        String pkg = controller.getPackageName();
+        int base = rank(controller.getPlaybackState()) * 100;
+        if (isBluetoothSource(selectedSource) && isBluetoothPackage(pkg) && hasMetadata(controller)) return 360 + base;
+        if (isCloudSource(selectedSource) && isCloudPackage(pkg) && hasMetadata(controller)) return 340 + base;
+        if (TextUtils.isEmpty(cleanSelectedSource(selectedSource)) && isCloudPackage(pkg)) return base + 40;
+        return base + (looksMedia(pkg) ? 20 : 0);
+    }
+
+    private static int sourceSessionPriority(String selectedSource, String pkg, PlaybackState state) {
+        if (isBluetoothSource(selectedSource) && isBluetoothPackage(pkg)) return 152;
+        if (isCloudSource(selectedSource) && isCloudPackage(pkg)) return 148;
+        return priorityForPlayback(rank(state));
+    }
+
+    private static boolean hasMetadata(MediaController controller) {
+        try {
+            MediaMetadata md = controller.getMetadata();
+            if (md == null) return false;
+            return !TextUtils.isEmpty(md.getString(MediaMetadata.METADATA_KEY_TITLE))
+                    || !TextUtils.isEmpty(md.getString(MediaMetadata.METADATA_KEY_ARTIST));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean sourceAllowsPackage(String selectedSource, String pkg, boolean notification) {
+        String selected = cleanSelectedSource(selectedSource);
+        if (TextUtils.isEmpty(pkg)) return false;
+        if (isBluetoothSource(selected)) return isBluetoothPackage(pkg);
+        if (isCloudSource(selected)) return isCloudPackage(pkg);
+        if (isUsbSource(selected) || isRadioSource(selected, "")) return false;
+        return isCloudPackage(pkg) && !notification;
+    }
+
+    private static String cleanSelectedSource(String selectedSource) {
+        if (TeyesMusicWidgetBridge.currentAgeMs() > 15_000L) return "";
+        return clean(selectedSource);
+    }
+
+    private static boolean isBluetoothSource(String source) {
+        String s = dash(source).toLowerCase(Locale.US);
+        return s.contains("bluetooth") || s.equals("bt") || s.contains("bt ");
+    }
+
+    private static boolean isUsbSource(String source) {
+        String s = dash(source).toLowerCase(Locale.US);
+        return s.contains("usb") || s.contains("local_music");
+    }
+
+    private static boolean isCloudSource(String source) {
+        String s = dash(source).toLowerCase(Locale.US);
+        return s.contains("янд") || s.contains("yandex") || s.contains("cloud")
+                || s.contains("teyes music") || s.contains("облач") || s.contains("spotify")
+                || s.contains("youtube") || s.contains("интернет") || s.contains("online");
+    }
+
+    private static boolean isBluetoothPackage(String pkg) {
+        String p = dash(pkg).toLowerCase(Locale.US);
+        return "com.android.bluetooth".equals(p)
+                || "com.spd.bluetooth".equals(p)
+                || p.contains("bluetooth") || p.contains("btmusic") || p.contains("a2dp") || p.contains("avrcp");
+    }
+
+    private static boolean isCloudPackage(String pkg) {
+        String p = dash(pkg).toLowerCase(Locale.US);
+        return "ru.yandex.music".equals(p)
+                || "com.yandex.music".equals(p)
+                || "com.yf.teyesspotify".equals(p)
+                || "com.spotify.music".equals(p)
+                || "com.google.android.apps.youtube.music".equals(p)
+                || "com.vkontakte.android".equals(p)
+                || "ru.mts.music".equals(p)
+                || "com.apple.android.music".equals(p);
+    }
+
+    private static String formatMediaText(Context context, String source, String artist, String title, long durationMs, boolean cluster) {
+        int mode = AppPrefs.mediaTextFormat(context);
+        String time = durationMs > 0 ? duration(durationMs) : "";
+        String out;
+        switch (mode) {
+            case 0:
+                out = firstText(title, source);
+                break;
+            case 1:
+                out = join(" - ", artist, firstText(title, source));
+                break;
+            case 3:
+                out = join(" - ", source, artist, firstText(title, source), time);
+                break;
+            case 4:
+                out = join(" - ", source, firstText(title, artist));
+                break;
+            case 2:
+            default:
+                out = join(" - ", artist, firstText(title, source), time);
+                break;
+        }
+        if (TextUtils.isEmpty(out)) out = firstText(title, artist, source);
+        if (!cluster) return out;
+        return compactClusterText(mode, source, artist, title, time, out);
+    }
+
+    private static String compactClusterText(int mode, String source, String artist, String title, String time, String full) {
+        String clean = clean(full);
+        if (TextUtils.isEmpty(clean)) return "";
+        if (clean.length() <= 16) return clean;
+        boolean wantsTime = mode == 2 || mode == 3;
+        String a = clean(artist);
+        String t = clean(title);
+        String s = clean(source);
+        if (wantsTime && !TextUtils.isEmpty(time) && !TextUtils.isEmpty(a) && !TextUtils.isEmpty(t)) {
+            return trimTo(shortPart(a, 5) + "-" + shortPart(t, 5) + " " + time, 16);
+        }
+        if (!TextUtils.isEmpty(a) && !TextUtils.isEmpty(t) && (mode == 1 || mode == 2 || mode == 3)) {
+            return trimTo(shortPart(a, 7) + "-" + shortPart(t, 8), 16);
+        }
+        if (!TextUtils.isEmpty(s) && !TextUtils.isEmpty(t) && (mode == 3 || mode == 4)) {
+            return trimTo(shortPart(s, 5) + "-" + shortPart(t, 10), 16);
+        }
+        return trimTo(clean, 16);
+    }
+
+    private static String join(String separator, String... values) {
+        StringBuilder out = new StringBuilder();
+        if (values != null) {
+            for (String value : values) {
+                String clean = clean(value);
+                if (TextUtils.isEmpty(clean)) continue;
+                if (out.length() > 0) out.append(separator);
+                out.append(clean);
+            }
+        }
+        return out.toString();
+    }
+
+    private static String shortPart(String value, int max) {
+        String clean = clean(value);
+        if (TextUtils.isEmpty(clean)) return "";
+        return clean.length() <= max ? clean : clean.substring(0, max);
+    }
+
+    private static String trimTo(String value, int max) {
+        String clean = clean(value);
+        if (TextUtils.isEmpty(clean)) return "";
+        return clean.length() <= max ? clean : clean.substring(0, max);
+    }
+
     private static String text(Bundle b, String key) {
         CharSequence cs = b.getCharSequence(key);
         return cs == null ? null : cs.toString();
@@ -479,8 +638,10 @@ final class MediaMonitor {
                 || "ru.mts.music".equals(p)
                 || "com.apple.android.music".equals(p)
                 || "com.yf.teyesspotify".equals(p)
+                || "com.android.bluetooth".equals(p)
                 || "com.spd.media".equals(p)
                 || "com.spd.radio".equals(p)
+                || "com.spd.home".equals(p)
                 || "com.spd.spdmedia".equals(p)
                 || "com.spd.bluetooth".equals(p)
                 || "com.syu.bt".equals(p)

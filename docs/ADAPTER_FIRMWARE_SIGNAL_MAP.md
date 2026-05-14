@@ -117,6 +117,17 @@ Route command bundle:
 | `0x4A` | street/text | UTF-16LE |
 | `0x44` | speed limit | active route only |
 
+Android receives TEYES navigation as `com.yf.navinfo` and reads:
+
+```text
+state, app, distance_val, distance_val_str, distance_unit,
+total_distance, describe, position, direction, direction_lr
+```
+
+`state=open` from a known navigation app is a real active-route signal even when
+the first broadcast has no maneuver text yet. APK must send nav source and
+`0x48 on` immediately, then fill `0x45/0x47/0x4A/0x44` when details arrive.
+
 State rules:
 
 | APK state | Firmware/adapter behavior |
@@ -160,15 +171,15 @@ Text naming:
 Universal pretty text rule:
 
 ```text
-preferred: title field = "Title"
-if title is empty: title field = source/station
-artist field = "Artist" where confirmed
-do not pack "Artist - Title - time" into every field until a wider confirmed
-cluster field is found
+default app display: "Artist - Title - time"
+cluster title field: compact text, max 16 chars on current adapter path
+if compact combo cannot fit: prefer recognizable Artist/Title over stale text
+artist field = "Artist" where confirmed, especially Bluetooth
 ```
 
 Reason: current text fields are short and visible output differs by source.
-Packing everything into one field can make the cluster show clipped garbage.
+Packing full "Artist - Title - time" into one field can clip, so the APK exposes
+a universal format setting and compacts the actual cluster field per source.
 
 ## Vehicle snapshot `0x77`
 

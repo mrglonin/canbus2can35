@@ -25,6 +25,14 @@ final class TeyesMusicWidgetBridge {
     private static long lastPokeAt;
     private static long lastLogAt;
     private static String lastSongType = "";
+    private static String currentSource = "";
+    private static String currentSongType = "";
+    private static String currentTitle = "";
+    private static String currentArtist = "";
+    private static String currentFrequency = "";
+    private static String currentAppName = "";
+    private static int currentProgress = -1;
+    private static long currentAt;
 
     private static final Runnable POLL = new Runnable() {
         @Override
@@ -57,12 +65,59 @@ final class TeyesMusicWidgetBridge {
         pokeWidget(appContext);
         WidgetState state = queryWidgetState(appContext);
         if (state == null || TextUtils.isEmpty(state.source)) return false;
+        currentSource = state.source;
+        currentSongType = clean(state.songType);
+        currentTitle = clean(state.title);
+        currentArtist = clean(state.artist);
+        currentFrequency = clean(state.frequency);
+        currentAppName = clean(state.appName);
+        currentProgress = state.progress;
+        currentAt = System.currentTimeMillis();
         MediaMonitor.reportSourceHint(appContext, state.source, PACKAGE, HINT_PRIORITY, HINT_TTL_MS);
+        if (state.hasDisplayText()) {
+            MediaMonitor.reportExternal(appContext, state.source, PACKAGE,
+                    state.displayArtist(), state.displayTitle(), -1, state.priority());
+        }
         if (!TextUtils.equals(lastSongType, state.songType)) {
             lastSongType = state.songType;
-            AppLog.line(appContext, "TEYES widget: источник=" + state.source + " songType=" + state.songType);
+            AppLog.line(appContext, "TEYES widget: источник=" + state.source
+                    + " songType=" + state.songType
+                    + " title=" + state.displayTitle()
+                    + " artist=" + state.displayArtist());
         }
         return true;
+    }
+
+    static synchronized String currentSource() {
+        return currentSource;
+    }
+
+    static synchronized String currentSongType() {
+        return currentSongType;
+    }
+
+    static synchronized String currentTitle() {
+        return currentTitle;
+    }
+
+    static synchronized String currentArtist() {
+        return currentArtist;
+    }
+
+    static synchronized String currentFrequency() {
+        return currentFrequency;
+    }
+
+    static synchronized String currentAppName() {
+        return currentAppName;
+    }
+
+    static synchronized int currentProgress() {
+        return currentProgress;
+    }
+
+    static synchronized long currentAgeMs() {
+        return currentAt <= 0 ? Long.MAX_VALUE : System.currentTimeMillis() - currentAt;
     }
 
     private static void pokeWidget(Context context) {
@@ -91,12 +146,20 @@ final class TeyesMusicWidgetBridge {
             WidgetState best = null;
             do {
                 String songType = value(cursor, "songType");
-                String source = sourceFromSongType(songType);
+                String appName = firstValue(cursor, "app_name", "appName", "player", "sourceName");
+                String source = sourceFromSongType(songType, appName);
                 if (!TextUtils.isEmpty(source)) {
                     best = new WidgetState();
                     best.songType = clean(songType);
                     best.source = source;
                     best.progress = intValue(cursor, "progress", -1);
+                    best.title = firstValue(cursor,
+                            "song_title", "songTitle", "title", "name", "track", "track_title", "music_title");
+                    best.artist = firstValue(cursor,
+                            "song_artist", "songArtist", "artist", "singer", "author", "station", "station_name");
+                    best.frequency = firstValue(cursor,
+                            "freq", "frequency", "radio_freq", "fm", "radio_frequency");
+                    best.appName = clean(appName);
                 }
             } while (cursor.moveToNext());
             return best;
@@ -132,7 +195,16 @@ final class TeyesMusicWidgetBridge {
         }
     }
 
-    private static String sourceFromSongType(String songType) {
+    private static String firstValue(Cursor cursor, String... columns) {
+        if (columns == null) return null;
+        for (String column : columns) {
+            String value = clean(value(cursor, column));
+            if (!TextUtils.isEmpty(value)) return value;
+        }
+        return null;
+    }
+
+    private static String sourceFromSongType(String songType, String appName) {
         String type = clean(songType);
         if (TextUtils.isEmpty(type)) return null;
         String t = type.toLowerCase(Locale.US);
@@ -140,7 +212,12 @@ final class TeyesMusicWidgetBridge {
         if (t.contains("local_radio")) return "Радио";
         if (t.contains("network_radio")) return "Интернет-радио";
         if (t.contains("local_music")) return "USB";
-        if (t.contains("cloud_music") || t.contains("network_music")) return "TEYES Music";
+        if (t.contains("cloud_music") || t.contains("network_music")) {
+            String app = clean(appName);
+            String p = app == null ? "" : app.toLowerCase(Locale.US);
+            if (p.contains("янд") || p.contains("yandex") || p.contains("я.")) return "Яндекс Музыка";
+            return "TEYES Music";
+        }
         if (t.contains("carplay")) return "CarPlay";
         if (t.contains("android_auto") || t.contains("androidauto")) return "Android Auto";
         if (t.contains("radio")) return "Радио";
@@ -158,6 +235,47 @@ final class TeyesMusicWidgetBridge {
     private static final class WidgetState {
         String songType;
         String source;
+        String title;
+        String artist;
+        String frequency;
+        String appName;
         int progress;
+
+        boolean hasDisplayText() {
+            return !TextUtils.isEmpty(displayTitle()) || !TextUtils.isEmpty(displayArtist());
+        }
+
+        String displayTitle() {
+            String cleanTitle = clean(title);
+            String cleanFreq = clean(frequency);
+            if (!TextUtils.isEmpty(cleanFreq) && !TextUtils.isEmpty(cleanTitle)
+                    && !cleanTitle.toLowerCase(Locale.US).contains(cleanFreq.toLowerCase(Locale.US))) {
+                return cleanTitle + cleanFreq;
+            }
+            return first(cleanTitle, clean(appName), source);
+        }
+
+        String displayArtist() {
+            return first(clean(artist), clean(appName));
+        }
+
+        int priority() {
+            String s = clean(source);
+            String p = s == null ? "" : s.toLowerCase(Locale.US);
+            if (p.contains("радио") || p.contains("radio")) return 135;
+            if (p.contains("bluetooth") || p.contains("bt")) return 128;
+            if (p.contains("янд") || p.contains("teyes music") || p.contains("internet")) return 126;
+            if (p.contains("usb")) return 115;
+            return 105;
+        }
+
+        private static String first(String... values) {
+            if (values == null) return null;
+            for (String value : values) {
+                String clean = clean(value);
+                if (!TextUtils.isEmpty(clean)) return clean;
+            }
+            return null;
+        }
     }
 }

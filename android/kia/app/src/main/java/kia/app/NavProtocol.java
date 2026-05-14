@@ -13,6 +13,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class NavProtocol {
+    static final String ACTION_TEYES_NAV_INFO = "com.yf.navinfo";
+    static final String ACTION_TEYES_MAP_ASSISTANT = "com.teyes.MapAssistantService";
+    static final String ACTION_MOBILE_NAVIGATION = "android.action.MOBILE_NAVIGATION";
+
     private static final String ACTION_MANEUVER = "kia.app.ACTION_MANEUVER_DATA";
     private static final String ACTION_ETA = "kia.app.ACTION_ETA_DATA";
     private static final String ACTION_NAVI_ON = "kia.app.ACTION_NAVI_ON_DATA";
@@ -55,6 +59,8 @@ final class NavProtocol {
     private static byte[] lastTextFrame;
     private static boolean navSourceSent;
     private static String routeState = "off";
+    private static String lastTeyesIntentKey;
+    private static long lastTeyesIntentAt;
     private static String lastManeuverValue = "-";
     private static String lastDistanceValue = "-";
     private static String lastEtaValue = "-";
@@ -105,10 +111,24 @@ final class NavProtocol {
                 + CompassBridge.statusText();
     }
 
+    static boolean canSendCompass() {
+        return !navActive && !isFinishHoldActive();
+    }
+
     static void handleTeyesNavInfo(Context context, Intent intent) {
         if (context == null || intent == null) return;
+        String event = safeAction(intent.getAction()) + " " + extras(intent);
+        long now = System.currentTimeMillis();
+        synchronized (NavProtocol.class) {
+            if (TextUtils.equals(event, lastTeyesIntentKey) && now - lastTeyesIntentAt < 250L) {
+                return;
+            }
+            lastTeyesIntentKey = event;
+            lastTeyesIntentAt = now;
+        }
         String state = extraText(intent, "state");
-        NavDebugState.teyes(context, "com.yf.navinfo " + extras(intent));
+        String app = firstText(extraText(intent, "app"), extraText(intent, "package"), extraText(intent, "pkg"));
+        NavDebugState.teyes(context, event);
         if (!teyesStateAllowsRoute(state)) {
             routeState = "ignored " + safe(state);
             AppLog.setNav(context, "Навигация TEYES: не активное ведение " + safe(state));
@@ -126,6 +146,16 @@ final class NavProtocol {
                 || !TextUtils.isEmpty(total)
                 || hasMeaningfulDirection(direction);
         if (!hasRoute) {
+            if (isOpenState(state) && isKnownNavigationApp(app)) {
+                lastTeyesRouteAt = System.currentTimeMillis();
+                teyesRouteActive = true;
+                routeState = "active TEYES waiting details";
+                Intent on = new Intent(ACTION_NAVI_ON);
+                on.putExtra("navi_on", true);
+                handleNaviOn(context, on);
+                AppLog.setNav(context, "Навигация TEYES: " + safe(app) + " активна, жду маневр");
+                return;
+            }
             routeState = "waiting route";
             finishTeyesRouteIfStale(context);
             AppLog.setNav(context, "Навигация TEYES: ожидание маршрута");
@@ -161,7 +191,6 @@ final class NavProtocol {
             handleSpeed(context, speed);
         }
 
-        String app = extraText(intent, "app");
         AppLog.setNav(context, "Навигация TEYES: " + safe(app)
                 + " / " + safe(direction)
                 + " / " + safe(position));
@@ -302,6 +331,9 @@ final class NavProtocol {
         } else {
             routeState = "off";
             navSourceSent = false;
+        }
+        if (navActive == on) {
+            return;
         }
         frame[5] = on ? (byte) 1 : 0;
         send(context, frame.clone());
@@ -549,6 +581,21 @@ final class NavProtocol {
                 || s.contains("navigator mode=off"));
     }
 
+    private static boolean isOpenState(String state) {
+        if (TextUtils.isEmpty(state)) return true;
+        String s = state.toLowerCase(Locale.US).trim();
+        return s.equals("open") || s.equals("opened") || s.equals("working") || s.equals("active")
+                || s.equals("on") || s.equals("true") || s.equals("1") || s.contains("guidance");
+    }
+
+    private static boolean isKnownNavigationApp(String app) {
+        if (TextUtils.isEmpty(app)) return false;
+        String a = app.toLowerCase(Locale.US);
+        return a.contains("yandexnavi") || a.contains("yandex.maps") || a.contains("dublgis")
+                || a.contains("2gis") || a.contains("google.android.apps.maps")
+                || a.contains("waze") || a.contains("nav");
+    }
+
     private static boolean hasMeaningfulDirection(String direction) {
         if (TextUtils.isEmpty(direction)) return false;
         String d = direction.toLowerCase(Locale.US).trim();
@@ -724,6 +771,10 @@ final class NavProtocol {
 
     private static String safe(String value) {
         return TextUtils.isEmpty(value) ? "-" : value.toLowerCase(Locale.US);
+    }
+
+    private static String safeAction(String value) {
+        return TextUtils.isEmpty(value) ? ACTION_TEYES_NAV_INFO : value;
     }
 
     private static String frameLine(byte[] frame) {

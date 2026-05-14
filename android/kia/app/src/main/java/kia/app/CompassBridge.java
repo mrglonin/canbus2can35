@@ -205,6 +205,14 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         }
         float heading = currentHeading(now);
         int uiStep = compassDisplayStep(heading);
+        if (!NavProtocol.canSendCompass()) {
+            lastSentUiStep = -1;
+            synchronized (CompassBridge.class) {
+                lastStatus = String.format(Locale.US, "0x45 compass: %.0f deg удержан активной навигацией",
+                        heading);
+            }
+            return;
+        }
         if (uiStep == lastSentUiStep) {
             return;
         }

@@ -28,17 +28,22 @@ CC4PRO, V21 2CAN35 и Sportage CAN-C/M-CAN.
 | Источник | Откуда читать в Android | Что слать в адаптер |
 |---|---|---|
 | USB/local | `com.spd.media` / `android.spd.IMediaService` | `0x7A FD 0A 09 16 ...` + `0x22 title` |
-| Bluetooth audio | playing BT MediaSession/service | `0x7A FD 06 09 0B 04 00` + `0x22 title` + `0x20 subtype 0x1F artist` |
-| FM | `com.spd.radio` | `0x7A FD 08 09 02 ...` + `0x21 text` |
+| Bluetooth audio | TEYES selected source + `com.spd.bluetooth` / Bluetooth metadata | `0x7A FD 06 09 0B 04 00` + `0x22 title` + `0x20 subtype 0x1F artist` |
+| FM | TEYES selected source + `com.spd.radio` / TEYES widget text | `0x7A FD 08 09 02 ...` + `0x21 text` |
 | AM | radio state | `0x7A FD 06 09 09 00 00` + `0x20 text` |
-| Yandex/cloud | Android `MediaSession` / notification | USB-like output: `0x7A FD 0A 09 16 ...` + `0x22 title` |
+| Yandex/cloud | TEYES cloud source + `com.yf.teyesspotify` / Yandex metadata | USB-like output: `0x7A FD 0A 09 16 ...` + `0x22 title` |
 | BT phone | source only | `0x7A FD 06 09 07 01 00`, no confirmed text field |
 
 Правило отправки: в приборку уходит одно событие при смене источника или
 artist/title/duration. APK не повторяет тот же music пакет каждые несколько
 секунд, чтобы не спамить штатный parser. Selected-only источники BT/FM/AM
-могут отправить source-only пакет один раз, если нет более приоритетной
-playing MediaSession.
+могут отправить source-only пакет один раз, если нет более приоритетного
+playing source.
+
+Source selection is TEYES-first. Generic Android `MediaSession` is not allowed
+to win by itself; it is used only inside the selected TEYES source path
+(Bluetooth and cloud/Yandex), because USB/FM/TEYES Radio sessions are stale or
+silent on the head unit.
 
 CarPlay / Android Auto остаются future hooks. Отдельный source-status и text path
 для них пока не подтвержден, поэтому APK не должен угадывать их CAN-пакеты.
@@ -71,6 +76,27 @@ sent = (36 - uiStep) % 36
 Повтор: `350-500 ms`. GPS bearing считается валидным только при свежем location,
 движении и нормальной accuracy. Route preview/search failed/navigator off не
 включают активное ведение и не затирают последний нормальный маршрут мгновенно.
+
+TEYES active navigation source is the `com.yf.navinfo` broadcast produced by
+`com.yf.navinfo.NavService` / `NaviInfoManager`. The APK registers this action
+both in the manifest and dynamically inside `AppService`, then reads the same
+extras seen in the TEYES APK:
+
+```text
+state, app, distance_val, distance_val_str, distance_unit,
+total_distance, describe, position, direction, direction_lr
+```
+
+`state=open` from a known navigation app (`ru.yandex.yandexnavi`,
+`ru.dublgis.dgismobile`, Google Maps/Waze) is enough to switch the adapter to
+active route and send `0x7A nav` + `0x48 on`. If detailed maneuver fields arrive
+later, APK updates `0x45/0x47/0x4A/0x44` without toggling nav off/on. Preview,
+search and failed states are logged but held away from the cluster until a
+controlled timeout/off event.
+
+Because `0x45` is shared by maneuver and compass, APK suppresses compass output
+while route active/finish hold is active. Compass resumes only after navigation
+is cleanly off.
 
 ## Vehicle and RCTA
 

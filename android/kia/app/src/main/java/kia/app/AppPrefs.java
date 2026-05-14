@@ -21,6 +21,7 @@ final class AppPrefs {
     private static final String KEY_MEDIA_DEBUG = "media_debug";
     private static final String KEY_MEDIA_SCAN_ALL = "media_scan_all";
     private static final String KEY_MEDIA_OVERLAY = "media_overlay";
+    private static final String KEY_MEDIA_TEXT_FORMAT = "media_text_format";
     private static final String KEY_BACKGROUND_ANIMATION = "background_animation";
     private static final String KEY_SAS_RATIO = "sas_ratio";
     private static final String KEY_OBD_ENABLED = "obd_enabled";
@@ -69,6 +70,7 @@ final class AppPrefs {
                 .remove(KEY_MEDIA_DEBUG)
                 .remove(KEY_MEDIA_SCAN_ALL)
                 .remove(KEY_MEDIA_OVERLAY)
+                .putInt(KEY_MEDIA_TEXT_FORMAT, 2)
                 .putBoolean(KEY_BACKGROUND_ANIMATION, false)
                 .putBoolean(KEY_OBD_ENABLED, true)
                 .putBoolean(KEY_TPMS_ENABLED, true)
@@ -237,6 +239,31 @@ final class AppPrefs {
 
     static void setMediaOverlay(Context context, boolean value) {
         prefs(context).edit().remove(KEY_MEDIA_OVERLAY).apply();
+    }
+
+    static int mediaTextFormat(Context context) {
+        return clamp(prefs(context).getInt(KEY_MEDIA_TEXT_FORMAT, 2), 0, 4);
+    }
+
+    static void setMediaTextFormat(Context context, int value) {
+        prefs(context).edit().putInt(KEY_MEDIA_TEXT_FORMAT, clamp(value, 0, 4)).apply();
+    }
+
+    static String mediaTextFormatLabel(Context context) {
+        switch (mediaTextFormat(context)) {
+            case 0:
+                return "Трек";
+            case 1:
+                return "Автор - трек";
+            case 2:
+                return "Автор - трек - время";
+            case 3:
+                return "Источник - автор - трек - время";
+            case 4:
+                return "Источник - трек";
+            default:
+                return "Автор - трек - время";
+        }
     }
 
     static boolean backgroundAnimation(Context context) {

@@ -20,7 +20,7 @@ final class TeyesMediaBridge {
     private static final int TRANSACTION_GET_NOW_PLAYING = 6;
     private static final int TRANSACTION_GET_NOW_PLAYING_BY_TYPE = 7;
     private static final long POLL_MS = 1000L;
-    private static final int[] MEDIA_TYPES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    private static final int[] MEDIA_TYPES = {0, 1, 2, 3};
     private static int nextMediaTypeIndex;
 
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
@@ -94,6 +94,9 @@ final class TeyesMediaBridge {
         NowPlaying nowPlaying = readBestNowPlaying(remote);
         if (nowPlaying == null || !nowPlaying.hasUsefulData()) return false;
         String source = sourceLabel(nowPlaying);
+        if (!isUsbSource(source, nowPlaying)) return false;
+        String selected = TeyesMusicWidgetBridge.currentSource();
+        if (!TextUtils.isEmpty(selected) && !isUsbText(selected)) return false;
         String title = clean(nowPlaying.songTitle);
         String artist = clean(nowPlaying.songArtist);
         if (TextUtils.isEmpty(title)) title = fileName(nowPlaying.fullPath);
@@ -179,6 +182,23 @@ final class TeyesMediaBridge {
         if (nowPlaying.mediaType == 2) return "TEYES Media";
         if (nowPlaying.mediaType == 3) return "TEYES Video";
         return "TEYES";
+    }
+
+    private static boolean isUsbSource(String source, NowPlaying nowPlaying) {
+        if (isUsbText(source)) return true;
+        if (nowPlaying == null) return false;
+        String path = clean(nowPlaying.fullPath);
+        String p = path == null ? "" : path.toLowerCase(Locale.US);
+        return p.contains("/music/") || p.startsWith("/storage/") || p.startsWith("file:")
+                || nowPlaying.requestedType == 1 || nowPlaying.requestedType == 2
+                || (nowPlaying.deviceMask & 0x13) != 0;
+    }
+
+    private static boolean isUsbText(String value) {
+        String text = clean(value);
+        if (TextUtils.isEmpty(text)) return false;
+        String p = text.toLowerCase(Locale.US);
+        return p.contains("usb") || p.contains("local_music") || p.contains("local music");
     }
 
     private static String clean(String value) {
