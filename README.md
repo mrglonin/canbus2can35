@@ -3,6 +3,39 @@
 Рабочий репозиторий по кастомному 2CAN35/Sigma10 CANBOX на `STM32F105RBT6`
 для Kia/Hyundai Sportage.
 
+## Текущий релиз
+
+| Часть | Актуально |
+|---|---|
+| Android APK | `13.0-kia`, `versionCode 110`, `kia_130.apk` |
+| APK artifact | `updates/kia_130.apk` и `/Volumes/SSD/canbus/release/kia_130.apk` |
+| APK sha256 | `f2fc36da568548f99cf935292409e07e5358f14fa48968d9740c10126811fcd7` |
+| Firmware update channel | `v22-full-raw`, `22_v08_mode1_v22_full_raw_USB.bin` |
+| Firmware sha256 | `b1256de76cc8c1eabaabefd9f1e77ff4f5988d24a68289514405fa849ce92c4d` |
+| Runtime defaults | Vehicle/RCTA/TPMS/media/nav включены, raw CAN/debug/UART/старые тесты выключены |
+
+## Скриншоты APK 13.0
+
+Главный экран:
+
+![Главный экран Kia 13.0](docs/screenshots/kia_130/home.png)
+
+TPMS:
+
+![TPMS Kia 13.0](docs/screenshots/kia_130/tpms.png)
+
+Настройки мультимедиа и live preview вывода в приборку:
+
+![Настройки мультимедиа Kia 13.0](docs/screenshots/kia_130/settings_media.png)
+
+CANBUS/навигация в адаптер:
+
+![CANBUS настройки Kia 13.0](docs/screenshots/kia_130/settings_canbus.png)
+
+Журнал поверх экрана:
+
+![Overlay журнал Kia 13.0](docs/screenshots/kia_130/log_overlay.png)
+
 ## Локальная структура
 
 На SSD проект держится одной чистой папкой:
@@ -11,7 +44,7 @@
 |---|---|
 | `/Volumes/SSD/canbus/repo` | Этот git-репозиторий. |
 | `/Volumes/SSD/canbus/tools` | Локальные toolchain/OpenOCD/SDK и прочие тяжелые инструменты, не git. |
-| `/Volumes/SSD/canbus/release` | Готовые APK/прошивки с короткими именами. |
+| `/Volumes/SSD/canbus/release` | Готовые APK/прошивки с короткими именами, включая `kia_130.apk`. |
 
 В репозитории остаются только исходники, проверенные таблицы и короткая
 документация. Генерируемые APK, старые дампы, временные логи, reverse-директории
@@ -44,9 +77,22 @@
 кадры. Подтвержденная модель такая: приложение/магнитола говорит с прошивкой
 через ее USB/API или Raise/HU протокол, а прошивка уже переводит это в M-CAN.
 
-## Текущая рабочая база V21
+## Текущая рабочая база адаптера V21/V22
 
-Эталонная прошивка для адаптера:
+Текущий канал обновления адаптера:
+
+```text
+firmware/trusted/v22/22_v08_mode1_v22_full_raw_USB.bin
+firmware/trusted/v22/22_v08_mode1_v22_full_raw_STLINK64K.bin
+firmware/trusted/v22/22_v08_mode1_v22_full_raw.report.json
+```
+
+V22 сохраняет рабочую V21-логику `0x77` snapshot, adapter-owned
+nav/compass hold, M-CAN-only `0x78` TX и `0x7A` media/source inject, но добавляет
+full raw CAN debug filters для ручной диагностики. В обычном режиме APK держит
+raw stream выключенным.
+
+Стабильная V21 база и fallback:
 
 ```text
 firmware/trusted/v21/21_v08_mode1_v21_USB.bin
@@ -62,7 +108,7 @@ UID: 37 FF DA 05 42 47 30 38 59 41 22 43
 0x79: BB A1 41 0F 79 21 03 00 FF 01 56 32 31 00 02
 ```
 
-V21 команды:
+V21/V22 команды:
 
 | Команда | Назначение |
 |---:|---|
@@ -70,7 +116,7 @@ V21 команды:
 | `0x76` | pop raw CAN frame из ring buffer только для debug |
 | `0x77` | compact Vehicle/RCTA snapshot без raw-потока в APK |
 | `0x78` | one-shot raw CAN TX только M-CAN (`bus=1`) |
-| `0x79` | V21 health/capabilities, проверка что адаптер жив |
+| `0x79` | health/capabilities, проверка что адаптер жив |
 | `0x7A` | inject Raise/RZC `FD .. 09 ...` source-status в штатный parser прошивки |
 
 Правило архитектуры: прошивка остается маленьким gateway. Она пассивно слушает
@@ -93,7 +139,7 @@ BB 41 A1 0E 45 08 00 00 DD 00 78 00 A0 CS
 
 `DD` - направление. Рабочая сетка только кратная `3`: `0, 3, 6, ... 33`.
 Для удержания отображения кадр надо повторять примерно раз в `350-500 ms`.
-В текущей V21 это делает адаптер: APK отправляет `0x45` только при смене
+В текущей прошивке это делает адаптер: APK отправляет `0x45` только при смене
 направления, а прошивка повторяет сохраненный кадр на compact `0x77` tick.
 
 В локальной панели используется удобная UI-инверсия:
@@ -214,7 +260,7 @@ Source byte scanner после проверки:
 7. Raw CAN `0x78` оставить только для диагностики M-CAN, точечного TX и будущих
    редких сценариев, но не использовать как основной путь media/nav.
 
-Важно для связки APK + V21: source/status события `0x7A` и BT artist теперь
+Важно для связки APK + V21/V22: source/status события `0x7A` и BT artist теперь
 ставятся в USB-очередь при открытии порта, а не теряются как quiet frames.
 При каждом USB connect APK автоматически запрашивает UID/version/health и
 отправляет `0x70 off`, если CAN debug не включен явно.
@@ -250,10 +296,10 @@ cd /Volumes/SSD/canbus/repo/android/kia
 После сборки APK автоматически копируется в release-папку с номером версии.
 
 ```text
-/Volumes/SSD/canbus/release/kia_127.apk
+/Volumes/SSD/canbus/release/kia_130.apk
 ```
 
-Номер в имени берется из `versionName`: `12.7-kia` -> `kia_127.apk`.
+Номер в имени берется из `versionName`: `13.0-kia` -> `kia_130.apk`.
 
 ## Что намеренно удалено
 
