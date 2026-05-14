@@ -8,7 +8,7 @@ off by default and is controlled over the stock CDC USB protocol:
   0x76  pop one raw CAN frame from the RAM ring
   0x77  read decoded vehicle snapshot for OBD-like UI
   0x78  one-shot raw CAN TX, bus 1=M-CAN/CAN2 only
-  0x79  V21 health/capabilities response
+  0x79  V22 health/capabilities response
   0x7A  inject one Raise/RZC FD source-status frame into the stock parser
 
 There is deliberately no transparent UART bridge in this build.
@@ -59,6 +59,8 @@ PATCH_ASM = r"""
 .equ CAN_RING_TAIL,   0x20006ff6
 .equ CAN_RING_DROP,   0x20006ff8
 .equ CAN_RING_BUF,    0x20007000
+.equ FILTER_SAVE_MAGIC,0x20008000
+.equ FILTER_SAVE_BUF, 0x20008004
 .equ STATE_MAGIC,     0x20006e00
 .equ STATE_KNOWN,     0x20006e04
 .equ STATE_COUNTER,   0x20006e08
@@ -89,6 +91,7 @@ PATCH_ASM = r"""
 
 .equ CAN1_BASE,       0x40006400
 .equ CAN2_BASE,       0x40006800
+.equ CAN_FILTER_BASE, 0x40006600
 
 .equ ORIG_USB_DISPATCH, 0x08005395
 .equ ORIG_USB_SEND,     0x08005fa9
@@ -161,12 +164,14 @@ log_off:
     ldr r6, =LOG_FLAG
     movs r5, #0
     strb r5, [r6]
+    bl filters_restore
     movs r0, #0x70
     movs r1, #0
     bl send_ack
     b handled
 
 log_on:
+    bl filters_accept_all
     bl can_ring_reset
     ldr r6, =LOG_FLAG
     movs r5, #0xa5
@@ -220,7 +225,7 @@ cmd_v20_status:
     strb r0, [r5, #10]
     movs r0, #0x32
     strb r0, [r5, #11]
-    movs r0, #0x31
+    movs r0, #0x32
     strb r0, [r5, #12]
     movs r0, #0
     strb r0, [r5, #13]
@@ -346,7 +351,7 @@ can_ring_put_from_callsite:
     ldr r1, =CAN_RING_HEAD
     ldrh r2, [r1]
     adds r3, r2, #1
-    ands r3, r3, #0x7f
+    ands r3, r3, #0xff
     ldr r0, =CAN_RING_TAIL
     ldrh r0, [r0]
     cmp r3, r0
@@ -895,7 +900,7 @@ can_ring_pop_response:
     b 1b
 2:
     adds r2, #1
-    ands r2, r2, #0x7f
+    ands r2, r2, #0xff
     strh r2, [r1]
     pop {r4-r7, pc}
 4:
@@ -908,6 +913,106 @@ can_ring_pop_response:
     adds r6, #1
     b 5b
 6:
+    pop {r4-r7, pc}
+
+.thumb_func
+filters_save_once:
+    push {r4-r7, lr}
+    ldr r0, =FILTER_SAVE_MAGIC
+    ldr r1, [r0]
+    ldr r2, =0x46534c54
+    cmp r1, r2
+    beq 3f
+    ldr r4, =CAN_FILTER_BASE
+    ldr r5, =FILTER_SAVE_BUF
+    ldr r0, [r4, #0x00]
+    str r0, [r5, #0]
+    ldr r0, [r4, #0x04]
+    str r0, [r5, #4]
+    ldr r0, [r4, #0x0c]
+    str r0, [r5, #8]
+    ldr r0, [r4, #0x14]
+    str r0, [r5, #12]
+    ldr r0, [r4, #0x1c]
+    str r0, [r5, #16]
+    adds r4, #0x40
+    adds r5, #20
+    movs r6, #56
+1:
+    ldr r0, [r4]
+    str r0, [r5]
+    adds r4, #4
+    adds r5, #4
+    subs r6, #1
+    bne 1b
+    ldr r0, =FILTER_SAVE_MAGIC
+    str r2, [r0]
+3:
+    pop {r4-r7, pc}
+
+.thumb_func
+filters_accept_all:
+    push {r4-r7, lr}
+    bl filters_save_once
+    ldr r4, =CAN_FILTER_BASE
+    ldr r0, =0x00000e01
+    str r0, [r4, #0x00]
+    movs r0, #0
+    str r0, [r4, #0x1c]
+    str r0, [r4, #0x04]
+    str r0, [r4, #0x14]
+    ldr r0, =0x00004001
+    str r0, [r4, #0x0c]
+    movs r0, #0
+    str r0, [r4, #0x40]
+    str r0, [r4, #0x44]
+    str r0, [r4, #0xb0]
+    str r0, [r4, #0xb4]
+    ldr r0, =0x00004001
+    str r0, [r4, #0x1c]
+    ldr r0, =0x00000e00
+    str r0, [r4, #0x00]
+    pop {r4-r7, pc}
+
+.thumb_func
+filters_restore:
+    push {r4-r7, lr}
+    ldr r0, =FILTER_SAVE_MAGIC
+    ldr r1, [r0]
+    ldr r2, =0x46534c54
+    cmp r1, r2
+    bne 4f
+    ldr r4, =CAN_FILTER_BASE
+    ldr r5, =FILTER_SAVE_BUF
+    ldr r0, [r5, #0]
+    orr r0, r0, #1
+    str r0, [r4, #0x00]
+    ldr r0, [r5, #16]
+    str r0, [r4, #0x1c]
+    ldr r0, [r5, #4]
+    str r0, [r4, #0x04]
+    ldr r0, [r5, #8]
+    str r0, [r4, #0x0c]
+    ldr r0, [r5, #12]
+    str r0, [r4, #0x14]
+    adds r4, #0x40
+    adds r5, #20
+    movs r6, #56
+1:
+    ldr r0, [r5]
+    str r0, [r4]
+    adds r4, #4
+    adds r5, #4
+    subs r6, #1
+    bne 1b
+    ldr r4, =CAN_FILTER_BASE
+    ldr r5, =FILTER_SAVE_BUF
+    ldr r0, [r5, #0]
+    str r0, [r4, #0x00]
+    ldr r0, =FILTER_SAVE_MAGIC
+    movs r1, #0
+    str r1, [r0]
+4:
     pop {r4-r7, pc}
 
 .thumb_func
@@ -1168,7 +1273,7 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         args.stlink_out.write_bytes(app_image)
 
     report = {
-        "name": "v21 v08 mode1 stock canbox + adapter-owned nav/compass hold + Vehicle/RCTA snapshot + M-CAN TX debug",
+        "name": "v22 v08 mode1 stock canbox + full raw CAN debug filters + Vehicle/RCTA snapshot + M-CAN TX debug",
         "source": str(source),
         "source_sha256": sha256(encoded_source),
         "output_usb": str(args.out),
@@ -1184,11 +1289,11 @@ def build(args: argparse.Namespace) -> dict[str, object]:
         "usb_identity": "unchanged stock CDC/proprietary canbox interface; no gs_usb",
         "mode1_policy": "programmer canbox logic remains default and runs immediately",
         "sideband_commands": {
-            "0x70": "raw CAN stream start/stop only",
+            "0x70": "raw CAN stream start/stop; V22 enables temporary accept-all CAN filters while on and restores stock filters while off",
             "0x76": "pop one raw C-CAN/M-CAN frame from RAM ring",
             "0x77": "read decoded vehicle/RCTA snapshot and tick adapter-owned nav/compass hold without raw stream",
             "0x78": "one-shot raw CAN TX on M-CAN only: payload bus=1, flags, id_le32, dlc, data[8]",
-            "0x79": "V21 health/capabilities response, no CAN connection required",
+            "0x79": "V22 health/capabilities response, no CAN connection required",
             "0x7A": "inject one Raise/RZC FD source-status frame into the stock media/source parser",
         },
         "vehicle_snapshot_payload": (
@@ -1211,10 +1316,11 @@ def build(args: argparse.Namespace) -> dict[str, object]:
             "bit10": "outside temperature",
         },
         "raw_frame_payload": "status, bus(0=C-CAN 1=M-CAN), flags(bit0=EXT bit1=RTR), dlc, reserved, id_le32, data[8]",
+        "raw_logger_policy": "debug-only full raw mode: 0x70 on saves stock filters, configures accept-all filter bank0 for CAN1 and bank14 for CAN2, uses 256-frame ring, 0x70 off restores saved filters",
         "can_tx_payload": "bus must be 1 (M-CAN/CAN2), flags(bit0=EXT bit1=RTR), id_le32, dlc, data[8]",
         "can_tx_ack": "0=queued, 1=no free mailbox, 2=bad/blocked bus, 0xff=bad command length",
         "removed": ["UART sideband", "0x74 raw CAN TX command"],
-        "hook_policy": "hooks run after the stock FIFO read, then return with the stock release-FIFO arguments restored",
+        "hook_policy": "hooks run after the stock FIFO read, then return with the stock release-FIFO arguments restored; full raw depends on temporary accept-all hardware filters while logger is enabled",
         "stub": {"address": f"0x{STUB_ADDR:08x}", "size": len(patch_blob), "symbols": {k: f"0x{v:08x}" for k, v in sym_addr.items()}},
         "patches": patches,
         "nm": nm_out,
@@ -1228,9 +1334,9 @@ def build(args: argparse.Namespace) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--programmer-v08", type=Path, default=PROGRAMMER_V08)
-    parser.add_argument("--out", type=Path, default=Path("firmware/trusted/v21/21_v08_mode1_v21_USB.bin"))
-    parser.add_argument("--stlink-out", type=Path, default=Path("firmware/trusted/v21/21_v08_mode1_v21_STLINK64K.bin"))
-    parser.add_argument("--report", type=Path, default=Path("firmware/trusted/v21/21_v08_mode1_v21.report.json"))
+    parser.add_argument("--out", type=Path, default=Path("firmware/trusted/v22/22_v08_mode1_v22_full_raw_USB.bin"))
+    parser.add_argument("--stlink-out", type=Path, default=Path("firmware/trusted/v22/22_v08_mode1_v22_full_raw_STLINK64K.bin"))
+    parser.add_argument("--report", type=Path, default=Path("firmware/trusted/v22/22_v08_mode1_v22_full_raw.report.json"))
     parser.add_argument("--toolchain", type=Path, default=BUILD_TOOLCHAIN)
     parser.add_argument("--key-a", type=lambda s: int(s, 0), default=0x04)
     parser.add_argument("--key-b", type=lambda s: int(s, 0), default=0x5B)

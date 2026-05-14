@@ -4,8 +4,11 @@
 
 - `trusted/v18_v19/` - v18/v19, построенные поверх рабочей прошивки автора `04350008`.
 - `trusted/v20/` - предыдущая v20 с `0x79` health/capabilities.
-- `trusted/v21/` - текущая v21: `0x77` Vehicle/RCTA snapshot без raw stream в обычном режиме.
-- `scripts/build_v08_mode1_raw_can_stream.py` - генератор текущей v21 ветки.
+- `trusted/v21/` - v21: `0x77` Vehicle/RCTA snapshot без raw stream в обычном режиме.
+- `trusted/v22/` - текущая v22 debug: при `0x70 on` временно включает
+  accept-all CAN filters для полного raw CAN-C/M-CAN stream, при `0x70 off`
+  восстанавливает штатные filters.
+- `scripts/build_v08_mode1_raw_can_stream.py` - генератор текущей v22 ветки.
 - `MANIFEST.md` - краткий список файлов и назначение.
 
 Удалено из рабочей ветки:

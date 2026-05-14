@@ -28,12 +28,14 @@ UID: 37 FF DA 05 42 47 30 38 59 41 22 43
 | `trusted/v20/20_v08_mode1_v20_STLINK64K.bin` | `10ef4cbccc7cd8802cecf9a8ef4dc1c32e38edbc9eda17b9cd80a0cbea9f22f0` | ST-Link full image для v20. |
 | `trusted/v21/21_v08_mode1_v21_USB.bin` | `1e3a6c23773f39a0c0df956799ceaecd5fb3a9d0aaebce1e83d8a01b55b1e1dc` | USB-update: v20 + `0x77` Vehicle/RCTA snapshot, M-CAN `0x132` voltage, latest `0x4F4`, raw stream только debug, `0x78` TX только M-CAN, adapter-owned compass/nav hold. |
 | `trusted/v21/21_v08_mode1_v21_STLINK64K.bin` | `d3f37cc733e8da2cb18e53b2111b9fbb53c82e497add07498d44bda0d1d2c90f` | ST-Link full image для v21. |
+| `trusted/v22/22_v08_mode1_v22_full_raw_USB.bin` | `b1256de76cc8c1eabaabefd9f1e77ff4f5988d24a68289514405fa849ce92c4d` | USB-update: v21 + debug-only full raw CAN. `0x70 on` сохраняет штатные filters и включает accept-all bank0 CAN1 + bank14 CAN2; `0x70 off` восстанавливает filters. Ring увеличен до 256 кадров. |
+| `trusted/v22/22_v08_mode1_v22_full_raw_STLINK64K.bin` | `1f8786999bd90b520955e5bd64a69379ddfb09e6060e9224a5cfc922e3554a4d` | ST-Link full image для v22. |
 
 ## USB sideband commands
 
 | Команда | Что делает |
 |---:|---|
-| `0x70` | включить/выключить RAW CAN stream для debug |
+| `0x70` | включить/выключить RAW CAN stream для debug; в v22 на время `on` раскрывает CAN filters в accept-all |
 | `0x76` | прочитать один RAW CAN кадр для debug |
 | `0x77` | прочитать compact Vehicle/RCTA snapshot и дать tick удержанию nav/compass |
 | `0x78` | одноразово отправить CAN кадр |
