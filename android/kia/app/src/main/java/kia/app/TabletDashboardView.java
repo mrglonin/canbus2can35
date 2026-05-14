@@ -47,7 +47,10 @@ final class TabletDashboardView extends FrameLayout {
     private TextView navStatusValue;
     private TextView navDebugValue;
     private TextView navAdapterValue;
+    private TextView[] navAdapterRowValues;
     private TextView mediaStatusValue;
+    private TextView mediaPreviewValue;
+    private TextView mediaClusterPreviewValue;
     private TextView vehicleStatusValue;
     private TextView speedValue;
     private TextView rpmValue;
@@ -108,7 +111,10 @@ final class TabletDashboardView extends FrameLayout {
         if (navStatusValue != null) navStatusValue.setText(AppLog.nav());
         if (navDebugValue != null) navDebugValue.setText(navDebugText());
         if (navAdapterValue != null) navAdapterValue.setText(NavProtocol.adapterStateText());
+        refreshNavAdapterTable();
         if (mediaStatusValue != null) mediaStatusValue.setText(AppLog.media());
+        if (mediaPreviewValue != null) mediaPreviewValue.setText(MediaMonitor.settingsPreview(getContext()));
+        if (mediaClusterPreviewValue != null) mediaClusterPreviewValue.setText(MediaMonitor.clusterPreview(getContext()));
         if (vehicleStatusValue != null) vehicleStatusValue.setText(cleanVehicle(vehicle));
         if (speedValue != null) speedValue.setText(vehicle.speedText(getContext()));
         if (rpmValue != null) rpmValue.setText(vehicle.rpm + " rpm");
@@ -144,7 +150,8 @@ final class TabletDashboardView extends FrameLayout {
                 boolean canFlash = (!TextUtils.isEmpty(firmware.downloadUrl) || firmware.downloaded)
                         && (firmware.assetSize <= 0 || firmware.assetSize <= 114688);
                 firmwareOtaFlashButton.setEnabled(canFlash);
-                firmwareOtaFlashButton.setText(firmware.downloading ? "Загрузка" : "Скачать / прошить");
+                firmwareOtaFlashButton.setText(firmware.downloading || firmware.flashing ? "Процесс"
+                        : (firmware.downloaded ? "Прошить" : "Скачать и прошить"));
             }
         }
         if (canRecordButton != null) canRecordButton.setText(debug.canRecording ? "Остановить запись" : "Начать запись");
@@ -187,7 +194,18 @@ final class TabletDashboardView extends FrameLayout {
         if (screenTitle != null) screenTitle.setText(tabLabels[currentTab]);
         if (screenSubtitle != null) screenSubtitle.setText(subtitle(currentTab));
         buildCurrentTab();
+        onTabSelected(currentTab);
         refresh();
+    }
+
+    private void onTabSelected(int tab) {
+        if (tab == TAB_DIAG) {
+            AppService.start(getContext());
+            CanbusControl.requestAdapterInfo(getContext());
+            CanbusControl.requestV20Status(getContext());
+        } else if (tab == TAB_MEDIA) {
+            MediaMonitor.scanNow(getContext());
+        }
     }
 
     private void buildCurrentTab() {
@@ -276,8 +294,7 @@ final class TabletDashboardView extends FrameLayout {
 
         LinearLayout live = card("Что уходит в адаптер");
         row.addView(live, weightedCardLp());
-        navAdapterValue = mono("");
-        live.addView(navAdapterValue, monoLp(160, 140));
+        addNavAdapterTable(live);
         addButtonRow(live,
                 actionButton("Обновить", 0xff2f5f8f, v -> refresh()),
                 actionButton("Диагностика", 0xfff2b84b, v -> selectTab(TAB_DIAG)));
@@ -293,9 +310,11 @@ final class TabletDashboardView extends FrameLayout {
         content.addView(row, sectionLp());
         LinearLayout now = card("Текущий источник");
         row.addView(now, weightedCardLp());
-        mediaStatusValue = info(now, "Строка", "");
+        mediaStatusValue = info(now, "Сейчас", "");
+        mediaPreviewValue = info(now, "В приложении", "");
+        mediaClusterPreviewValue = info(now, "В приборку", "");
         addButtonRow(now,
-                actionButton("Сканировать", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
+                actionButton("Обновить данные", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
                 actionButton("Уведомления", 0xfff2b84b, v -> openNotificationSettings()));
 
         LinearLayout access = card("Доступ");
@@ -346,15 +365,15 @@ final class TabletDashboardView extends FrameLayout {
     private void buildDiagnostics() {
         LinearLayout row = row();
         content.addView(row, sectionLp());
-        LinearLayout adapter = card("V21 адаптер");
+        LinearLayout adapter = card("Адаптер");
         row.addView(adapter, weightedCardLp());
-        adapterV20Value = info(adapter, "Health", "");
+        adapterV20Value = info(adapter, "Состояние", "");
         adapterApiValue = info(adapter, "API", "");
         adapterCapsValue = info(adapter, "Caps", "");
         adapterUidValue = info(adapter, "UID", "");
         addButtonRow(adapter,
-                actionButton("0x79", 0xff1f7a67, v -> CanbusControl.requestV20Status(getContext())),
-                actionButton("0x56/0x60", 0xff2f5f8f, v -> CanbusControl.requestAdapterInfo(getContext())));
+                actionButton("Обновить", 0xff1f7a67, v -> CanbusControl.requestV20Status(getContext())),
+                actionButton("ID / версия", 0xff2f5f8f, v -> CanbusControl.requestAdapterInfo(getContext())));
 
         LinearLayout raw = card("Raw CAN");
         row.addView(raw, weightedCardLp());
@@ -389,16 +408,16 @@ final class TabletDashboardView extends FrameLayout {
         updateReleaseValue = info(update, "GitHub", "");
         updateInstallButton = actionButton("Скачать", 0xff1f7a67, v -> downloadUpdate());
         addButtonRow(update,
-                actionButton("Проверить", 0xff2f5f8f, v -> AppUpdater.checkNow(getContext())),
+                actionButton("Проверить обновление", 0xff2f5f8f, v -> AppUpdater.checkNow(getContext())),
                 updateInstallButton);
 
         LinearLayout firmware = card("Прошивка адаптера");
         content.addView(firmware, sectionTopLp());
         firmwareOtaStatusValue = info(firmware, "Статус", "");
         firmwareOtaAssetValue = info(firmware, "GitHub", "");
-        firmwareOtaFlashButton = actionButton("Скачать / прошить", 0xff1f7a67, v -> flashFirmwareRelease());
+        firmwareOtaFlashButton = actionButton("Скачать и прошить", 0xff1f7a67, v -> flashFirmwareRelease());
         addButtonRow(firmware,
-                actionButton("Проверить BIN", 0xff2f5f8f, v -> FirmwareReleaseUpdater.checkNow(getContext())),
+                actionButton("Проверить обновление", 0xff2f5f8f, v -> FirmwareReleaseUpdater.checkNow(getContext())),
                 firmwareOtaFlashButton);
 
         LinearLayout log = card("Журнал");
@@ -417,7 +436,10 @@ final class TabletDashboardView extends FrameLayout {
         navStatusValue = null;
         navDebugValue = null;
         navAdapterValue = null;
+        navAdapterRowValues = null;
         mediaStatusValue = null;
+        mediaPreviewValue = null;
+        mediaClusterPreviewValue = null;
         vehicleStatusValue = null;
         speedValue = null;
         rpmValue = null;
@@ -601,6 +623,23 @@ final class TabletDashboardView extends FrameLayout {
         return text;
     }
 
+    private void addNavAdapterTable(LinearLayout parent) {
+        String[][] rows = NavProtocol.adapterRows();
+        navAdapterRowValues = new TextView[rows.length];
+        for (int i = 0; i < rows.length; i++) {
+            navAdapterRowValues[i] = info(parent, rows[i][0], rows[i][1]);
+        }
+    }
+
+    private void refreshNavAdapterTable() {
+        if (navAdapterRowValues == null) return;
+        String[][] rows = NavProtocol.adapterRows();
+        int count = Math.min(navAdapterRowValues.length, rows.length);
+        for (int i = 0; i < count; i++) {
+            if (navAdapterRowValues[i] != null) navAdapterRowValues[i].setText(rows[i][1]);
+        }
+    }
+
     private void addButtonRow(LinearLayout parent, Button left, Button right) {
         LinearLayout row = new LinearLayout(getContext());
         row.setOrientation(compactMode ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
@@ -726,7 +765,7 @@ final class TabletDashboardView extends FrameLayout {
             case TAB_VEHICLE:
                 return "OBD, snapshot, TPMS и предупреждения";
             case TAB_DIAG:
-                return "V21 health, snapshot, raw debug и журнал";
+                return "Адаптер, обновления, CAN log и журнал";
             case TAB_HOME:
             default:
                 return "Планшетная панель управления адаптером";

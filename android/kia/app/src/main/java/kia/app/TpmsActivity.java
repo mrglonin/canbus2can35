@@ -5,12 +5,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -102,23 +100,6 @@ public class TpmsActivity extends Activity {
 
         setContentView(root);
         refresh();
-    }
-
-    private Button titleBarButton(String text, int textSizeDp) {
-        Button button = new Button(this);
-        button.setText(text);
-        button.setTextColor(0xffffffff);
-        button.setTextSize(TypedValue.COMPLEX_UNIT_PX, dp(textSizeDp));
-        button.setTypeface(Typeface.DEFAULT);
-        button.setGravity(Gravity.CENTER);
-        button.setAllCaps(false);
-        button.setIncludeFontPadding(false);
-        button.setMinWidth(0);
-        button.setMinHeight(0);
-        button.setPadding(0, 0, 0, 0);
-        button.setBackgroundResource(R.drawable.tpms_buton_style);
-        button.setShadowLayer(dp(3), dp(2), dp(2), 0xff000000);
-        return button;
     }
 
     private Button iconBackButton() {

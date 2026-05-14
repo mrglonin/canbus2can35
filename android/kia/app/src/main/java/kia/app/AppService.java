@@ -63,6 +63,7 @@ public class AppService extends Service {
     private UartOverlayView systemUartOverlay;
     private MusicOverlayView systemMusicOverlay;
     private NavOverlayView systemNavOverlay;
+    private LogOverlayView systemLogOverlay;
     private TpmsOverlayView systemTpmsOverlay;
     private BlindSpotOverlayView systemBlindSpotOverlay;
     private boolean navInfoReceiverRegistered;
@@ -322,9 +323,10 @@ public class AppService extends Service {
     }
 
     private void refreshSystemOverlays() {
-        boolean uart = AppPrefs.debugUart(this) && AppPrefs.uartOverlay(this);
+        boolean uart = false;
         boolean music = AppPrefs.mediaOverlay(this);
         boolean nav = AppPrefs.navOverlay(this);
+        boolean log = AppPrefs.logOverlay(this);
         boolean tpms = TpmsOverlayView.hasVisibleAlert(this);
         boolean blind = AppPrefs.blindSpotEnabled(this)
                 && AppPrefs.blindSpotOverlay(this)
@@ -332,14 +334,16 @@ public class AppService extends Service {
         if (!uart) removeOverlay(systemUartOverlay);
         if (!music) removeOverlay(systemMusicOverlay);
         if (!nav) removeOverlay(systemNavOverlay);
+        if (!log) removeOverlay(systemLogOverlay);
         if (!tpms) removeOverlay(systemTpmsOverlay);
         if (!blind) removeOverlay(systemBlindSpotOverlay);
         if (!uart) systemUartOverlay = null;
         if (!music) systemMusicOverlay = null;
         if (!nav) systemNavOverlay = null;
+        if (!log) systemLogOverlay = null;
         if (!tpms) systemTpmsOverlay = null;
         if (!blind) systemBlindSpotOverlay = null;
-        if (!uart && !music && !nav && !tpms && !blind) return;
+        if (!uart && !music && !nav && !log && !tpms && !blind) return;
 
         if (!PermissionHelper.canDrawOverlays(this)) {
             long now = System.currentTimeMillis();
@@ -361,6 +365,10 @@ public class AppService extends Service {
             systemNavOverlay = new NavOverlayView(this);
             addOverlay(systemNavOverlay);
         }
+        if (log && systemLogOverlay == null) {
+            systemLogOverlay = new LogOverlayView(this);
+            addOverlay(systemLogOverlay);
+        }
         if (tpms && systemTpmsOverlay == null) {
             systemTpmsOverlay = new TpmsOverlayView(this);
             addOverlay(systemTpmsOverlay);
@@ -372,6 +380,7 @@ public class AppService extends Service {
         if (systemUartOverlay != null) systemUartOverlay.invalidate();
         if (systemMusicOverlay != null) systemMusicOverlay.invalidate();
         if (systemNavOverlay != null) systemNavOverlay.invalidate();
+        if (systemLogOverlay != null) systemLogOverlay.invalidate();
         if (systemTpmsOverlay != null) systemTpmsOverlay.refreshFromState();
         if (systemBlindSpotOverlay != null) systemBlindSpotOverlay.refreshFromState();
     }
@@ -409,11 +418,13 @@ public class AppService extends Service {
         removeOverlay(systemUartOverlay);
         removeOverlay(systemMusicOverlay);
         removeOverlay(systemNavOverlay);
+        removeOverlay(systemLogOverlay);
         removeOverlay(systemTpmsOverlay);
         removeOverlay(systemBlindSpotOverlay);
         systemUartOverlay = null;
         systemMusicOverlay = null;
         systemNavOverlay = null;
+        systemLogOverlay = null;
         systemTpmsOverlay = null;
         systemBlindSpotOverlay = null;
     }

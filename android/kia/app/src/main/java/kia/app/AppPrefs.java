@@ -36,13 +36,14 @@ final class AppPrefs {
     private static final String KEY_DEBUG_CAN = "debug_can";
     private static final String KEY_DEBUG_UART = "debug_uart";
     private static final String KEY_UART_OVERLAY = "uart_overlay";
+    private static final String KEY_LOG_OVERLAY = "log_overlay";
     private static final String KEY_CAN_LOG_MODE = "can_log_mode";
     private static final String KEY_BLIND_SPOT_ENABLED = "blind_spot_enabled";
     private static final String KEY_BLIND_SPOT_OVERLAY = "blind_spot_overlay";
     private static final String KEY_UPDATE_CHECK_ON_LAUNCH = "update_check_on_launch";
     private static final String KEY_DEFAULT_PROFILE_VERSION = "default_profile_version";
 
-    private static final int DEFAULT_PROFILE_VERSION = 2;
+    private static final int DEFAULT_PROFILE_VERSION = 4;
 
     private AppPrefs() {
     }
@@ -57,8 +58,8 @@ final class AppPrefs {
         prefs.edit()
                 .putBoolean(KEY_AUTO_START, true)
                 .putBoolean(KEY_BACKGROUND_AUTO_START, true)
-                .putBoolean(KEY_AUTO_HIDE, true)
-                .putInt(KEY_AUTO_HIDE_DELAY, 3)
+                .putBoolean(KEY_AUTO_HIDE, false)
+                .putInt(KEY_AUTO_HIDE_DELAY, 1)
                 .putInt(KEY_NAV_TEXT_MODE, 0)
                 .putBoolean(KEY_NAV_TBT, false)
                 .remove(KEY_NAV_OVERLAY)
@@ -83,6 +84,7 @@ final class AppPrefs {
                 .putBoolean(KEY_DEBUG_CAN, false)
                 .putBoolean(KEY_DEBUG_UART, false)
                 .putBoolean(KEY_UART_OVERLAY, false)
+                .putBoolean(KEY_LOG_OVERLAY, false)
                 .putInt(KEY_CAN_LOG_MODE, 2)
                 .putBoolean(KEY_BLIND_SPOT_ENABLED, true)
                 .putBoolean(KEY_BLIND_SPOT_OVERLAY, true)
@@ -267,11 +269,11 @@ final class AppPrefs {
     }
 
     static boolean backgroundAnimation(Context context) {
-        return prefs(context).getBoolean(KEY_BACKGROUND_ANIMATION, true);
+        return false;
     }
 
     static void setBackgroundAnimation(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_BACKGROUND_ANIMATION, value).apply();
+        prefs(context).edit().putBoolean(KEY_BACKGROUND_ANIMATION, false).apply();
     }
 
     static int sasRatio(Context context) {
@@ -381,6 +383,14 @@ final class AppPrefs {
 
     static void setUartOverlay(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_UART_OVERLAY, value).apply();
+    }
+
+    static boolean logOverlay(Context context) {
+        return prefs(context).getBoolean(KEY_LOG_OVERLAY, false);
+    }
+
+    static void setLogOverlay(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_LOG_OVERLAY, value).apply();
     }
 
     static int canLogMode(Context context) {

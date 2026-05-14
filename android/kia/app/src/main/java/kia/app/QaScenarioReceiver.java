@@ -32,6 +32,14 @@ public class QaScenarioReceiver extends BroadcastReceiver {
             int step = intent.getIntExtra("step", 9);
             CanbusControl.sendCompassStep(context, step);
             QaState.event(context, "compass step=" + step);
+        } else if ("log_overlay_on".equals(scenario)) {
+            AppPrefs.setLogOverlay(context, true);
+            AppLog.line(context, "QA: журнал overlay включён");
+            AppService.refreshOverlays(context);
+        } else if ("log_overlay_off".equals(scenario)) {
+            AppPrefs.setLogOverlay(context, false);
+            AppLog.line(context, "QA: журнал overlay выключен");
+            AppService.refreshOverlays(context);
         } else {
             AppLog.line(context, "QA: неизвестный сценарий " + scenario);
         }

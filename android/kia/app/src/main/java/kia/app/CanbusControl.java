@@ -45,7 +45,7 @@ final class CanbusControl {
     }
 
     static void requestV20Status(Context context) {
-        AppLog.line(context, "V21: запрос health/capabilities 0x79");
+        AppLog.line(context, "V21: запрос статуса адаптера");
         send(context, packet(0x79, null));
     }
 
@@ -91,7 +91,7 @@ final class CanbusControl {
         int safe = Math.max(10, Math.min(50, ratio));
         AppPrefs.setSasRatio(context, safe);
         send(context, frame(0x60, 0x01, safe));
-        AppLog.line(context, "CAN: отправлен SAS Ratio " + safe);
+        AppLog.line(context, "CAN: калибровка угла руля " + safe);
     }
 
     static void setEngineTemp(Context context, boolean enabled) {

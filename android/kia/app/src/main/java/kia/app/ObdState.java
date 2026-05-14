@@ -10,6 +10,9 @@ final class ObdState {
 
     private static Snapshot state = new Snapshot();
     private static long lastTouchBroadcastAt;
+    private static long tripStartAt;
+    private static long lastTripTouchAt;
+    private static boolean runtimeExplicit;
     private static Handler handler;
     private static Runnable pendingTouchBroadcast;
 
@@ -46,6 +49,7 @@ final class ObdState {
     }
 
     static synchronized void runtime(Context context, int seconds) {
+        runtimeExplicit = true;
         state.runtimeSeconds = Math.max(0, seconds);
         touch(context);
     }
@@ -97,6 +101,7 @@ final class ObdState {
                                        double totalMileageKm) {
         state.status = "OBD: данные эмуляции";
         state.connected = true;
+        runtimeExplicit = true;
         state.speedKmh = clamp(speedKmh, 0, 260);
         state.rpm = clamp(rpm, 0, 8000);
         state.runtimeSeconds = Math.max(0, runtimeSeconds);
@@ -119,6 +124,7 @@ final class ObdState {
         state.connected = true;
         state.status = "Kia Canbus: подключено, данные обновляются";
         state.updatedAt = System.currentTimeMillis();
+        updateRuntimeFromTripClock(state.updatedAt);
         long delta = state.updatedAt - lastTouchBroadcastAt;
         if (delta < 50L) {
             scheduleTouchBroadcast(context, 55L - delta);
@@ -129,8 +135,18 @@ final class ObdState {
 
     private static void sendTouchBroadcast(Context context) {
         lastTouchBroadcastAt = System.currentTimeMillis();
+        if (!runtimeExplicit) updateRuntimeFromTripClock(lastTouchBroadcastAt);
         VehicleDisplayState.updateFromObd(context, state);
         broadcast(context);
+    }
+
+    private static void updateRuntimeFromTripClock(long now) {
+        if (runtimeExplicit) return;
+        if (tripStartAt == 0L || now - lastTripTouchAt > 10 * 60_000L) {
+            tripStartAt = now;
+        }
+        lastTripTouchAt = now;
+        state.runtimeSeconds = (int) Math.max(0L, (now - tripStartAt) / 1000L);
     }
 
     private static void scheduleTouchBroadcast(Context context, long delayMs) {

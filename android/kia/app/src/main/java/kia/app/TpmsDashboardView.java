@@ -66,30 +66,6 @@ final class TpmsDashboardView extends View {
         paint.setShader(null);
     }
 
-    private void drawTopBar(Canvas canvas, float ox, float oy, float scale) {
-        drawFit(canvas, R.drawable.tpms_title_bar_background_land, ox, oy, 1280f * scale, 72f * scale);
-        paint.clearShadowLayer();
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(0xdd101722);
-        dst.set(ox, oy, ox + 1280f * scale, oy + 92f * scale);
-        canvas.drawRect(dst, paint);
-    }
-
-    private void drawTitle(Canvas canvas, float ox, float oy, float scale) {
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        paint.setTextSize(34f * scale);
-        paint.setColor(0xffffffff);
-        paint.setTextAlign(Paint.Align.CENTER);
-        setTextShadow(scale);
-        drawTextCenterY(canvas, "Давление в шинах", ox + 640f * scale, oy + 29f * scale, paint);
-
-        paint.setTypeface(Typeface.DEFAULT);
-        paint.setTextSize(18f * scale);
-        paint.setColor(isOnline() ? 0xff78f6d0 : 0xffffd166);
-        paint.setTextAlign(Paint.Align.CENTER);
-        drawTextCenterY(canvas, cleanStatus(), ox + 640f * scale, oy + 56f * scale, paint);
-    }
-
     private void drawTires(Canvas canvas, float ox, float oy, float scale) {
         float panelW = 330f * scale;
         float panelH = 196f * scale;
@@ -201,21 +177,6 @@ final class TpmsDashboardView extends View {
         drawFitAspect(canvas, R.drawable.kia_top_view, carCx, carCy, carW, carH);
     }
 
-    private void drawFooter(Canvas canvas, float ox, float oy, float scale) {
-        paint.clearShadowLayer();
-        paint.setStyle(Paint.Style.FILL);
-        dst.set(ox + 420f * scale, oy + 662f * scale, ox + 860f * scale, oy + 704f * scale);
-        paint.setColor(0xaa07111c);
-        canvas.drawRoundRect(dst, 21f * scale, 21f * scale, paint);
-
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        paint.setTextSize(18f * scale);
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setColor(isOnline() ? 0xff78f6d0 : 0xffffd166);
-        setTextShadow(scale * 0.7f);
-        drawTextCenterY(canvas, cleanStatus(), ox + 640f * scale, oy + 683f * scale, paint);
-    }
-
     private TpmsState.Tire tire(int index) {
         if (snapshot == null || snapshot.tires == null || index < 0 || index >= snapshot.tires.length) return null;
         return snapshot.tires[index];
@@ -232,10 +193,6 @@ final class TpmsDashboardView extends View {
         if (hasAnyData() && status.contains("не найден")) status = "данные TPMS получены";
         if (status.length() > 46) status = status.substring(0, 43) + "...";
         return status;
-    }
-
-    private boolean isOnline() {
-        return snapshot != null && (snapshot.connected || hasAnyData());
     }
 
     private boolean hasAnyData() {
@@ -286,24 +243,6 @@ final class TpmsDashboardView extends View {
 
     private void setTextShadow(float scale) {
         paint.setShadowLayer(3f * scale, 2f * scale, 2f * scale, 0xff000000);
-    }
-
-    private void drawFitAlpha(Canvas canvas, int resId, float x, float y, float w, float h, int alpha) {
-        int old = paint.getAlpha();
-        paint.setAlpha(alpha);
-        drawFit(canvas, resId, x, y, w, h);
-        paint.setAlpha(old);
-    }
-
-    private void drawCover(Canvas canvas, int resId, float x, float y, float w, float h) {
-        Bitmap bitmap = bitmap(resId);
-        if (bitmap == null) return;
-        float scale = Math.max(w / bitmap.getWidth(), h / bitmap.getHeight());
-        float bw = bitmap.getWidth() * scale;
-        float bh = bitmap.getHeight() * scale;
-        float dx = x + (w - bw) / 2f;
-        float dy = y + (h - bh) / 2f;
-        drawFit(canvas, resId, dx, dy, bw, bh);
     }
 
     private Bitmap bitmap(int resId) {

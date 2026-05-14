@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia CANBOX integration.
 
 Current package: `kia.app`
 
-Current app version: `12.9-kia` (`versionCode 109`)
+Current app version: `13.0-kia` (`versionCode 110`)
 
 Main protocol notes:
 
@@ -21,9 +21,14 @@ Main protocol notes:
 - Media/nav source events are queued while USB is opening, so the adapter receives `0x7A` before title/nav frames instead of losing the first source.
 - Navigation UI has no compass/TBT/text-mode switches: APK sends state changes, while V21 adapter holds/replays `0x48/0x45/0x47/0x4A/0x44` from firmware.
 - Compass is sent only on value changes from APK; V21 repeats the stored `0x45` compass frame on compact `0x77` ticks when no active route is held.
-- On USB connect the app asks `0x56/0x79` automatically and sends `0x70 off` unless explicit CAN debug is enabled.
+- On USB connect and on CANBUS tab open the app asks adapter UID/version/status automatically and sends `0x70 off` unless explicit CAN debug is enabled.
 - Raw CAN TX `0x78` is M-CAN only; C-CAN TX is blocked in app and firmware.
+- Trip time is synthesized from live vehicle updates if the adapter/ECU does not provide runtime directly.
 - Default profile keeps Vehicle/RCTA/TPMS/media/nav active and disables debug/raw recording, media overlays, UART debug and test leftovers.
+- Release settings hide old dashboard animation, UART debug, auto-hide delay, and service-only SAS calibration unless CAN debug is explicitly enabled.
+- Navigation adapter state is shown as a table: route, source, `0x48`, `0x45`, `0x47`, `0x4A`, `0x44`, and compass.
+- Media settings show both the real display preview and the compact cluster preview for the selected universal format.
+- The app log can be shown as a system overlay on the lower half of the screen. It uses a translucent red background, shows USB/media/navigation status plus the latest journal lines, and does not enable CAN raw/debug by itself.
 - CAN log export writes to the public `Downloads` folder. The visible preview stays small, while a full capture stores up to `50 000` selected CAN frames and then auto-stops, saves, and compresses to `.log.gz`.
 
 Build:
@@ -35,7 +40,7 @@ Build:
 Release APK name is kept short and stable:
 
 ```text
-/Volumes/SSD/canbus/release/kia_129.apk
+/Volumes/SSD/canbus/release/kia_130.apk
 ```
 
 The release build is signed with the local Android debug keystore
@@ -45,7 +50,7 @@ head unit. A production key can be added later without changing the output path.
 The local Gradle output uses the same filename:
 
 ```text
-app/build/outputs/apk/release/kia_129.apk
+app/build/outputs/apk/release/kia_130.apk
 ```
 
 TEYES sandbox emulator:
@@ -56,7 +61,7 @@ scripts/run_teyes_sandbox.sh
 
 The target TEYES screen is `2000x1200`. The sandbox launches at `1000x600` by
 default: half size, same 5:3 aspect ratio, so it does not take the full desktop.
-Use `KIA_EMULATOR_WIDTH=2000 KIA_EMULATOR_HEIGHT=1200 KIA_EMULATOR_DENSITY=160`
+Use `KIA_EMULATOR_WIDTH=2000 KIA_EMULATOR_HEIGHT=1200 KIA_EMULATOR_DENSITY=260`
 when a full logical-resolution run is needed.
 
 RCTA overlay debug:
@@ -91,6 +96,8 @@ adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a k
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario tpms_close
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario vehicle
 adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario compass --ei step 9
+adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario log_overlay_on
+adb shell am broadcast --receiver-foreground -n kia.app/.QaScenarioReceiver -a kia.app.QA_SCENARIO --es scenario log_overlay_off
 ```
 
 Direct TEYES nav broadcast check:
@@ -100,4 +107,4 @@ adb shell 'am broadcast --receiver-foreground -a com.yf.navinfo --es state open 
 adb shell 'am broadcast --receiver-foreground -a com.yf.navinfo --es state open --es app ru.yandex.yandexnavi --ef distance_val 120 --es distance_val_str 120 --es distance_unit "м" --es total_distance "4.2 км" --es describe "через 7 мин" --es position "Дружбы" --es direction "turn right" --ei direction_lr 2'
 ```
 
-The repository intentionally does not track generated APK files, build folders or local Android SDK settings.
+The repository intentionally does not track build folders or local Android SDK settings. Release APKs are copied to `/Volumes/SSD/canbus/release`, and the update artifact under `updates/` is committed when publishing a new in-app update.

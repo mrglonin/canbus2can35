@@ -23,7 +23,6 @@ import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,6 +30,7 @@ import android.widget.Toast;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class CanbusSettingsActivity extends Activity {
@@ -44,8 +44,8 @@ public class CanbusSettingsActivity extends Activity {
     private final TextView[] tabs = new TextView[5];
     private final TextView[] tireValues = new TextView[4];
     private final TextView[] tireStates = new TextView[4];
+    private final ArrayList<TextView> navAdapterRows = new ArrayList<>();
     private LinearLayout content;
-    private UartOverlayView uartOverlayView;
     private int currentTab = TAB_OBD;
 
     private TextView statusValue;
@@ -59,7 +59,8 @@ public class CanbusSettingsActivity extends Activity {
     private TextView vehicleStatusValue;
     private TextView blindSpotStatusValue;
     private TextView mediaValue;
-    private TextView mediaDebugValue;
+    private TextView mediaPreviewValue;
+    private TextView mediaClusterPreviewValue;
     private Button mediaFormatButton;
     private TextView usbValue;
     private TextView navValue;
@@ -69,7 +70,6 @@ public class CanbusSettingsActivity extends Activity {
     private TextView overlayPermissionStatus;
     private TextView logValue;
     private TextView tpmsStatusValue;
-    private TextView tpmsDataValue;
     private TextView appVersionValue;
     private TextView appUpdateStatusValue;
     private TextView appUpdateReleaseValue;
@@ -93,11 +93,8 @@ public class CanbusSettingsActivity extends Activity {
     private TextView runtimeMetric;
     private TextView canDebugStatusValue;
     private TextView canLogPreviewValue;
-    private TextView uartDebugStatusValue;
-    private TextView uartLogPreviewValue;
     private Button canRecordButton;
     private Button canModeButton;
-    private Button uartRecordButton;
     private Button speedButton;
     private Button tempButton;
     private Button runtimePermissionButton;
@@ -234,10 +231,6 @@ public class CanbusSettingsActivity extends Activity {
                 dp(compact ? 10 : 28), dp(compact ? 18 : 28));
         scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
 
-        uartOverlayView = new UartOverlayView(this);
-        uartOverlayView.setVisibility(View.GONE);
-        root.addView(uartOverlayView, new FrameLayout.LayoutParams(-1, -1));
-
         setContentView(root);
         selectTab(firstAvailableTab());
     }
@@ -266,7 +259,22 @@ public class CanbusSettingsActivity extends Activity {
         currentTab = normalizeTab(tab);
         updateTabs();
         buildTabContent();
+        onTabOpened(currentTab);
         refresh();
+    }
+
+    private void onTabOpened(int tab) {
+        if (tab == TAB_CANBUS) {
+            AppService.start(this);
+            ObdMonitor.restart(this);
+            CanbusControl.requestAdapterInfo(this);
+            CanbusControl.requestV20Status(this);
+        } else if (tab == TAB_AMP) {
+            CanbusControl.requestAmpSettings(this);
+        } else if (tab == TAB_SETTINGS) {
+            MediaMonitor.scanNow(this);
+            AppUpdater.checkOnLaunch(this);
+        }
     }
 
     private void updateTabs() {
@@ -334,7 +342,8 @@ public class CanbusSettingsActivity extends Activity {
         vehicleStatusValue = null;
         blindSpotStatusValue = null;
         mediaValue = null;
-        mediaDebugValue = null;
+        mediaPreviewValue = null;
+        mediaClusterPreviewValue = null;
         usbValue = null;
         navValue = null;
         navDebugValue = null;
@@ -343,7 +352,6 @@ public class CanbusSettingsActivity extends Activity {
         overlayPermissionStatus = null;
         logValue = null;
         tpmsStatusValue = null;
-        tpmsDataValue = null;
         appVersionValue = null;
         appUpdateStatusValue = null;
         appUpdateReleaseValue = null;
@@ -367,11 +375,8 @@ public class CanbusSettingsActivity extends Activity {
         runtimeMetric = null;
         canDebugStatusValue = null;
         canLogPreviewValue = null;
-        uartDebugStatusValue = null;
-        uartLogPreviewValue = null;
         canRecordButton = null;
         canModeButton = null;
-        uartRecordButton = null;
         speedButton = null;
         tempButton = null;
         runtimePermissionButton = null;
@@ -379,6 +384,7 @@ public class CanbusSettingsActivity extends Activity {
         overlayPermissionButton = null;
         sasEdit = null;
         progressBar = null;
+        navAdapterRows.clear();
         for (int i = 0; i < tireValues.length; i++) {
             tireValues[i] = null;
             tireStates[i] = null;
@@ -413,33 +419,23 @@ public class CanbusSettingsActivity extends Activity {
             savedToast();
             refresh();
         });
-        display.addView(check("Анимированный фон приборки", AppPrefs.backgroundAnimation(this), (button, checked) -> {
-            AppPrefs.setBackgroundAnimation(this, checked);
-            VehicleDisplayState.updateFromObd(this, ObdState.snapshot());
-            savedToast();
-        }));
     }
 
     private void buildTpmsTab() {
-        sectionHeader("Настройки TPMS", "Состояние данных, пороги давления, overlay и звуковое предупреждение.");
-
-        LinearLayout state = card();
-        content.addView(state, cardLp());
-        addCardTitle(state, "Состояние");
-        tpmsDataValue = infoRow(state, "Данные", "");
+        sectionHeader("Настройки TPMS", "Пороги давления, уведомление поверх экрана и звук до закрытия.");
 
         LinearLayout alerts = card();
         content.addView(alerts, cardLp());
         addCardTitle(alerts, "Предупреждения давления");
         tpmsLowValue = thresholdRow(alerts, "Низкое давление", AppPrefs.tpmsLowBar(this), -0.1f, 0.1f, true);
         tpmsHighValue = thresholdRow(alerts, "Высокое давление", AppPrefs.tpmsHighBar(this), -0.1f, 0.1f, false);
-        alerts.addView(check("Overlay ошибки давления", AppPrefs.tpmsAlertOverlay(this), (button, checked) -> {
+        alerts.addView(check("Показывать уведомление о давлении", AppPrefs.tpmsAlertOverlay(this), (button, checked) -> {
             AppPrefs.setTpmsAlertOverlay(this, checked);
             AppService.refreshOverlays(this);
-            AppLog.line(this, "TPMS: overlay " + yes(checked));
+            AppLog.line(this, "TPMS: уведомление " + yes(checked));
             savedToast();
         }));
-        alerts.addView(check("Звуковой сигнал вместе с уведомлением", AppPrefs.tpmsAlertSound(this), (button, checked) -> {
+        alerts.addView(check("Звук до закрытия уведомления", AppPrefs.tpmsAlertSound(this), (button, checked) -> {
             AppPrefs.setTpmsAlertSound(this, checked);
             AppLog.line(this, "TPMS: звук предупреждения " + yes(checked));
             savedToast();
@@ -470,7 +466,7 @@ public class CanbusSettingsActivity extends Activity {
     }
 
     private void buildCanbusTab() {
-        sectionHeader("CANBUS", "Адаптер, навигация TBT, SAS Ratio и прошивка CAN адаптера.");
+        sectionHeader("CANBUS", "Адаптер, навигация, RCTA и прошивка CAN адаптера.");
 
         LinearLayout state = card();
         content.addView(state, cardLp());
@@ -485,26 +481,25 @@ public class CanbusSettingsActivity extends Activity {
 
         GridLayout actions = grid(2);
         state.addView(actions, matchWrap());
-        gridButton(actions, "Запросить ID / версию", v -> CanbusControl.requestAdapterInfo(this));
-        gridButton(actions, "Проверить V21 0x79", v -> CanbusControl.requestV20Status(this));
-        gridButton(actions, "Подключить USB / CAN", v -> {
+        gridButton(actions, "Обновить статус", v -> {
             AppService.start(this);
             ObdMonitor.restart(this);
             CanbusControl.requestAdapterInfo(this);
+            CanbusControl.requestV20Status(this);
         });
 
         LinearLayout firmware = card();
         content.addView(firmware, cardLp());
         addCardTitle(firmware, "Прошивка CAN адаптера");
-        TextView firmwareText = bodyText("Приложение берёт BIN из git-манифеста и само запускает штатный USB update. Отдельно включать режим прошивки не нужно.");
+        TextView firmwareText = bodyText("Приложение берёт BIN из git-манифеста и запускает штатный USB update. Кнопка прошивки включается только когда обновление найдено или файл уже скачан.");
         firmwareText.setTextColor(0xffa4abb6);
         firmware.addView(firmwareText, matchWrap());
         firmwareReleaseStatusValue = infoRow(firmware, "GitHub", "");
         firmwareReleaseAssetValue = infoRow(firmware, "BIN", "");
         GridLayout releaseActions = grid(2);
         firmware.addView(releaseActions, matchWrap());
-        gridButton(releaseActions, "Проверить BIN", v -> FirmwareReleaseUpdater.checkNow(this));
-        firmwareReleaseFlashButton = gridButton(releaseActions, "Скачать / прошить", v -> FirmwareReleaseUpdater.downloadAndFlash(this));
+        gridButton(releaseActions, "Проверить обновление", v -> FirmwareReleaseUpdater.checkNow(this));
+        firmwareReleaseFlashButton = gridButton(releaseActions, "Скачать и прошить", v -> FirmwareReleaseUpdater.downloadAndFlash(this));
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
         firmware.addView(progressBar, new LinearLayout.LayoutParams(-1, dp(32)));
@@ -512,15 +507,16 @@ public class CanbusSettingsActivity extends Activity {
         LinearLayout nav = card();
         content.addView(nav, cardLp());
         addCardTitle(nav, "Навигация в адаптер");
-        TextView navText = bodyText("Режим фиксированный: source через 0x7A, маршрут через 0x48, маневр/компас через 0x45, ETA/distance через 0x47, улица через 0x4A, speed limit через 0x44. Переключателей компаса/TBT/text-mode больше нет.");
+        TextView navText = bodyText("Режим фиксированный: адаптер держит последние валидные кадры и не моргает nav off/on. Ниже видно, что именно готово к отправке.");
         navText.setTextColor(0xff3a414b);
         nav.addView(navText, matchWrap());
+        addNavAdapterTable(nav);
 
         LinearLayout blindSpot = card();
         content.addView(blindSpot, cardLp());
         addCardTitle(blindSpot, "Слепые зоны / RCTA");
         blindSpotStatusValue = infoRow(blindSpot, "Состояние", "");
-        blindSpot.addView(check("Система предупреждения при заднем ходе", AppPrefs.blindSpotEnabled(this), (button, checked) -> {
+        blindSpot.addView(check("RCTA / слепые зоны", AppPrefs.blindSpotEnabled(this), (button, checked) -> {
             AppPrefs.setBlindSpotEnabled(this, checked);
             if (checked) AppService.start(this);
             else if (!AppPrefs.debugCan(this)) CanbusControl.stopCanStream(this);
@@ -529,7 +525,7 @@ public class CanbusSettingsActivity extends Activity {
             savedToast();
             refresh();
         }));
-        blindSpot.addView(check("Overlay: жёлтые стрелки слева/справа", AppPrefs.blindSpotOverlay(this), (button, checked) -> {
+        blindSpot.addView(check("Показывать предупреждение RCTA", AppPrefs.blindSpotOverlay(this), (button, checked) -> {
             AppPrefs.setBlindSpotOverlay(this, checked);
             if (checked && !PermissionHelper.canDrawOverlays(this)) {
                 Toast.makeText(this, "Разрешите показ поверх других окон", Toast.LENGTH_SHORT).show();
@@ -540,42 +536,56 @@ public class CanbusSettingsActivity extends Activity {
             refresh();
         }));
 
-        LinearLayout sas = card();
-        content.addView(sas, cardLp());
-        addCardTitle(sas, "SAS Ratio");
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        sas.addView(row, new LinearLayout.LayoutParams(-1, dp(64)));
+        if (AppPrefs.debugCan(this)) {
+            LinearLayout sas = card();
+            content.addView(sas, cardLp());
+            addCardTitle(sas, "Калибровка угла руля");
+            TextView hint = bodyText("Сервисная настройка адаптера для случая, когда угол руля или парковочные линии смещены. В обычном режиме скрыта.");
+            hint.setTextColor(0xff6d7280);
+            sas.addView(hint, matchWrap());
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            sas.addView(row, new LinearLayout.LayoutParams(-1, dp(64)));
 
-        sasEdit = new EditText(this);
-        sasEdit.setTextColor(0xff10131f);
-        sasEdit.setTextSize(22);
-        sasEdit.setTypeface(Typeface.DEFAULT_BOLD);
-        sasEdit.setSingleLine(true);
-        sasEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
-        sasEdit.setGravity(Gravity.CENTER);
-        sasEdit.setBackground(roundedStroke(0xffffffff, 8, 0xffd6dce8));
-        row.addView(sasEdit, new LinearLayout.LayoutParams(dp(130), dp(52)));
+            sasEdit = new EditText(this);
+            sasEdit.setTextColor(0xff10131f);
+            sasEdit.setTextSize(22);
+            sasEdit.setTypeface(Typeface.DEFAULT_BOLD);
+            sasEdit.setSingleLine(true);
+            sasEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            sasEdit.setGravity(Gravity.CENTER);
+            sasEdit.setBackground(roundedStroke(0xffffffff, 8, 0xffd6dce8));
+            row.addView(sasEdit, new LinearLayout.LayoutParams(dp(130), dp(52)));
 
-        Button send = button("Отправить", 0xff151928, v -> sendSas());
-        LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(0, dp(52), 1);
-        sendLp.setMargins(dp(12), 0, 0, 0);
-        row.addView(send, sendLp);
+            Button send = button("Отправить", 0xff151928, v -> sendSas());
+            LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(0, dp(52), 1);
+            sendLp.setMargins(dp(12), 0, 0, 0);
+            row.addView(send, sendLp);
+        }
     }
 
     private void buildSettingsTab() {
-        sectionHeader("Настройки", "Мультимедиа, разрешения, автозапуск и журнал отладки.");
+        sectionHeader("Настройки", "Мультимедиа, разрешения, автозапуск, обновления и CAN log.");
 
         LinearLayout media = card();
         content.addView(media, cardLp());
         addCardTitle(media, "Мультимедиа");
-        mediaValue = infoRow(media, "Источник / автор / трек / время", "");
+        mediaValue = infoRow(media, "Сейчас", "");
+        mediaPreviewValue = infoRow(media, "В приложении", "");
+        mediaClusterPreviewValue = infoRow(media, "В приборку", "");
+        TextView mediaHint = bodyText("Формат применяется ко всем источникам: USB, Bluetooth, Яндекс/облако, FM и AM. При смене формата ниже сразу видно итоговую строку.");
+        mediaHint.setTextColor(0xff6d7280);
+        media.addView(mediaHint, matchWrap());
         GridLayout mediaActions = grid(2);
         media.addView(mediaActions, new LinearLayout.LayoutParams(-1, -2));
         mediaFormatButton = gridButton(mediaActions, "", v -> {
             AppPrefs.setMediaTextFormat(this, (AppPrefs.mediaTextFormat(this) + 1) % 5);
             AppLog.line(this, "Мультимедиа: формат строки " + AppPrefs.mediaTextFormatLabel(this));
+            refresh();
+        });
+        gridButton(mediaActions, "Обновить данные", v -> {
+            MediaMonitor.scanNow(this);
             refresh();
         });
 
@@ -626,41 +636,20 @@ public class CanbusSettingsActivity extends Activity {
             AppLog.line(this, "Настройки: фоновый автозапуск " + yes(checked));
             savedToast();
         }));
-        app.addView(check("Скрывать приложение после запуска", AppPrefs.autoHide(this), (button, checked) -> {
-            AppPrefs.setAutoHide(this, checked);
-            AppLog.line(this, "Настройки: автосворачивание " + yes(checked));
-            savedToast();
-        }));
-        app.addView(check("Показывать журнал на экране", AppPrefs.debug(this), (button, checked) -> {
-            AppPrefs.setDebug(this, checked);
-            AppLog.line(this, "Настройки: журнал на экране " + yes(checked));
+        app.addView(check("Показать журнал поверх экрана", AppPrefs.logOverlay(this), (button, checked) -> {
+            AppPrefs.setLogOverlay(this, checked);
+            if (checked && !PermissionHelper.canDrawOverlays(this)) {
+                Toast.makeText(this, "Нужно разрешение поверх других окон", Toast.LENGTH_SHORT).show();
+                PermissionHelper.openOverlaySettings(this);
+            }
+            AppLog.line(this, "Настройки: журнал поверх экрана " + yes(checked));
+            AppService.refreshOverlays(this);
             savedToast();
             selectTab(TAB_SETTINGS);
         }));
-
-        TextView delayLabel = bodyText("Задержка скрытия: " + AppPrefs.autoHideDelaySeconds(this) + " сек.");
-        app.addView(delayLabel);
-        SeekBar delay = new SeekBar(this);
-        delay.setMax(4);
-        delay.setProgress(AppPrefs.autoHideDelaySeconds(this) - 1);
-        delay.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (!fromUser) return;
-                AppPrefs.setAutoHideDelaySeconds(CanbusSettingsActivity.this, progress + 1);
-                delayLabel.setText("Задержка скрытия: " + (progress + 1) + " сек.");
-                savedToast();
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
-        });
-        app.addView(delay, new LinearLayout.LayoutParams(-1, dp(42)));
+        TextView logOverlayHint = bodyText("Журнал открывается поверх любых приложений в нижней половине экрана. CAN raw и полный debug от этого не включаются.");
+        logOverlayHint.setTextColor(0xff6d7280);
+        app.addView(logOverlayHint, matchWrap());
 
         LinearLayout updates = card();
         content.addView(updates, cardLp());
@@ -673,7 +662,7 @@ public class CanbusSettingsActivity extends Activity {
         }));
         GridLayout updateActions = grid(2);
         updates.addView(updateActions, matchWrap());
-        gridButton(updateActions, "Проверить GitHub", v -> AppUpdater.checkNow(this));
+        gridButton(updateActions, "Проверить обновление", v -> AppUpdater.checkNow(this));
         appUpdateInstallButton = gridButton(updateActions, "Скачать / установить", v -> AppUpdater.downloadAndInstall(this));
 
         LinearLayout canDebug = card();
@@ -713,57 +702,10 @@ public class CanbusSettingsActivity extends Activity {
             canDebug.addView(canLogPreviewValue, new LinearLayout.LayoutParams(-1, dp(120)));
         }
 
-        LinearLayout uartDebug = card();
-        content.addView(uartDebug, cardLp());
-        addCardTitle(uartDebug, "Отладка UART");
-        uartDebug.addView(check("Режим отладки UART", AppPrefs.debugUart(this), (button, checked) -> {
-            AppPrefs.setDebugUart(this, checked);
-            if (checked) {
-                CanbusControl.requestUartStatus(this);
-                CanbusControl.readUart(this, 48);
-            } else {
-                SidebandDebugState.setUartRecording(this, false);
-                AppPrefs.setUartOverlay(this, false);
-                AppService.refreshOverlays(this);
-            }
-            savedToast();
-            selectTab(TAB_SETTINGS);
-        }));
-        if (AppPrefs.debugUart(this)) {
-            uartDebugStatusValue = infoRow(uartDebug, "RX mirror", "");
-            uartDebug.addView(check("Визуальный UART overlay", AppPrefs.uartOverlay(this), (button, checked) -> {
-                AppPrefs.setUartOverlay(this, checked);
-                if (checked && !PermissionHelper.canDrawOverlays(this)) {
-                    Toast.makeText(this, "Разрешите показ поверх других окон", Toast.LENGTH_SHORT).show();
-                    PermissionHelper.openOverlaySettings(this);
-                }
-                refreshUartOverlayVisibility();
-                savedToast();
-            }));
-            GridLayout uartActions = grid(3);
-            uartDebug.addView(uartActions, matchWrap());
-            uartRecordButton = gridButton(uartActions, "", v -> {
-                SidebandDebugState.Snapshot debug = SidebandDebugState.snapshot();
-                SidebandDebugState.setUartRecording(this, !debug.uartRecording);
-                refresh();
-            });
-            gridButton(uartActions, "Прочитать RX", v -> {
-                CanbusControl.requestUartStatus(this);
-                CanbusControl.readUart(this, 48);
-            });
-            gridButton(uartActions, "Сохранить UART log", v -> saveSidebandLog("uart", SidebandDebugState.uartText()));
-            uartLogPreviewValue = bodyText("");
-            uartLogPreviewValue.setTypeface(Typeface.MONOSPACE);
-            uartLogPreviewValue.setTextSize(12);
-            uartLogPreviewValue.setPadding(dp(12), dp(10), dp(12), dp(10));
-            uartLogPreviewValue.setBackground(rounded(0xfff7f9fc, 8));
-            uartDebug.addView(uartLogPreviewValue, new LinearLayout.LayoutParams(-1, dp(120)));
-        }
-
-        if (AppPrefs.debug(this)) {
+        if (AppPrefs.logOverlay(this)) {
             LinearLayout log = card();
             content.addView(log, cardLp());
-            addCardTitle(log, "Журнал");
+            addCardTitle(log, "Журнал overlay");
             ScrollView scroll = new ScrollView(this);
             scroll.setBackground(rounded(0xfff7f9fc, 8));
             logValue = bodyText("");
@@ -811,7 +753,6 @@ public class CanbusSettingsActivity extends Activity {
         if (blindSpotStatusValue != null) blindSpotStatusValue.setText(blind.statusText()
                 + " | overlay " + yes(AppPrefs.blindSpotOverlay(this)));
         if (tpmsStatusValue != null) tpmsStatusValue.setText(tpms.status + " | " + (tpms.connected ? "подключено" : "нет подключения"));
-        if (tpmsDataValue != null) tpmsDataValue.setText(tpms.connected || hasTpmsData(tpms) ? "данные подключено" : "данные не получены");
         if (appVersionValue != null) appVersionValue.setText(versionText());
         if (appUpdateStatusValue != null) {
             AppUpdater.Snapshot update = AppUpdater.snapshot();
@@ -833,7 +774,8 @@ public class CanbusSettingsActivity extends Activity {
                 boolean canFlash = (!TextUtils.isEmpty(firmware.downloadUrl) || firmware.downloaded)
                         && (firmware.assetSize <= 0 || firmware.assetSize <= 114688);
                 firmwareReleaseFlashButton.setEnabled(canFlash);
-                firmwareReleaseFlashButton.setText(firmware.downloading || firmware.flashing ? "Идёт процесс" : "Скачать / прошить");
+                firmwareReleaseFlashButton.setText(firmware.downloading || firmware.flashing ? "Идёт процесс"
+                        : (firmware.downloaded ? "Прошить скачанное" : "Скачать и прошить"));
             }
             if (progressBar != null) {
                 if (firmware.downloading || firmware.flashing) {
@@ -848,17 +790,15 @@ public class CanbusSettingsActivity extends Activity {
         if (tpmsLowValue != null) tpmsLowValue.setText(String.format(Locale.US, "%.1f Bar", AppPrefs.tpmsLowBar(this)));
         if (tpmsHighValue != null) tpmsHighValue.setText(String.format(Locale.US, "%.1f Bar", AppPrefs.tpmsHighBar(this)));
         if (mediaValue != null) mediaValue.setText(AppLog.media());
+        if (mediaPreviewValue != null) mediaPreviewValue.setText(MediaMonitor.settingsPreview(this));
+        if (mediaClusterPreviewValue != null) mediaClusterPreviewValue.setText(MediaMonitor.clusterPreview(this));
         if (mediaFormatButton != null) mediaFormatButton.setText("Формат: " + AppPrefs.mediaTextFormatLabel(this));
-        if (mediaDebugValue != null) {
-            mediaDebugValue.setText((AppPrefs.mediaDebug(this) ? "подробная" : "обычная")
-                    + " | поиск " + (AppPrefs.mediaScanAll(this) ? "все источники" : "медиа")
-                    + " | overlay " + yes(AppPrefs.mediaOverlay(this)));
-        }
         if (usbValue != null) usbValue.setText(cleanUsbStatus(AppLog.usb()));
         if (navValue != null) navValue.setText(AppLog.nav());
         if (navDebugValue != null) navDebugValue.setText(navDebugText());
+        refreshNavAdapterTable();
         refreshPermissionStatus();
-        if (logValue != null) logValue.setText(AppPrefs.debug(this) ? AppLog.text() : "");
+        if (logValue != null) logValue.setText(AppPrefs.logOverlay(this) ? AppLog.text() : "");
         if (speedMetric != null) speedMetric.setText(vehicle.speedText(this));
         if (rpmMetric != null) rpmMetric.setText(vehicle.rpm + " rpm");
         if (voltageMetric != null) voltageMetric.setText(vehicle.voltageText());
@@ -868,18 +808,10 @@ public class CanbusSettingsActivity extends Activity {
         if (tempButton != null) tempButton.setText("Температура: " + (AppPrefs.tempUnit(this) == 1 ? "°F" : "°C"));
         AppService.refreshOverlays(this);
         refreshSidebandDebug();
-        refreshUartOverlayVisibility();
+        if (AppPrefs.uartOverlay(this)) AppPrefs.setUartOverlay(this, false);
         if (sasEdit != null && !sasEdit.hasFocus()) sasEdit.setText(String.valueOf(AppPrefs.sasRatio(this)));
         refreshAmpTexts();
         refreshTires(tpms);
-    }
-
-    private void refreshUartOverlayVisibility() {
-        if (!AppPrefs.debugUart(this) && AppPrefs.uartOverlay(this)) {
-            AppPrefs.setUartOverlay(this, false);
-        }
-        if (uartOverlayView != null) uartOverlayView.setVisibility(View.GONE);
-        AppService.refreshOverlays(this);
     }
 
     private void refreshSidebandDebug() {
@@ -899,17 +831,6 @@ public class CanbusSettingsActivity extends Activity {
                     + "\nЛимит записи: " + debug.canCaptureCount + "/" + debug.canCaptureLimit;
             if (!TextUtils.isEmpty(debug.lastSaved)) text += "\nФайл: " + debug.lastSaved;
             canLogPreviewValue.setText(text);
-        }
-        if (uartDebugStatusValue != null) {
-            uartDebugStatusValue.setText("available=" + debug.uartAvailable
-                    + " dropped=" + debug.uartDropped
-                    + " tx=" + debug.uartTxCounter);
-        }
-        if (uartRecordButton != null) uartRecordButton.setText(debug.uartRecording ? "Остановить UART" : "Начать UART");
-        if (uartLogPreviewValue != null) {
-            String text = "TX: " + emptyDash(debug.lastUartTx) + "\nRX: " + emptyDash(debug.lastUartRx);
-            if (!TextUtils.isEmpty(debug.lastSaved)) text += "\nФайл: " + debug.lastSaved;
-            uartLogPreviewValue.setText(text);
         }
     }
 
@@ -961,14 +882,6 @@ public class CanbusSettingsActivity extends Activity {
         String lower = value.toLowerCase(Locale.ROOT);
         if (lower.contains("usb-адаптер не найден") || lower.contains("адаптер не подключ")) return "";
         return value;
-    }
-
-    private boolean hasTpmsData(TpmsState.Snapshot tpms) {
-        if (tpms == null || tpms.tires == null) return false;
-        for (TpmsState.Tire tire : tpms.tires) {
-            if (tire != null && tire.hasData) return true;
-        }
-        return false;
     }
 
     private void openTpmsOnAlert() {
@@ -1061,6 +974,26 @@ public class CanbusSettingsActivity extends Activity {
         Button plus = button("+", 0xff151928, v -> adjustTpmsThreshold(low, plusStep));
         row.addView(plus, new LinearLayout.LayoutParams(dp(58), dp(48)));
         return text;
+    }
+
+    private void addNavAdapterTable(LinearLayout parent) {
+        navAdapterRows.clear();
+        String[][] rows = NavProtocol.adapterRows();
+        for (String[] row : rows) {
+            TextView value = infoRow(parent, row[0], row[1]);
+            value.setSingleLine(false);
+            value.setMaxLines(3);
+            navAdapterRows.add(value);
+        }
+    }
+
+    private void refreshNavAdapterTable() {
+        if (navAdapterRows.isEmpty()) return;
+        String[][] rows = NavProtocol.adapterRows();
+        int count = Math.min(navAdapterRows.size(), rows.length);
+        for (int i = 0; i < count; i++) {
+            navAdapterRows.get(i).setText(rows[i][1]);
+        }
     }
 
     private void adjustTpmsThreshold(boolean low, float delta) {

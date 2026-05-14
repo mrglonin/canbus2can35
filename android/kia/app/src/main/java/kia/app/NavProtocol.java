@@ -92,6 +92,16 @@ final class NavProtocol {
     }
 
     static String adapterStateText() {
+        String[][] rows = adapterRows();
+        StringBuilder out = new StringBuilder();
+        for (String[] row : rows) {
+            if (out.length() > 0) out.append('\n');
+            out.append(row[0]).append(": ").append(row[1]);
+        }
+        return out.toString();
+    }
+
+    static String[][] adapterRows() {
         String state;
         if (navActive) {
             state = "active";
@@ -100,15 +110,17 @@ final class NavProtocol {
         } else {
             state = routeState;
         }
-        return "route: " + safe(state) + "\n"
-                + "source 0x7A: " + (navSourceSent ? "nav sent" : "idle") + "\n"
-                + "0x48 nav: " + frameLine(lastNavFrame) + "\n"
-                + "0x45 maneuver: " + safe(lastManeuverValue)
-                + " dist=" + safe(lastDistanceValue) + " frame=" + frameLine(lastManeuverFrame) + "\n"
-                + "0x47 ETA/dist: " + safe(lastEtaValue) + " frame=" + frameLine(lastEtaFrame) + "\n"
-                + "0x4A street: " + safe(lastStreetValue) + " frame=" + frameLine(lastTextFrame) + "\n"
-                + "0x44 speed limit: " + safe(lastSpeedValue) + " frame=" + frameLine(lastSpeedFrame) + "\n"
-                + CompassBridge.statusText();
+        return new String[][]{
+                {"Маршрут", safe(state)},
+                {"Source", navSourceSent ? "0x7A nav sent" : "idle"},
+                {"0x48", frameLine(lastNavFrame)},
+                {"0x45", safe(lastManeuverValue) + " / " + safe(lastDistanceValue)
+                        + " / " + frameLine(lastManeuverFrame)},
+                {"0x47", safe(lastEtaValue) + " / " + frameLine(lastEtaFrame)},
+                {"0x4A", safe(lastStreetValue) + " / " + frameLine(lastTextFrame)},
+                {"0x44", safe(lastSpeedValue) + " / " + frameLine(lastSpeedFrame)},
+                {"Компас", oneLine(CompassBridge.statusText())}
+        };
     }
 
     static boolean canSendCompass() {
@@ -779,6 +791,11 @@ final class NavProtocol {
 
     private static String frameLine(byte[] frame) {
         return frame == null ? "-" : CanbusControl.hex(frame);
+    }
+
+    private static String oneLine(String value) {
+        if (TextUtils.isEmpty(value)) return "-";
+        return value.replace('\n', ' ').replace('\r', ' ').trim();
     }
 
     private static String extras(Intent intent) {

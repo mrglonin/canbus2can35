@@ -38,6 +38,11 @@ final class MediaMonitor {
     private static String hintPkg = "";
     private static int hintPriority;
     private static long hintUntil;
+    private static String previewSource = "";
+    private static String previewPkg = "";
+    private static String previewArtist = "";
+    private static String previewTitle = "";
+    private static long previewDurationMs = -1L;
 
     private static final class NotificationCandidate {
         String pkg;
@@ -110,6 +115,26 @@ final class MediaMonitor {
 
     static void resetDebugScan() {
         lastCandidateAt = 0;
+    }
+
+    static String settingsPreview(Context context) {
+        if (context == null || (TextUtils.isEmpty(previewSource)
+                && TextUtils.isEmpty(previewArtist)
+                && TextUtils.isEmpty(previewTitle))) {
+            return "нет текущего трека";
+        }
+        String value = formatMediaText(context, previewSource, previewArtist, previewTitle, previewDurationMs, false);
+        return TextUtils.isEmpty(value) ? "нет текущего трека" : value;
+    }
+
+    static String clusterPreview(Context context) {
+        if (context == null || (TextUtils.isEmpty(previewSource)
+                && TextUtils.isEmpty(previewArtist)
+                && TextUtils.isEmpty(previewTitle))) {
+            return "нет данных для приборки";
+        }
+        String value = formatMediaText(context, previewSource, previewArtist, previewTitle, previewDurationMs, true);
+        return TextUtils.isEmpty(value) ? "нет данных для приборки" : value;
     }
 
     static boolean reportNotification(Context context, StatusBarNotification sbn) {
@@ -276,6 +301,7 @@ final class MediaMonitor {
         }
         String pretty = formatMediaText(context, source, artist, title, durationMs, false);
         String clusterTitle = formatMediaText(context, source, artist, title, durationMs, true);
+        rememberPreview(source, pkg, artist, title, durationMs);
         String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title)
                 + " / " + duration(durationMs) + " / " + dash(pretty);
         String sourceKey = sourceKey(source, pkg);
@@ -329,6 +355,7 @@ final class MediaMonitor {
         if (sameSource && activePriority >= 120 && now - activeSourceAt < SOURCE_LOCK_MS) return;
         String canKey = clusterEventKey("source", source, pkg, "", "", -1);
         if (TextUtils.equals(canKey, lastClusterEventKey)) return;
+        rememberPreview(source, pkg, "", source, -1);
         activeSource = source;
         activePkg = pkg;
         activeSourceKey = sourceKey;
@@ -341,6 +368,14 @@ final class MediaMonitor {
         AppLog.setMedia(context, line);
         CanbusControl.sendMediaMetadata(context, source, "", source);
         AppLog.line(context, "Мультимедиа: источник выбран=" + source + " пакет=" + pkg);
+    }
+
+    private static void rememberPreview(String source, String pkg, String artist, String title, long durationMs) {
+        previewSource = clean(source);
+        previewPkg = clean(pkg);
+        previewArtist = clean(artist);
+        previewTitle = clean(title);
+        previewDurationMs = durationMs;
     }
 
     private static void scanCandidates(Context context) {
