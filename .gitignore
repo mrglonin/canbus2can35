@@ -28,6 +28,8 @@ release/
 !firmware/trusted/
 !firmware/trusted/**/*.bin
 firmware/local/
+firmware/scripts/
+firmware/**/*.report.json
 
 # Local captures and reverse-engineering workspaces are intentionally external.
 logs/
@@ -36,3 +38,4 @@ analysis/
 dist/
 samples/
 .tools/
+tools/

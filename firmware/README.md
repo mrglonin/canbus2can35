@@ -2,17 +2,22 @@
 
 Рабочая ветка прошивок после очистки:
 
-- `trusted/v18_v19/` - v18/v19, построенные поверх рабочей прошивки автора `04350008`.
-- `trusted/v20/` - предыдущая v20 с `0x79` health/capabilities.
-- `trusted/v21/` - v21: `0x77` Vehicle/RCTA snapshot без raw stream в обычном режиме.
-- `trusted/v22/` - текущая v22 debug: при `0x70 on` временно включает
-  accept-all CAN filters для полного raw CAN-C/M-CAN stream, при `0x70 off`
-  восстанавливает штатные filters.
-- `scripts/build_v08_mode1_raw_can_stream.py` - генератор текущей v22 ветки.
-- `MANIFEST.md` - краткий список файлов и назначение.
+- `trusted/v18_v19/` - legacy debug releases.
+- `trusted/v20/` - previous trusted release.
+- `trusted/v21/` - stable trusted release.
+- `trusted/v22/` - current trusted release.
+- `MANIFEST.md` - краткий список release-файлов и SHA256.
+
+Публичная граница:
+
+- release-бинарники остаются в git для OTA/update;
+- подробный USB/API протокол, payload-форматы, ACK-коды и hook-адреса не
+  документируются в публичной ветке;
+- firmware build scripts и generated reports хранятся только локально.
 
 Удалено из рабочей ветки:
 
 - `custom_c` - чистая C-прошивка не стала рабочей заменой canbox.
 - `canlog` и старые `mode3`/`gs_usb` сборки.
 - `variants_20260511` - серия нерабочих/переходных экспериментов.
+- firmware generation scripts and reports.
