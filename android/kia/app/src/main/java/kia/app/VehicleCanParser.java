@@ -114,7 +114,15 @@ final class VehicleCanParser {
             return;
         }
         if (id == 0x4F4 && d.length >= 8) {
-            BlindSpotState.fromCan(context, id, d);
+            if (AppPrefs.debugCan(context)) {
+                String text = "0x4F4 " + CanbusControl.hex(d);
+                long now = System.currentTimeMillis();
+                if (!text.equals(lastParking) && now - lastParkingLogAt > 500L) {
+                    lastParking = text;
+                    lastParkingLogAt = now;
+                    AppLog.line(context, "CAN парктроники raw: " + text);
+                }
+            }
             return;
         }
         if (id == 0x2B0 && d.length > 0) {

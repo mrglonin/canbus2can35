@@ -2,13 +2,13 @@
   "schema": 1,
   "updated_at": "2026-05-14",
   "app": {
-    "version_name": "13.1-kia",
-    "version_code": 111,
-    "release_number": 131,
-    "asset_name": "kia_131.apk",
-    "size": 3739787,
-    "sha256": "e1b1018a3b1d5fa24d2091bfeb5a4d191b1b9e943669f3d0d64154ff0e5f38cb",
-    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_131.apk"
+    "version_name": "13.2-kia",
+    "version_code": 112,
+    "release_number": 132,
+    "asset_name": "kia_132.apk",
+    "size": 3739111,
+    "sha256": "41c8c0985865cc518a1d81d7ce6e65a86221320962c38e692548e64a6e1bfc11",
+    "download_url": "https://raw.githubusercontent.com/mrglonin/canbus2can35/main/updates/kia_132.apk"
   },
   "firmware": {
     "version": "v22-full-raw",

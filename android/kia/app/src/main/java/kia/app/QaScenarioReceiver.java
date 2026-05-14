@@ -133,15 +133,15 @@ public class QaScenarioReceiver extends BroadcastReceiver {
         AppPrefs.setBlindSpotEnabled(context, true);
         AppPrefs.setBlindSpotOverlay(context, true);
         if ("rcta_off".equals(scenario) || "rcta_idle".equals(scenario)) {
-            BlindSpotState.fromCan(context, 0x4F4, hex("0000C00000000001"));
+            BlindSpotState.fromCan(context, 0x58B, hex("0000000000000000"));
         } else if ("rcta_left".equals(scenario)) {
-            BlindSpotState.fromCan(context, 0x4F4, hex("0001C00000003001"));
+            BlindSpotState.fromCan(context, 0x58B, hex("0001000000000000"));
         } else if ("rcta_right".equals(scenario)) {
-            BlindSpotState.fromCan(context, 0x4F4, hex("0001C00018000C61"));
+            BlindSpotState.fromCan(context, 0x58B, hex("0002000000000000"));
         } else if ("rcta_both".equals(scenario)) {
-            BlindSpotState.fromCan(context, 0x4F4, hex("0001C00118083069"));
+            BlindSpotState.fromCan(context, 0x58B, hex("0003000000000000"));
         } else if ("rcta_unknown".equals(scenario)) {
-            BlindSpotState.fromCan(context, 0x4F4, hex("0001C00000000002"));
+            BlindSpotState.fromCan(context, 0x58B, hex("0004000000000000"));
         }
         AppService.refreshOverlays(context);
     }
@@ -222,7 +222,7 @@ public class QaScenarioReceiver extends BroadcastReceiver {
         frame[base + 30] = 1;
         frame[base + 31] = 0;
         frame[base + 32] = 8;
-        put32(frame, base + 33, 0x4F4);
+        put32(frame, base + 33, 0x58B);
         if (rcta != null) System.arraycopy(rcta, 0, frame, base + 37, Math.min(8, rcta.length));
         int sum = 0;
         for (int i = 0; i < frame.length - 1; i++) sum += frame[i] & 0xff;

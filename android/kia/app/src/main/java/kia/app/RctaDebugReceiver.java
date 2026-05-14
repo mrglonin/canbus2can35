@@ -30,16 +30,16 @@ public class RctaDebugReceiver extends BroadcastReceiver {
         BlindSpotState.reverse(context, true);
         byte[] data;
         if ("left".equals(side)) {
-            data = hex("0001C00000003001");
+            data = hex("0001000000000000");
         } else if ("right".equals(side)) {
-            data = hex("0001C00018000C61");
+            data = hex("0002000000000000");
         } else if ("unknown".equals(side) || "rear".equals(side)) {
-            data = hex("0001C00000000002");
+            data = hex("0004000000000000");
         } else {
-            data = hex("0001C00018003061");
+            data = hex("0003000000000000");
             side = "both";
         }
-        BlindSpotState.fromCan(context, 0x4F4, data);
+        BlindSpotState.fromCan(context, 0x58B, data);
         AppLog.line(context, "RCTA debug: " + side);
     }
 

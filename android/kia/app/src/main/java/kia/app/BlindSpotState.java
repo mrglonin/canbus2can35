@@ -40,7 +40,7 @@ final class BlindSpotState {
     static synchronized void fromCan(Context context, int canId, byte[] data) {
         if (context == null || data == null || data.length < 8) return;
         if (!AppPrefs.blindSpotEnabled(context)) return;
-        if (canId != 0x58B && canId != 0x4F4) return;
+        if (canId != 0x58B) return;
 
         String raw = CanbusControl.hex(data);
         if (!raw.equals(lastRaw)) {
@@ -52,40 +52,14 @@ final class BlindSpotState {
             }
         }
 
-        if (canId == 0x4F4) {
-            apply4f4(context, data, raw);
-            return;
-        }
-
         if (!reverse) {
             update(context, false, false, false, raw);
             return;
         }
         boolean nextLeft = (data[1] & 0x01) != 0 || (data[2] & 0x01) != 0;
         boolean nextRight = (data[1] & 0x02) != 0 || (data[2] & 0x02) != 0;
-        update(context, nextLeft, nextRight, false, raw);
-    }
-
-    private static void apply4f4(Context context, byte[] data, String raw) {
-        String compact = compact(raw);
-        if ("0000C00000000001".equals(compact) || "0001C00000000001".equals(compact)) {
-            update(context, false, false, false, raw);
-            return;
-        }
-        boolean active = data.length >= 2 && data[0] == 0x00 && data[1] == 0x01;
-        if (!active) {
-            update(context, false, false, false, raw);
-            return;
-        }
-        boolean nextLeft = isKnownLeft(compact)
-                || (data.length > 6 && (data[6] & 0x30) != 0)
-                || (data.length > 6 && (data[3] & 0x01) != 0 && (data[6] & 0x04) != 0);
-        boolean nextRight = isKnownRight(compact)
-                || (data.length > 4 && (data[4] & 0x1A) != 0)
-                || (data.length > 5 && (data[5] & 0x18) != 0)
-                || (!nextLeft && data.length > 6 && (data[6] & 0x0C) != 0);
-        boolean unknown = !nextLeft && !nextRight;
-        update(context, nextLeft, nextRight, unknown, raw);
+        boolean nextUnknown = !nextLeft && !nextRight && (((data[1] | data[2]) & 0xfc) != 0);
+        update(context, nextLeft, nextRight, nextUnknown, raw);
     }
 
     private static void update(Context context, boolean nextLeft, boolean nextRight, boolean nextUnknown, String raw) {
@@ -161,22 +135,4 @@ final class BlindSpotState {
         }
     }
 
-    private static boolean isKnownLeft(String compact) {
-        return "0001C00000003001".equals(compact)
-                || "0001C00100080409".equals(compact);
-    }
-
-    private static boolean isKnownRight(String compact) {
-        return "0001C00002000805".equals(compact)
-                || "0001C00010000841".equals(compact)
-                || "0001C00018000C61".equals(compact)
-                || "0001C01218100C61".equals(compact)
-                || "0001C01318180C19".equals(compact)
-                || "0001C01303180C19".equals(compact)
-                || "0001C00003000C07".equals(compact);
-    }
-
-    private static String compact(String raw) {
-        return raw == null ? "" : raw.replace(" ", "").toUpperCase(java.util.Locale.US);
-    }
 }
