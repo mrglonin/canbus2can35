@@ -69,11 +69,6 @@
         </activity>
 
         <activity
-            android:name=".VehicleInfoActivity"
-            android:exported="false"
-            android:screenOrientation="landscape" />
-
-        <activity
             android:name=".TpmsActivity"
             android:exported="true"
             android:screenOrientation="landscape" />

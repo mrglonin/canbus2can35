@@ -13,6 +13,8 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -50,6 +52,7 @@ final class TabletDashboardView extends FrameLayout {
     private TextView speedValue;
     private TextView rpmValue;
     private TextView tempValue;
+    private TextView cabinTempValue;
     private TextView voltageValue;
     private TextView tpmsStatusValue;
     private TextView blindSpotValue;
@@ -110,6 +113,7 @@ final class TabletDashboardView extends FrameLayout {
         if (speedValue != null) speedValue.setText(vehicle.speedText(getContext()));
         if (rpmValue != null) rpmValue.setText(vehicle.rpm + " rpm");
         if (tempValue != null) tempValue.setText(vehicle.tempText(getContext(), vehicle.coolantTemp));
+        if (cabinTempValue != null) cabinTempValue.setText(vehicle.tempText(getContext(), vehicle.intakeTemp));
         if (voltageValue != null) voltageValue.setText(vehicle.voltageText());
         if (tpmsStatusValue != null) tpmsStatusValue.setText(tpmsText(tpms));
         if (blindSpotValue != null) blindSpotValue.setText(blind.statusText());
@@ -125,8 +129,11 @@ final class TabletDashboardView extends FrameLayout {
             updateStatusValue.setText(update.status);
             updateReleaseValue.setText(updateText(update));
             if (updateInstallButton != null) {
-                updateInstallButton.setEnabled(update.updateAvailable || update.downloaded);
-                updateInstallButton.setText(update.downloaded ? "Установить" : "Скачать");
+                boolean showInstall = update.updateAvailable || update.downloaded || update.downloading;
+                updateInstallButton.setVisibility(showInstall ? View.VISIBLE : View.GONE);
+                updateInstallButton.setEnabled(showInstall);
+                updateInstallButton.setText(update.downloaded ? "Установить"
+                        : (update.downloading ? "Загрузка" : "Скачать"));
             }
         }
         if (firmwareOtaStatusValue != null) {
@@ -146,102 +153,16 @@ final class TabletDashboardView extends FrameLayout {
 
     private void buildShell() {
         removeAllViews();
-        setBackgroundColor(0xff111317);
+        resetFields();
+        setBackgroundColor(0xff0e1014);
+        currentTab = TAB_HOME;
 
-        LinearLayout shell = new LinearLayout(getContext());
-        shell.setOrientation(LinearLayout.HORIZONTAL);
-        shell.setPadding(dp(compactMode ? 8 : 12), dp(compactMode ? 8 : 12),
-                dp(compactMode ? 8 : 12), dp(compactMode ? 8 : 12));
-        addView(shell, new FrameLayout.LayoutParams(-1, -1));
-
-        LinearLayout rail = new LinearLayout(getContext());
-        rail.setOrientation(LinearLayout.VERTICAL);
-        rail.setPadding(dp(compactMode ? 8 : 14), dp(compactMode ? 8 : 14),
-                dp(compactMode ? 8 : 14), dp(compactMode ? 8 : 14));
-        rail.setBackground(roundedStroke(0xff181b20, 8, 0xff272b33));
-        shell.addView(rail, new LinearLayout.LayoutParams(dp(compactMode ? 142 : 214), -1));
-
-        TextView brand = text("Sportage", compactMode ? 19 : 27, 0xfff4f1ea, true);
-        brand.setGravity(Gravity.LEFT);
-        rail.addView(brand, new LinearLayout.LayoutParams(-1, dp(compactMode ? 30 : 38)));
-        TextView sub = text(compactMode ? "2CAN35" : "2CAN35 V21 control",
-                compactMode ? 11 : 13, 0xffa4abb6, false);
-        rail.addView(sub, new LinearLayout.LayoutParams(-1, dp(compactMode ? 22 : 28)));
-
-        View divider = new View(getContext());
-        divider.setBackgroundColor(0xff2b3038);
-        LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(-1, dp(1));
-        dividerLp.setMargins(0, dp(12), 0, dp(12));
-        rail.addView(divider, dividerLp);
-
-        for (int i = 0; i < tabLabels.length; i++) {
-            rail.addView(menuItem(i), new LinearLayout.LayoutParams(-1, dp(compactMode ? 42 : 48)));
-        }
-
-        SpaceFill spacer = new SpaceFill(getContext());
-        rail.addView(spacer, new LinearLayout.LayoutParams(-1, 0, 1));
-
-        Button settings = actionButton("Настройки", 0xfff2b84b, v ->
-                getContext().startActivity(new Intent(getContext(), CanbusSettingsActivity.class)));
-        LinearLayout.LayoutParams settingsLp = new LinearLayout.LayoutParams(-1, dp(compactMode ? 44 : 50));
-        settingsLp.setMargins(0, dp(10), 0, 0);
-        rail.addView(settings, settingsLp);
-
-        LinearLayout main = new LinearLayout(getContext());
-        main.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams mainLp = new LinearLayout.LayoutParams(0, -1, 1);
-        mainLp.setMargins(dp(compactMode ? 8 : 12), 0, 0, 0);
-        shell.addView(main, mainLp);
-
-        LinearLayout header = new LinearLayout(getContext());
-        header.setOrientation(compactMode ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(compactMode ? 12 : 18), compactMode ? dp(10) : 0,
-                dp(compactMode ? 12 : 18), compactMode ? dp(10) : 0);
-        header.setBackground(roundedStroke(0xfff4f1ea, 8, 0xffddd7ca));
-        main.addView(header, new LinearLayout.LayoutParams(-1, compactMode ? -2 : dp(74)));
-
-        LinearLayout titleBox = new LinearLayout(getContext());
-        titleBox.setOrientation(LinearLayout.VERTICAL);
-        titleBox.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(titleBox, compactMode
-                ? new LinearLayout.LayoutParams(-1, -2)
-                : new LinearLayout.LayoutParams(0, -1, 1));
-        screenTitle = text("", compactMode ? 21 : 26, 0xff16181d, true);
-        titleBox.addView(screenTitle, new LinearLayout.LayoutParams(-1, dp(compactMode ? 30 : 36)));
-        screenSubtitle = text("", compactMode ? 12 : 13, 0xff66707d, false);
-        titleBox.addView(screenSubtitle, new LinearLayout.LayoutParams(-1, dp(compactMode ? 22 : 24)));
-
-        firmwareChip = chip("");
-        usbChip = chip("");
-        if (compactMode) {
-            LinearLayout chips = new LinearLayout(getContext());
-            chips.setOrientation(LinearLayout.HORIZONTAL);
-            LinearLayout.LayoutParams chipsLp = new LinearLayout.LayoutParams(-1, dp(40));
-            chipsLp.setMargins(0, dp(8), 0, 0);
-            header.addView(chips, chipsLp);
-            LinearLayout.LayoutParams leftChipLp = new LinearLayout.LayoutParams(0, -1, 1);
-            leftChipLp.setMargins(0, 0, dp(8), 0);
-            chips.addView(firmwareChip, leftChipLp);
-            chips.addView(usbChip, new LinearLayout.LayoutParams(0, -1, 1));
-        } else {
-            LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(dp(210), dp(42));
-            chipLp.setMargins(0, 0, dp(10), 0);
-            header.addView(firmwareChip, chipLp);
-            header.addView(usbChip, new LinearLayout.LayoutParams(dp(230), dp(42)));
-        }
-
-        ScrollView scroll = new ScrollView(getContext());
-        scroll.setFillViewport(false);
-        LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(-1, 0, 1);
-        scrollLp.setMargins(0, dp(12), 0, 0);
-        main.addView(scroll, scrollLp);
         content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(0, 0, 0, dp(10));
-        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+        addView(content, new FrameLayout.LayoutParams(-1, -1));
 
-        selectTab(TAB_HOME);
+        buildHome();
+        refresh();
     }
 
     private TextView menuItem(int tab) {
@@ -294,57 +215,55 @@ final class TabletDashboardView extends FrameLayout {
     }
 
     private void buildHome() {
-        LinearLayout row = row();
-        content.addView(row, sectionLp());
+        content.removeAllViews();
 
-        LinearLayout adapter = card("Адаптер");
-        row.addView(adapter, weightedCardLp());
-        adapterUsbValue = info(adapter, "USB", "");
-        adapterV20Value = info(adapter, "V21", "");
-        adapterApiValue = info(adapter, "API", "");
-        addButtonRow(adapter,
-                actionButton("Проверить", 0xff1f7a67, v -> CanbusControl.requestAdapterInfo(getContext())),
-                actionButton("USB/CAN", 0xff2f5f8f, v -> startStack()));
+        FrameLayout home = new FrameLayout(getContext());
+        home.setPadding(dp(compactMode ? 16 : 28), dp(compactMode ? 14 : 24),
+                dp(compactMode ? 16 : 28), dp(compactMode ? 14 : 24));
+        home.setBackground(rounded(0xff0e1014, 0));
+        content.addView(home, new LinearLayout.LayoutParams(-1, -1));
 
-        LinearLayout nav = card("Навигация");
-        row.addView(nav, weightedCardLp());
-        navStatusValue = info(nav, "Статус", "");
-        info(nav, "Адаптер", "0x7A + 0x48/45/47/4A/44");
-        addButtonRow(nav,
-                actionButton("Навигация", 0xff2f5f8f, v -> selectTab(TAB_NAV)),
-                actionButton("Журнал", 0xff2f5f8f, v -> selectTab(TAB_DIAG)));
+        ImageView car = new ImageView(getContext());
+        car.setImageResource(R.drawable.kia_top_view);
+        car.setAdjustViewBounds(true);
+        car.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        car.setAlpha(0.98f);
+        FrameLayout.LayoutParams carLp = new FrameLayout.LayoutParams(dp(compactMode ? 330 : 520), -1,
+                Gravity.CENTER);
+        carLp.setMargins(0, dp(compactMode ? 12 : 18), 0, dp(compactMode ? 8 : 14));
+        home.addView(car, carLp);
 
-        LinearLayout media = card("Медиа");
-        row.addView(media, weightedCardLp());
-        mediaStatusValue = info(media, "Сейчас", "");
-        addButtonRow(media,
-                actionButton("Скан", 0xff2f5f8f, v -> MediaMonitor.scanNow(getContext())),
-                actionButton("Доступ", 0xfff2b84b, v -> openNotificationSettings()));
+        LinearLayout left = metricColumn();
+        FrameLayout.LayoutParams leftLp = new FrameLayout.LayoutParams(dp(compactMode ? 168 : 236), -2,
+                Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        home.addView(left, leftLp);
+        speedValue = homeMetric(left, "Скорость", "--");
+        rpmValue = homeMetric(left, "Обороты", "--");
 
-        LinearLayout metrics = row();
-        content.addView(metrics, sectionTopLp());
-        speedValue = metric(metrics, "Скорость", "--");
-        rpmValue = metric(metrics, "Обороты", "--");
-        tempValue = metric(metrics, "Темп.", "--");
-        voltageValue = metric(metrics, "Вольтаж", "--");
+        LinearLayout right = metricColumn();
+        FrameLayout.LayoutParams rightLp = new FrameLayout.LayoutParams(dp(compactMode ? 168 : 236), -2,
+                Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        home.addView(right, rightLp);
+        tempValue = homeMetric(right, "Двигатель", "--");
+        cabinTempValue = homeMetric(right, "Салон", "--");
+        voltageValue = homeMetric(right, "Вольтаж", "--");
 
-        LinearLayout bottom = row();
-        content.addView(bottom, sectionTopLp());
-        LinearLayout car = card("Машина");
-        bottom.addView(car, weightedCardLp());
-        vehicleStatusValue = info(car, "CAN", "");
-        blindSpotValue = info(car, "RCTA", "");
-        addButtonRow(car,
-                actionButton("Vehicle", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), VehicleInfoActivity.class))),
-                actionButton("TPMS", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), TpmsActivity.class))));
-
-        LinearLayout diag = card("Диагностика");
-        bottom.addView(diag, weightedCardLp());
-        canCounterValue = info(diag, "Поток", "");
-        adapterVersionValue = info(diag, "FW", "");
-        addButtonRow(diag,
-                actionButton("Диагностика", 0xfff2b84b, v -> selectTab(TAB_DIAG)),
-                actionButton("Настройки", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), CanbusSettingsActivity.class))));
+        LinearLayout icons = new LinearLayout(getContext());
+        icons.setOrientation(LinearLayout.HORIZONTAL);
+        icons.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams iconsLp = new FrameLayout.LayoutParams(-2, dp(compactMode ? 50 : 60),
+                Gravity.RIGHT | Gravity.TOP);
+        home.addView(icons, iconsLp);
+        ImageButton tpms = iconButton(0, R.drawable.tpms_warning_sign, "TPMS", v ->
+                getContext().startActivity(new Intent(getContext(), TpmsActivity.class)));
+        ImageButton settings = iconButton(R.drawable.btn_home_setting, 0, "Настройки", v ->
+                getContext().startActivity(new Intent(getContext(), CanbusSettingsActivity.class)));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(compactMode ? 48 : 58),
+                dp(compactMode ? 48 : 58));
+        iconLp.setMargins(0, 0, dp(10), 0);
+        icons.addView(tpms, iconLp);
+        icons.addView(settings, new LinearLayout.LayoutParams(dp(compactMode ? 48 : 58),
+                dp(compactMode ? 48 : 58)));
     }
 
     private void buildNavigation() {
@@ -420,8 +339,8 @@ final class TabletDashboardView extends FrameLayout {
             refresh();
         }), controlLp());
         addButtonRow(tpms,
-                actionButton("Vehicle", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), VehicleInfoActivity.class))),
-                actionButton("TPMS", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), TpmsActivity.class))));
+                actionButton("TPMS", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), TpmsActivity.class))),
+                actionButton("Настройки", 0xff2f5f8f, v -> getContext().startActivity(new Intent(getContext(), CanbusSettingsActivity.class))));
     }
 
     private void buildDiagnostics() {
@@ -503,6 +422,7 @@ final class TabletDashboardView extends FrameLayout {
         speedValue = null;
         rpmValue = null;
         tempValue = null;
+        cabinTempValue = null;
         voltageValue = null;
         tpmsStatusValue = null;
         blindSpotValue = null;
@@ -613,6 +533,52 @@ final class TabletDashboardView extends FrameLayout {
         data.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
         box.addView(data, new LinearLayout.LayoutParams(-1, -2));
         return data;
+    }
+
+    private LinearLayout metricColumn() {
+        LinearLayout column = new LinearLayout(getContext());
+        column.setOrientation(LinearLayout.VERTICAL);
+        return column;
+    }
+
+    private TextView homeMetric(LinearLayout parent, String label, String value) {
+        LinearLayout box = new LinearLayout(getContext());
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(compactMode ? 12 : 18), dp(compactMode ? 9 : 13),
+                dp(compactMode ? 12 : 18), dp(compactMode ? 10 : 14));
+        box.setBackground(roundedStroke(0xee191d23, 8, 0xff343a44));
+        LinearLayout.LayoutParams boxLp = new LinearLayout.LayoutParams(-1, dp(compactMode ? 76 : 100));
+        boxLp.setMargins(0, 0, 0, dp(compactMode ? 12 : 16));
+        parent.addView(box, boxLp);
+
+        TextView name = text(label, compactMode ? 12 : 15, 0xff9aa3af, true);
+        name.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        box.addView(name, new LinearLayout.LayoutParams(-1, dp(compactMode ? 22 : 28)));
+
+        TextView data = text(value, compactMode ? 24 : 34, 0xfff4f1ea, true);
+        data.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        data.setSingleLine(true);
+        data.setIncludeFontPadding(false);
+        box.addView(data, new LinearLayout.LayoutParams(-1, 0, 1));
+        return data;
+    }
+
+    private ImageButton iconButton(int backgroundRes, int imageRes, String description, View.OnClickListener listener) {
+        ImageButton button = new ImageButton(getContext());
+        button.setContentDescription(description);
+        button.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        button.setPadding(dp(9), dp(9), dp(9), dp(9));
+        button.setAdjustViewBounds(false);
+        button.setMinimumWidth(0);
+        button.setMinimumHeight(0);
+        if (backgroundRes != 0) {
+            button.setBackgroundResource(backgroundRes);
+        } else {
+            button.setBackground(roundedStroke(0xdd191d23, 8, 0xff343a44));
+        }
+        if (imageRes != 0) button.setImageResource(imageRes);
+        button.setOnClickListener(listener);
+        return button;
     }
 
     private TextView info(LinearLayout parent, String label, String value) {

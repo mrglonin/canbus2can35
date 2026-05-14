@@ -818,8 +818,11 @@ public class CanbusSettingsActivity extends Activity {
             appUpdateStatusValue.setText(update.status);
             appUpdateReleaseValue.setText(updateText(update));
             if (appUpdateInstallButton != null) {
-                appUpdateInstallButton.setEnabled(update.updateAvailable || update.downloaded);
-                appUpdateInstallButton.setText(update.downloaded ? "Установить APK" : "Скачать / установить");
+                boolean showInstall = update.updateAvailable || update.downloaded || update.downloading;
+                appUpdateInstallButton.setVisibility(showInstall ? View.VISIBLE : View.GONE);
+                appUpdateInstallButton.setEnabled(showInstall);
+                appUpdateInstallButton.setText(update.downloaded ? "Установить APK"
+                        : (update.downloading ? "Загрузка" : "Скачать / установить"));
             }
         }
         if (firmwareReleaseStatusValue != null) {
