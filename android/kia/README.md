@@ -4,7 +4,7 @@ Android 15/TEYES app for Kia CANBOX integration.
 
 Current package: `kia.app`
 
-Current app version: `13.2-kia` (`versionCode 112`)
+Current app version: `13.8-kia` (`versionCode 118`)
 
 Main notes:
 
@@ -13,6 +13,8 @@ Main notes:
   default;
 - debug/raw recording is explicit opt-in and is not used for normal UI;
 - media source hints never overwrite a playing MediaSession;
+- BT music source is emitted as the Bluetooth source event with title text;
+- stock CAN TPMS pressure is read only from `0x593` frames with `00 11` prefix;
 - music is sent to the cluster once per source/track change, not held by
   repeat spam;
 - trip time is synthesized from live vehicle updates if the adapter/ECU does
@@ -35,7 +37,7 @@ Build:
 Release APK name is kept short and stable:
 
 ```text
-/Volumes/SSD/canbus/release/kia_132.apk
+/Volumes/SSD/canbus/release/kia_138.apk
 ```
 
 The release build is signed with the local Android debug keystore
@@ -45,7 +47,7 @@ head unit. A production key can be added later without changing the output path.
 The local Gradle output uses the same filename:
 
 ```text
-app/build/outputs/apk/release/kia_132.apk
+app/build/outputs/apk/release/kia_138.apk
 ```
 
 TEYES sandbox emulator:
