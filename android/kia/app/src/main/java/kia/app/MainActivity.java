@@ -95,6 +95,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        CompassBridge.start(this);
+        CompassBridge.markAppResumed();
         UiUtils.enterImmersive(this);
         updatePermissionText();
         MediaMonitor.scanNow(this);

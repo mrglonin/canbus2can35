@@ -22,6 +22,8 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private static final float MIN_BEARING_SPEED_MPS = 1.5f;
     private static final float MAX_BEARING_ACCURACY_DEG = 45f;
     private static final float MAX_LOCATION_ACCURACY_M = 50f;
+    private static final long RESUME_STABILIZE_MS = 1000L;
+    private static final long RESUME_STEP_HOLD_MS = 500L;
 
     private static CompassBridge instance;
     private static String lastStatus = "ожидание GPS bearing";
@@ -48,6 +50,9 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private long lastLogAt;
     private int lastSentUiStep = -1;
     private String headingSource = "neutral";
+    private long resumeResumeUntil;
+    private int resumeCandidateStep = -1;
+    private long resumeCandidateAt;
 
     private CompassBridge(Context context) {
         this.context = context.getApplicationContext();
@@ -71,12 +76,21 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         else if (instance != null) instance.stopInternal();
     }
 
+    static synchronized void markAppResumed() {
+        if (instance == null) return;
+        instance.resumeResumeUntil = System.currentTimeMillis() + RESUME_STABILIZE_MS;
+        instance.resumeCandidateStep = -1;
+        instance.resumeCandidateAt = 0L;
+    }
+
     static synchronized String statusText() {
         String age = lastSentAt == 0 ? "нет отправки" : ((System.currentTimeMillis() - lastSentAt) / 1000L) + " сек назад";
         return lastStatus + " / " + age;
     }
 
     private void startInternal() {
+        detachSensorInputs();
+        registerSensors();
         registerLocation();
         handler.removeCallbacks(tick);
         handler.post(tick);
@@ -84,6 +98,14 @@ final class CompassBridge implements SensorEventListener, LocationListener {
 
     private void stopInternal() {
         handler.removeCallbacks(tick);
+        detachSensorInputs();
+        resumeResumeUntil = 0L;
+        resumeCandidateStep = -1;
+        resumeCandidateAt = 0L;
+        lastSentUiStep = -1;
+    }
+
+    private void detachSensorInputs() {
         if (sensorManager != null) {
             sensorManager.unregisterListener(this);
         }
@@ -195,16 +217,24 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         if (lastHeadingAt == 0 || now - lastHeadingAt > HEADING_MAX_AGE_MS) {
             lastSentUiStep = -1;
             synchronized (CompassBridge.class) {
-                lastStatus = "0x45 compass: нет свежего GPS bearing";
+            lastStatus = "0x45 compass: нет свежего направления";
             }
             if (AppPrefs.debug(context) && now - lastLogAt > 10000L) {
                 lastLogAt = now;
-                AppLog.line(context, "Компас: нет свежего GPS bearing, 0x45 не отправляю");
+                AppLog.line(context, "Компас: нет свежего направления, 0x45 не отправляю");
             }
             return;
         }
         float heading = currentHeading(now);
         int uiStep = compassDisplayStep(heading);
+        if (!acceptStepAfterResume(now, uiStep)) {
+            if (AppPrefs.debug(context) && now - lastLogAt > 7000L) {
+                lastLogAt = now;
+                AppLog.line(context, String.format(Locale.US,
+                        "Компас: стабилизация после возврата — ожидание шага=%02X", uiStep));
+            }
+            return;
+        }
         if (!NavProtocol.canSendCompass()) {
             lastSentUiStep = -1;
             synchronized (CompassBridge.class) {
@@ -241,6 +271,32 @@ final class CompassBridge implements SensorEventListener, LocationListener {
     private float currentHeading(long now) {
         if (lastHeadingAt == 0 || now - lastHeadingAt > 20000L) return headingDegrees;
         return headingDegrees;
+    }
+
+    private boolean acceptStepAfterResume(long now, int step) {
+        if (resumeResumeUntil == 0L || now >= resumeResumeUntil) {
+            resumeResumeUntil = 0L;
+            resumeCandidateStep = -1;
+            resumeCandidateAt = 0L;
+            return true;
+        }
+        if (resumeCandidateStep == -1) {
+            resumeCandidateStep = step;
+            resumeCandidateAt = now;
+            return false;
+        }
+        if (resumeCandidateStep != step) {
+            resumeCandidateStep = step;
+            resumeCandidateAt = now;
+            return false;
+        }
+        if (now - resumeCandidateAt < RESUME_STEP_HOLD_MS) {
+            return false;
+        }
+        resumeResumeUntil = 0L;
+        resumeCandidateStep = -1;
+        resumeCandidateAt = 0L;
+        return true;
     }
 
     private static float normalize(float value) {
