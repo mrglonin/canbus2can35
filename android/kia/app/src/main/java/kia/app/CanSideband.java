@@ -48,7 +48,8 @@ final class CanSideband {
         if (debug || SidebandDebugState.canRecording() || handled) {
             SidebandDebugState.can(context, frame);
         }
-        if (context != null && handled && (AppPrefs.obdEnabled(context) || AppPrefs.blindSpotEnabled(context))) {
+        if (context != null && handled
+                && (AppPrefs.obdEnabled(context) || AppPrefs.blindSpotEnabled(context) || AppPrefs.tpmsEnabled(context))) {
             VehicleCanParser.apply(context, frame);
         }
     }

@@ -1,6 +1,7 @@
 package kia.app;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Build;
 import android.view.View;
 import android.view.Window;
@@ -33,5 +34,17 @@ final class UiUtils {
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         }
+    }
+
+    static void startActivityWithTransition(Activity activity, Intent intent) {
+        if (activity == null || intent == null) return;
+        activity.startActivity(intent);
+        activity.overridePendingTransition(R.anim.app_screen_enter, R.anim.app_screen_exit);
+    }
+
+    static void finishWithTransition(Activity activity) {
+        if (activity == null) return;
+        activity.finish();
+        activity.overridePendingTransition(R.anim.app_screen_pop_enter, R.anim.app_screen_pop_exit);
     }
 }

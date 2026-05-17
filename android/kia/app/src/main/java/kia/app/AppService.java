@@ -44,9 +44,11 @@ public class AppService extends Service {
     private static final int FTDI_CANBOX_PRODUCT_ID = 24577;
     private static final int STM_VENDOR_ID = 1155;
     private static final int STM_CDC_PRODUCT_ID = 22336;
-    private static final int RAW_CAN_NORMAL_BURST = 2;
-    private static final int RAW_CAN_DEBUG_BURST = 3;
+    private static final int RAW_CAN_NORMAL_BURST = 1;
+    private static final int RAW_CAN_TPMS_BURST = 2;
+    private static final int RAW_CAN_DEBUG_BURST = 2;
     private static final long SNAPSHOT_POLL_MS = 500L;
+    private static final long SNAPSHOT_POLL_MS_TPMS = 1000L;
     private static final Queue<byte[]> PENDING = new ArrayDeque<>();
     private static volatile AppService active;
 
@@ -89,29 +91,36 @@ public class AppService extends Service {
         @Override
         public void run() {
             if (!serviceRunning) return;
-            boolean needed = AppPrefs.debugCan(AppService.this);
+            boolean debug = AppPrefs.debugCan(AppService.this);
+            boolean tpms = AppPrefs.tpmsEnabled(AppService.this);
+            boolean needed = rawCanNeeded();
             if (needed) {
-                int burst = AppPrefs.debugCan(AppService.this) ? RAW_CAN_DEBUG_BURST : RAW_CAN_NORMAL_BURST;
+                int burst = rawCanPollBurst(debug, tpms);
                 for (int i = 0; i < burst; i++) {
                     writeOrQueue(sidebandPacket(0x76, null), true);
                 }
             }
             Handler handler = ioHandler == null ? debugHandler : ioHandler;
-            handler.postDelayed(this, needed ? (AppPrefs.debugCan(AppService.this) ? 20L : 35L) : 500L);
+            handler.postDelayed(this, needed ? rawCanPollDelayMs(debug, tpms) : 500L);
         }
     };
     private final Runnable snapshotPoll = new Runnable() {
         @Override
         public void run() {
             if (!serviceRunning) return;
-            boolean needed = AppPrefs.obdEnabled(AppService.this)
-                    || AppPrefs.blindSpotEnabled(AppService.this)
-                    || AppPrefs.navCompass(AppService.this);
+            boolean obd = AppPrefs.obdEnabled(AppService.this);
+            boolean blind = AppPrefs.blindSpotEnabled(AppService.this);
+            boolean nav = AppPrefs.navCompass(AppService.this);
+            boolean tpms = AppPrefs.tpmsEnabled(AppService.this);
+            boolean needed = obd || blind || nav || tpms;
             if (needed) {
                 CanbusControl.requestVehicleSnapshotQuiet(AppService.this);
             }
+            long interval = !needed
+                    ? 1500L
+                    : (!obd && !blind && !nav && tpms ? SNAPSHOT_POLL_MS_TPMS : SNAPSHOT_POLL_MS);
             Handler handler = ioHandler == null ? debugHandler : ioHandler;
-            handler.postDelayed(this, needed ? SNAPSHOT_POLL_MS : 1500L);
+            handler.postDelayed(this, interval);
         }
     };
 
@@ -312,14 +321,26 @@ public class AppService extends Service {
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - lastDebugCanStartAt < 5000L) return;
+        if (rawStreamEnabled && now - lastDebugCanStartAt < 5000L) return;
         lastDebugCanStartAt = now;
         rawStreamEnabled = true;
         writeOrQueue(sidebandPacket(0x70, new byte[]{0x01}), true);
     }
 
     private boolean rawCanNeeded() {
-        return AppPrefs.debugCan(this);
+        return AppPrefs.debugCan(this) || AppPrefs.tpmsEnabled(this);
+    }
+
+    private int rawCanPollBurst(boolean debug, boolean tpms) {
+        if (debug) return RAW_CAN_DEBUG_BURST;
+        if (tpms) return RAW_CAN_TPMS_BURST;
+        return RAW_CAN_NORMAL_BURST;
+    }
+
+    private long rawCanPollDelayMs(boolean debug, boolean tpms) {
+        if (debug) return 30L;
+        if (tpms) return 45L;
+        return 70L;
     }
 
     private void refreshSystemOverlays() {
@@ -474,7 +495,11 @@ public class AppService extends Service {
             port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
             AppLog.setUsb(this, "Kia Canbus: подключено " + device.getDeviceName() + " 115200 8N1");
             startReader();
-            if (!AppPrefs.debugCan(this)) {
+            if (rawCanNeeded()) {
+                rawStreamEnabled = false;
+                lastDebugCanStartAt = 0L;
+                ensureDebugCanStream();
+            } else {
                 rawStreamEnabled = false;
                 writeOrQueue(sidebandPacket(0x70, new byte[]{0x00}), true);
             }
@@ -542,7 +567,7 @@ public class AppService extends Service {
             return;
         }
         try {
-            port.write(data, 300);
+            port.write(data, writeTimeoutMs(data, quiet));
             if (!quiet) AppLog.line(this, "USB кадр отправлен " + usbFrameLabel(data) + " " + hex(data));
         } catch (IOException e) {
             if (!quiet) {
@@ -555,6 +580,14 @@ public class AppService extends Service {
             if (!quiet) AppLog.setUsb(this, "Kia Canbus: запись не прошла, переподключение");
             connectUsb();
         }
+    }
+
+    private int writeTimeoutMs(byte[] data, boolean quiet) {
+        if (!quiet || data == null || data.length < 5) return 300;
+        int id = data[4] & 0xff;
+        if (id == 0x76) return 45;
+        if (id == 0x70 || id == 0x77 || id == 0x79) return 80;
+        return 160;
     }
 
     private void flushQueue() {

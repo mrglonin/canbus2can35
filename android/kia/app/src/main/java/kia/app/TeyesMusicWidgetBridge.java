@@ -54,7 +54,6 @@ final class TeyesMusicWidgetBridge {
         appContext = context.getApplicationContext();
         pokeWidget(appContext);
         HANDLER.removeCallbacks(POLL);
-        HANDLER.post(POLL);
     }
 
     static synchronized void stop() {
@@ -236,11 +235,12 @@ final class TeyesMusicWidgetBridge {
         String appSource = sourceFromAppName(appName);
         if (TextUtils.isEmpty(type)) return appSource;
         String t = type.toLowerCase(Locale.US);
-        if (t.contains("bluetooth")) return "Bluetooth";
+        if (isBluetoothText(t)) return "Bluetooth";
         if (t.contains("local_radio")) return "FM радио";
+        if (t.contains("dab") || t.contains("dts")) return "DTS радио";
         if (t.contains("network_radio")) return "Интернет-радио";
         if (t.contains("local_music")) return "USB";
-        if (t.contains("cloud_music") || t.contains("network_music")) {
+        if (t.contains("cloud_music") || t.contains("network_music") || t.contains("net_music")) {
             String app = clean(appName);
             String p = app == null ? "" : app.toLowerCase(Locale.US);
             if (p.contains("янд") || p.contains("yandex") || p.contains("я.")) return "Яндекс Музыка";
@@ -257,13 +257,32 @@ final class TeyesMusicWidgetBridge {
         String app = clean(appName);
         if (TextUtils.isEmpty(app)) return null;
         String p = app.toLowerCase(Locale.US);
-        if (p.contains("bluetooth") || p.equals("bt") || p.contains("btmusic")) return "Bluetooth";
+        if (isBluetoothText(p)) return "Bluetooth";
         if (p.contains("янд") || p.contains("yandex")) return "Яндекс Музыка";
         if (p.contains("carplay")) return "CarPlay";
         if (p.contains("android auto") || p.contains("androidauto")) return "Android Auto";
+        if (p.contains("dab") || p.contains("dts") || p.contains("digital radio")) return "DTS радио";
         if (p.contains("am ") || p.equals("am") || p.contains("am radio")) return "AM 24";
         if (p.contains("radio") || p.contains("радио") || p.contains("fm")) return "FM радио";
         return null;
+    }
+
+    private static boolean isBluetoothText(String value) {
+        String text = clean(value);
+        if (TextUtils.isEmpty(text)) return false;
+        String p = text.toLowerCase(Locale.US);
+        return p.contains("bluetooth")
+                || p.equals("bt")
+                || p.startsWith("bt ")
+                || p.contains("btmusic")
+                || p.contains("bt_music")
+                || p.contains("bt-music")
+                || p.contains("bt audio")
+                || p.contains("bt_audio")
+                || p.contains("bt-audio")
+                || p.contains("bt музыка")
+                || p.contains("a2dp")
+                || p.contains("avrcp");
     }
 
     private static void logEmptyState(Context context) {
@@ -291,7 +310,10 @@ final class TeyesMusicWidgetBridge {
         int progress;
 
         boolean hasDisplayText() {
-            return !TextUtils.isEmpty(displayTitle()) || !TextUtils.isEmpty(displayArtist());
+            return hasMeaningfulText(title, source, appName)
+                    || hasMeaningfulText(artist, source, appName)
+                    || !TextUtils.isEmpty(clean(frequency))
+                    || isRadioSource() && isSearching();
         }
 
         String displayTitle() {
@@ -314,7 +336,7 @@ final class TeyesMusicWidgetBridge {
         int priority() {
             String s = clean(source);
             String p = s == null ? "" : s.toLowerCase(Locale.US);
-            if (p.contains("радио") || p.contains("radio")) return 135;
+            if (p.contains("радио") || p.contains("radio") || p.contains("dab") || p.contains("dts")) return 135;
             if (p.contains("bluetooth") || p.contains("bt")) return 128;
             if (p.contains("янд") || p.contains("teyes music") || p.contains("internet")) return 126;
             if (p.contains("usb")) return 115;
@@ -324,7 +346,8 @@ final class TeyesMusicWidgetBridge {
         private boolean isRadioSource() {
             String s = clean(source);
             String p = s == null ? "" : s.toLowerCase(Locale.US);
-            return p.contains("радио") || p.contains("radio") || p.startsWith("fm") || p.startsWith("am");
+            return p.contains("радио") || p.contains("radio") || p.contains("dab") || p.contains("dts")
+                    || p.startsWith("fm") || p.startsWith("am");
         }
 
         private boolean isSearching() {
@@ -334,6 +357,15 @@ final class TeyesMusicWidgetBridge {
             return p.equals("1") || p.equals("true") || p.equals("yes")
                     || p.contains("search") || p.contains("seek") || p.contains("scan")
                     || p.contains("поиск") || p.contains("скан");
+        }
+
+        private static boolean hasMeaningfulText(String value, String source, String appName) {
+            String text = clean(value);
+            if (TextUtils.isEmpty(text)) return false;
+            String src = clean(source);
+            String app = clean(appName);
+            return !text.equalsIgnoreCase(src == null ? "" : src)
+                    && !text.equalsIgnoreCase(app == null ? "" : app);
         }
 
         private static String first(String... values) {

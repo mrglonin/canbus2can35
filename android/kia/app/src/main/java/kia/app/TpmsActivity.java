@@ -10,13 +10,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
-import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 
 public class TpmsActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TpmsDashboardView view;
-    private Button backButton;
+    private ImageButton backButton;
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -94,33 +94,40 @@ public class TpmsActivity extends Activity {
 
         backButton = iconBackButton();
         configureTopButton();
-        FrameLayout.LayoutParams backLp = new FrameLayout.LayoutParams(dp(80), dp(80), Gravity.RIGHT | Gravity.TOP);
-        backLp.setMargins(0, dp(18), dp(22), 0);
+        FrameLayout.LayoutParams backLp = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.RIGHT | Gravity.TOP);
+        backLp.setMargins(0, dp(20), dp(22), 0);
         root.addView(backButton, backLp);
 
         setContentView(root);
         refresh();
     }
 
-    private Button iconBackButton() {
-        Button button = new Button(this);
-        button.setText("");
-        button.setAllCaps(false);
-        button.setMinWidth(0);
-        button.setMinHeight(0);
-        button.setPadding(0, 0, 0, 0);
+    private ImageButton iconBackButton() {
+        ImageButton button = new ImageButton(this);
+        button.setBackgroundResource(R.drawable.top_action_circle);
+        button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        button.setMinimumWidth(0);
+        button.setMinimumHeight(0);
+        int p = dp(14);
+        button.setPadding(p, p, p, p);
         return button;
     }
 
     private void configureTopButton() {
         if (backButton == null) return;
         if (AppPrefs.obdEnabled(this)) {
-            backButton.setBackgroundResource(R.drawable.back_btn);
-            backButton.setOnClickListener(v -> finish());
+            backButton.setImageResource(R.drawable.ic_top_back_24);
+            backButton.setOnClickListener(v -> UiUtils.finishWithTransition(this));
         } else {
-            backButton.setBackgroundResource(R.drawable.btn_home_setting);
-            backButton.setOnClickListener(v -> startActivity(new Intent(this, CanbusSettingsActivity.class)));
+            backButton.setImageResource(R.drawable.ic_top_settings_24);
+            backButton.setOnClickListener(v -> UiUtils.startActivityWithTransition(this,
+                    new Intent(this, CanbusSettingsActivity.class)));
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        UiUtils.finishWithTransition(this);
     }
 
     private void refresh() {

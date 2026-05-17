@@ -46,21 +46,22 @@ public class QaScenarioReceiver extends BroadcastReceiver {
     }
 
     private static void media(Context context, String scenario) {
+        MediaMonitor.suppressAutoScan(3500L);
         if ("media_yandex".equals(scenario)) {
             MediaMonitor.reportExternal(context, "Яндекс Музыка", "ru.yandex.music",
                     "Vara Gianna", "Blood // Water", 225380, 160);
         } else if ("media_bt_selected_paused".equals(scenario)) {
-            MediaMonitor.reportSourceHint(context, "Bluetooth", "com.teyes.music.widget", 50, 3000);
+            MediaMonitor.reportSourceHint(context, "Bluetooth", "com.teyes.music.widget", 180, 3000);
             QaState.event(context, "Bluetooth selected hint without playback");
         } else if ("media_bt_playing".equals(scenario)) {
             MediaMonitor.reportExternal(context, "Bluetooth", "com.android.bluetooth",
-                    "Vara Gianna", "Blood // Water", 225380, 150);
+                    "Vara Gianna", "Blood // Water", 225380, 150, true);
         } else if ("media_usb".equals(scenario)) {
             MediaMonitor.reportExternal(context, "USB", "com.spd.media",
                     "OneRepublic", "Counting Stars", 232598, 153);
         } else if ("media_fm".equals(scenario)) {
-            MediaMonitor.reportExternal(context, "FM радио", "com.spd.radio",
-                    "", "Авторадио Казахстан", -1, 130);
+            MediaMonitor.reportRadio(context, "FM радио 101.7 MHz", "com.spd.radio",
+                    "Авторадио Казахстан", -1, 230, true, true, true);
         } else if ("media_am".equals(scenario)) {
             MediaMonitor.reportExternal(context, "AM 24", "com.spd.radio",
                     "", "AM 24", -1, 130);
@@ -168,6 +169,8 @@ public class QaScenarioReceiver extends BroadcastReceiver {
         } else if ("tpms_high".equals(scenario)) {
             TpmsState.status(context, "TPMS: QA высокое давление", true);
             TpmsState.tire(context, 3, 3.6f, 29, 2, false);
+        } else if ("tpms_can_593".equals(scenario)) {
+            VehicleCanParser.apply(context, new CanSideband.Frame(1, 0, 0x593, 6, hex("00111A1B1A1B")));
         }
     }
 
@@ -177,6 +180,7 @@ public class QaScenarioReceiver extends BroadcastReceiver {
         apply(context, 0, 0x316, hex("0000800A00003200"));
         apply(context, 0, 0x329, hex("00AF000000000000"));
         apply(context, 0, 0x044, hex("0000009A00000000"));
+        apply(context, 0, 0x131, hex("1000FF001000FF00"));
         apply(context, 0, 0x541, hex("0000000000000000"));
         apply(context, 0, 0x553, hex("0000000000000000"));
     }

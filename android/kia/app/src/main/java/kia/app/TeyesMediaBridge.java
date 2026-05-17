@@ -20,7 +20,7 @@ final class TeyesMediaBridge {
     private static final int TRANSACTION_GET_NOW_PLAYING = 6;
     private static final int TRANSACTION_GET_NOW_PLAYING_BY_TYPE = 7;
     private static final long POLL_MS = 1000L;
-    private static final int[] MEDIA_TYPES = {0, 1, 2, 3, 4, 7, 8, 9};
+    private static final int[] MEDIA_TYPES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     private static int nextMediaTypeIndex;
 
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
@@ -68,7 +68,6 @@ final class TeyesMediaBridge {
         appContext = context.getApplicationContext();
         ensureBound(appContext);
         HANDLER.removeCallbacks(POLL);
-        HANDLER.post(POLL);
     }
 
     static synchronized void stop(Context context) {
@@ -103,6 +102,17 @@ final class TeyesMediaBridge {
         String selected = TeyesMusicWidgetBridge.currentSource();
         if (TeyesMusicWidgetBridge.currentAgeMs() <= 5_000L && isKnownSourceText(selected)) {
             source = normalizeSource(selected);
+        }
+        if (isStaleGenericMusic(source)) {
+            logScan(appContext, "TEYES media: stale music skipped=" + source
+                    + " title=" + clean(nowPlaying.songTitle)
+                    + " artist=" + clean(nowPlaying.songArtist)
+                    + " status=" + nowPlaying.playStatus);
+            return false;
+        }
+        if (TeyesRadioBridge.hasFreshActiveRadio() && !isRadioText(source)) {
+            logScan(appContext, "TEYES media: radio active, stale source skipped=" + source);
+            return false;
         }
         if (!isSupportedSource(source, nowPlaying)) {
             logScan(appContext, "TEYES media: пропуск source=" + source
@@ -203,9 +213,10 @@ final class TeyesMediaBridge {
         if (nowPlaying.requestedType == 8 || nowPlaying.requestedType == 9) return "AM 24";
         String probe = (clean(nowPlaying.fullPath) + " " + clean(nowPlaying.songTitle) + " " + clean(nowPlaying.songArtist))
                 .toLowerCase(Locale.US);
-        if (probe.contains("bluetooth") || probe.contains("btmusic")) return "Bluetooth";
+        if (isBluetoothText(probe)) return "Bluetooth";
         if (probe.contains("carplay")) return "CarPlay";
         if (probe.contains("androidauto") || probe.contains("android auto")) return "Android Auto";
+        if (probe.contains("dab") || probe.contains("dts")) return "DTS радио";
         if (probe.contains("radio") || probe.contains("fm://") || probe.contains("frequency")) return "Радио";
         if ((nowPlaying.deviceMask & 0x01) != 0) return "USB";
         if ((nowPlaying.deviceMask & 0x02) != 0) return "USB";
@@ -250,6 +261,12 @@ final class TeyesMediaBridge {
         if (TeyesMusicWidgetBridge.currentAgeMs() > 5_000L) return false;
         String source = normalizeSource(TeyesMusicWidgetBridge.currentSource());
         if (!isKnownSourceText(source)) return false;
+        if (isTeyesText(source)
+                && TextUtils.isEmpty(clean(TeyesMusicWidgetBridge.currentTitle()))
+                && TextUtils.isEmpty(clean(TeyesMusicWidgetBridge.currentArtist()))
+                && TextUtils.isEmpty(clean(TeyesMusicWidgetBridge.currentFrequency()))) {
+            return false;
+        }
         String title = firstNonEmpty(
                 TeyesMusicWidgetBridge.currentDisplayTitle(),
                 TeyesMusicWidgetBridge.currentFrequency(),
@@ -274,7 +291,8 @@ final class TeyesMediaBridge {
         String text = clean(value);
         if (TextUtils.isEmpty(text)) return false;
         String p = text.toLowerCase(Locale.US);
-        return p.contains("радио") || p.contains("radio") || p.equals("fm")
+        if (isNetworkRadioText(p)) return false;
+        return p.contains("радио") || p.contains("radio") || p.contains("dab") || p.contains("dts") || p.equals("fm")
                 || p.startsWith("fm ") || p.equals("am") || p.startsWith("am ");
     }
 
@@ -282,16 +300,38 @@ final class TeyesMediaBridge {
         String text = clean(value);
         if (TextUtils.isEmpty(text)) return false;
         String p = text.toLowerCase(Locale.US);
-        return p.contains("bluetooth") || p.equals("bt") || p.startsWith("bt ");
+        return p.contains("bluetooth")
+                || p.equals("bt")
+                || p.startsWith("bt ")
+                || p.contains("btmusic")
+                || p.contains("bt_music")
+                || p.contains("bt-music")
+                || p.contains("bt audio")
+                || p.contains("bt_audio")
+                || p.contains("bt-audio")
+                || p.contains("bt музыка")
+                || p.contains("a2dp")
+                || p.contains("avrcp");
     }
 
     private static boolean isCloudText(String value) {
         String text = clean(value);
         if (TextUtils.isEmpty(text)) return false;
         String p = text.toLowerCase(Locale.US);
+        if (isNetworkRadioText(p)) return true;
         return p.contains("янд") || p.contains("yandex") || p.contains("cloud")
                 || p.contains("teyes music") || p.contains("интернет")
                 || p.contains("network") || p.contains("spotify") || p.contains("youtube");
+    }
+
+    private static boolean isNetworkRadioText(String value) {
+        String p = clean(value);
+        if (TextUtils.isEmpty(p)) return false;
+        p = p.toLowerCase(Locale.US);
+        return p.contains("s-radio") || p.contains("s radio")
+                || p.contains("internet radio") || p.contains("интернет-радио")
+                || p.contains("интернет радио") || p.contains("network radio")
+                || p.contains("net radio") || p.contains("network_radio");
     }
 
     private static boolean isTeyesText(String value) {
@@ -306,12 +346,23 @@ final class TeyesMediaBridge {
                 || isCloudText(value) || isTeyesText(value);
     }
 
+    private static boolean isStaleGenericMusic(String source) {
+        if (TeyesMusicWidgetBridge.currentAgeMs() > 5_000L) return false;
+        if (!isCloudText(source) && !isTeyesText(source)) return false;
+        String selected = normalizeSource(TeyesMusicWidgetBridge.currentSource());
+        if (!isTeyesText(selected) && !isCloudText(selected)) return false;
+        return TextUtils.isEmpty(clean(TeyesMusicWidgetBridge.currentTitle()))
+                && TextUtils.isEmpty(clean(TeyesMusicWidgetBridge.currentArtist()))
+                && TextUtils.isEmpty(clean(TeyesMusicWidgetBridge.currentFrequency()));
+    }
+
     private static String normalizeSource(String source) {
         String text = clean(source);
         if (TextUtils.isEmpty(text)) return text;
         String p = text.toLowerCase(Locale.US);
         if (p.equals("am") || p.startsWith("am ")) return text;
         if (p.equals("fm") || p.startsWith("fm ")) return text;
+        if (p.contains("dab") || p.contains("dts")) return "DTS радио";
         if (p.contains("radio") || p.contains("радио")) {
             return p.contains("am") ? "AM 24" : "FM радио";
         }

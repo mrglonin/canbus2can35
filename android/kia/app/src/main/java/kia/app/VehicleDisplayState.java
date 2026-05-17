@@ -25,6 +25,7 @@ final class VehicleDisplayState {
     static final String EXTRA_FUEL_RATE = "fuel_rate";
     static final String EXTRA_CURRENT_MILEAGE_KM = "current_mileage_km";
     static final String EXTRA_TOTAL_MILEAGE_KM = "total_mileage_km";
+    static final String EXTRA_TRIP_DISTANCE_KM = "trip_distance_km";
 
     private static Snapshot state = new Snapshot();
 
@@ -68,6 +69,7 @@ final class VehicleDisplayState {
         if (extras.containsKey(EXTRA_FUEL_RATE)) state.fuelRate = Math.max(0f, intent.getFloatExtra(EXTRA_FUEL_RATE, state.fuelRate));
         if (extras.containsKey(EXTRA_CURRENT_MILEAGE_KM)) state.currentMileageKm = Math.max(0d, intent.getDoubleExtra(EXTRA_CURRENT_MILEAGE_KM, state.currentMileageKm));
         if (extras.containsKey(EXTRA_TOTAL_MILEAGE_KM)) state.totalMileageKm = Math.max(0d, intent.getDoubleExtra(EXTRA_TOTAL_MILEAGE_KM, state.totalMileageKm));
+        if (extras.containsKey(EXTRA_TRIP_DISTANCE_KM)) state.tripDistanceKm = Math.max(0d, intent.getDoubleExtra(EXTRA_TRIP_DISTANCE_KM, state.tripDistanceKm));
         if (state.source == null || state.source.length() == 0) state.source = "API";
         if (state.status == null || state.status.length() == 0) {
             state.status = state.source + ": данные получены";
@@ -96,6 +98,7 @@ final class VehicleDisplayState {
         target.fuelRate = obd.fuelRate;
         target.currentMileageKm = obd.currentMileageKm;
         target.totalMileageKm = obd.totalMileageKm;
+        target.tripDistanceKm = obd.tripDistanceKm;
         target.updatedAt = obd.updatedAt;
     }
 
@@ -126,6 +129,7 @@ final class VehicleDisplayState {
         float fuelRate;
         double currentMileageKm;
         double totalMileageKm;
+        double tripDistanceKm;
         long updatedAt;
 
         Snapshot() {
@@ -147,6 +151,7 @@ final class VehicleDisplayState {
             fuelRate = other.fuelRate;
             currentMileageKm = other.currentMileageKm;
             totalMileageKm = other.totalMileageKm;
+            tripDistanceKm = other.tripDistanceKm;
             updatedAt = other.updatedAt;
         }
 
@@ -176,6 +181,19 @@ final class VehicleDisplayState {
 
         String fuelRateText() {
             return String.format(Locale.US, "%.1fL/h", fuelRate);
+        }
+
+        String tripDistanceText(Context context) {
+            double km = Math.max(0d, tripDistanceKm);
+            if (AppPrefs.speedUnit(context) == 1) {
+                double miles = km * 0.621371d;
+                return miles < 10d
+                        ? String.format(Locale.US, "%.1f mi", miles)
+                        : String.format(Locale.US, "%.0f mi", miles);
+            }
+            return km < 10d
+                    ? String.format(Locale.US, "%.1f km", km)
+                    : String.format(Locale.US, "%.0f km", km);
         }
     }
 }

@@ -36,7 +36,9 @@ final class ObdMonitor {
         Context app = context.getApplicationContext();
         if (!AppPrefs.obdEnabled(app)) {
             stop();
-            if (!AppPrefs.debugCan(app) && !AppPrefs.blindSpotEnabled(app)) CanbusControl.stopCanStream(app);
+            if (!AppPrefs.debugCan(app) && !AppPrefs.blindSpotEnabled(app) && !AppPrefs.tpmsEnabled(app)) {
+                CanbusControl.stopCanStream(app);
+            }
             ObdEmulator.stop();
             ObdState.status(app, "OBD: раздел выключен в настройках", false);
             return;
@@ -78,7 +80,10 @@ final class ObdMonitor {
 
     static void stop(Context context) {
         stop();
-        if (context != null && !AppPrefs.debugCan(context) && !AppPrefs.blindSpotEnabled(context)) {
+        if (context != null
+                && !AppPrefs.debugCan(context)
+                && !AppPrefs.blindSpotEnabled(context)
+                && !AppPrefs.tpmsEnabled(context)) {
             CanbusControl.stopCanStream(context);
         }
     }

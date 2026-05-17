@@ -8,6 +8,7 @@ final class VehicleCanParser {
     private static String lastReverse = "";
     private static String lastParking = "";
     private static String lastClimate = "";
+    private static String lastTpmsPressure = "";
     private static long lastParkingLogAt;
     private static long lastClimateLogAt;
 
@@ -27,6 +28,7 @@ final class VehicleCanParser {
                 || id == 0x134
                 || id == 0x4F4
                 || id == 0x58B
+                || id == 0x593
                 || id == 0x2B0;
     }
 
@@ -35,6 +37,10 @@ final class VehicleCanParser {
         byte[] d = frame.data;
         int id = frame.canId;
 
+        if (id == 0x593) {
+            applyTpmsPressure(context, d);
+            return;
+        }
         if (id == 0x316 && d.length >= 8) {
             int rpmRaw = (d[2] & 0xff) | ((d[3] & 0xff) << 8);
             ObdState.powertrain(context, d[6] & 0xff, rpmRaw / 4);
@@ -99,6 +105,7 @@ final class VehicleCanParser {
             return;
         }
         if ((id == 0x131 || id == 0x134) && d.length > 0) {
+            ClimateState.fromCan(context, id, d);
             if (!AppPrefs.debugCan(context)) return;
             String text = "0x" + Integer.toHexString(id).toUpperCase() + " " + CanbusControl.hex(d);
             long now = System.currentTimeMillis();
@@ -134,6 +141,26 @@ final class VehicleCanParser {
                 lastParkingLogAt = now;
                 AppLog.line(context, "CAN парковка/руль raw: " + text);
             }
+        }
+    }
+
+    private static void applyTpmsPressure(Context context, byte[] d) {
+        if (context != null && !AppPrefs.tpmsEnabled(context)) return;
+        if (d == null || d.length < 6) return;
+        if ((d[0] & 0xff) != 0x00 || (d[1] & 0xff) != 0x11) return;
+        float[] pressures = new float[]{
+                (d[2] & 0xff) / 10f,
+                (d[3] & 0xff) / 10f,
+                (d[4] & 0xff) / 10f,
+                (d[5] & 0xff) / 10f
+        };
+        TpmsState.canPressures(context, pressures);
+        String text = String.format(java.util.Locale.US,
+                "P1=%.1f P2=%.1f P3=%.1f P4=%.1f raw=%s",
+                pressures[0], pressures[1], pressures[2], pressures[3], CanbusControl.hex(d));
+        if (!text.equals(lastTpmsPressure)) {
+            lastTpmsPressure = text;
+            AppLog.line(context, "CAN TPMS 0x593: " + text);
         }
     }
 }

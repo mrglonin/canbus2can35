@@ -20,6 +20,7 @@ import java.util.Locale;
 
 final class MediaMonitor {
     private static final long SOURCE_LOCK_MS = 8000L;
+    private static final long STARTUP_HINT_GRACE_MS = 1500L;
     private static final int SOURCE_SWITCH_MARGIN = 25;
     private static Handler handler;
     private static Runnable poll;
@@ -43,6 +44,8 @@ final class MediaMonitor {
     private static String previewArtist = "";
     private static String previewTitle = "";
     private static long previewDurationMs = -1L;
+    private static long startedAt;
+    private static long manualOverrideUntil;
 
     private static final class NotificationCandidate {
         String pkg;
@@ -63,13 +66,18 @@ final class MediaMonitor {
 
     static void start(Context context) {
         Context app = context.getApplicationContext();
+        startedAt = System.currentTimeMillis();
+        TeyesMediaCenterBridge.start(app);
+        TeyesRadioBridge.start(app);
         TeyesMusicWidgetBridge.start(app);
         TeyesMediaBridge.start(app);
         if (handler == null) handler = new Handler(Looper.getMainLooper());
         if (poll == null) {
             poll = () -> {
                 scanNow(app);
-                if (handler != null && poll != null) handler.postDelayed(poll, 1000);
+                if (handler != null && poll != null) {
+                    handler.postDelayed(poll, TeyesRadioBridge.recommendedPollDelayMs());
+                }
             };
         }
         handler.removeCallbacks(poll);
@@ -79,13 +87,20 @@ final class MediaMonitor {
     static void stop() {
         if (handler != null && poll != null) handler.removeCallbacks(poll);
         poll = null;
+        TeyesMediaCenterBridge.stop(null);
+        TeyesRadioBridge.stop(null);
         TeyesMusicWidgetBridge.stop();
+        TeyesMediaBridge.stop(null);
     }
 
     static void scanNow(Context context) {
+        if (manualOverrideActive()) return;
+        TeyesRadioBridge.scanNow(context);
+        if (TeyesRadioBridge.hasFreshActiveRadio()) return;
         TeyesMusicWidgetBridge.scanNow(context);
+        if (scanSessions(context)) return;
+        if (TeyesMediaCenterBridge.reportCurrentMedia(context)) return;
         TeyesMediaBridge.scanNow(context);
-        scanSessions(context);
         MediaNotificationListener.refresh(context);
         scanCandidates(context);
     }
@@ -95,14 +110,28 @@ final class MediaMonitor {
     }
 
     static boolean reportExternal(Context context, String source, String pkg, String artist, String title, long durationMs, int priority) {
+        return reportExternal(context, source, pkg, artist, title, durationMs, priority, false);
+    }
+
+    static boolean reportExternal(Context context, String source, String pkg, String artist, String title,
+                                  long durationMs, int priority, boolean forceCan) {
         if (context == null) return false;
         if (TextUtils.isEmpty(source) && TextUtils.isEmpty(title) && TextUtils.isEmpty(artist)) return false;
-        return emit(context, source, pkg, artist, title, durationMs, priority);
+        return emit(context, source, pkg, artist, title, durationMs, priority, forceCan);
+    }
+
+    static boolean reportRadio(Context context, String source, String pkg, String title, long durationMs,
+                               int priority, boolean forceCan, boolean updateText, boolean clearText) {
+        if (context == null || TextUtils.isEmpty(source)) return false;
+        return emit(context, source, pkg, "", title, durationMs, priority, forceCan, updateText, clearText);
     }
 
     static void reportSourceHint(Context context, String source, String pkg, int priority, long ttlMs) {
         if (context == null || TextUtils.isEmpty(source)) return;
+        if (TeyesRadioBridge.hasFreshActiveRadio() && isGenericTeyesSource(source, pkg)) return;
         long now = System.currentTimeMillis();
+        if (!TeyesRadioBridge.hasChecked() && !isRadioSource(source, pkg)) return;
+        if (now - startedAt < STARTUP_HINT_GRACE_MS && !isRadioSource(source, pkg)) return;
         hintSource = source;
         hintPkg = pkg;
         hintPriority = priority;
@@ -110,7 +139,16 @@ final class MediaMonitor {
         if (AppPrefs.debug(context) && now - lastAt > 750L) {
             AppLog.line(context, "Мультимедиа: выбран источник " + source + " pkg=" + pkg);
         }
-        emitSourceOnly(context, source, pkg, Math.min(priority, 80));
+        int sourcePriority = sourceOnlyAllowed(source, pkg) ? Math.max(priority, 128) : Math.min(priority, 80);
+        emitSourceOnly(context, source, pkg, sourcePriority);
+    }
+
+    static void suppressAutoScan(long ttlMs) {
+        manualOverrideUntil = System.currentTimeMillis() + Math.max(500L, ttlMs);
+    }
+
+    static boolean manualOverrideActive() {
+        return System.currentTimeMillis() < manualOverrideUntil;
     }
 
     static void resetDebugScan() {
@@ -271,18 +309,37 @@ final class MediaMonitor {
         long duration = -1;
         MediaMetadata md = c.getMetadata();
         if (md != null) {
-            title = md.getString(MediaMetadata.METADATA_KEY_TITLE);
-            artist = md.getString(MediaMetadata.METADATA_KEY_ARTIST);
+            title = firstText(md.getString(MediaMetadata.METADATA_KEY_TITLE),
+                    md.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE),
+                    md.getDescription() == null || md.getDescription().getTitle() == null
+                            ? null : md.getDescription().getTitle().toString());
+            artist = firstText(md.getString(MediaMetadata.METADATA_KEY_ARTIST),
+                    md.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST),
+                    md.getString(MediaMetadata.METADATA_KEY_AUTHOR),
+                    md.getString(MediaMetadata.METADATA_KEY_WRITER),
+                    md.getString(MediaMetadata.METADATA_KEY_COMPOSER),
+                    md.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE),
+                    md.getDescription() == null || md.getDescription().getSubtitle() == null
+                            ? null : md.getDescription().getSubtitle().toString());
             duration = md.getLong(MediaMetadata.METADATA_KEY_DURATION);
         }
         if (TextUtils.isEmpty(title) && fallback != null) title = fallback.title;
         if (TextUtils.isEmpty(artist) && fallback != null) artist = firstText(fallback.artist, fallback.sub, fallback.big);
+        if (!TextUtils.isEmpty(title) && TextUtils.isEmpty(artist)) {
+            String[] split = splitArtistTitle(title);
+            if (split != null) {
+                artist = split[0];
+                title = split[1];
+            }
+        }
         if (TextUtils.isEmpty(title) && TextUtils.isEmpty(artist)) return false;
         String selected = TeyesMusicWidgetBridge.currentSource();
         int priority = sourceSessionPriority(selected, pkg, c.getPlaybackState());
         String source = sourceLabel(context, pkg);
         if (isBluetoothSource(selected) && isBluetoothPackage(pkg)) source = "Bluetooth";
-        if (isCloudSource(selected) && isCloudPackage(pkg)) source = TextUtils.isEmpty(selected) ? source : selected;
+        if (isCloudSource(selected) && isCloudPackage(pkg) && !isGenericCloudSource(selected)) {
+            source = TextUtils.isEmpty(selected) ? source : selected;
+        }
         if (emit(context, source, pkg, artist, title, duration, priority)) {
             AppLog.line(context, "Сессия: пакет=" + pkg + " состояние=" + state(c.getPlaybackState()) + " трек=" + title + " автор=" + artist);
         }
@@ -290,6 +347,17 @@ final class MediaMonitor {
     }
 
     private static boolean emit(Context context, String source, String pkg, String artist, String title, long durationMs, int priority) {
+        return emit(context, source, pkg, artist, title, durationMs, priority, false);
+    }
+
+    private static boolean emit(Context context, String source, String pkg, String artist, String title,
+                                long durationMs, int priority, boolean forceCan) {
+        return emit(context, source, pkg, artist, title, durationMs, priority, forceCan, true, true);
+    }
+
+    private static boolean emit(Context context, String source, String pkg, String artist, String title,
+                                long durationMs, int priority, boolean forceCan,
+                                boolean updateRadioText, boolean clearRadioText) {
         long now = System.currentTimeMillis();
         boolean hasHint = now < hintUntil && !TextUtils.isEmpty(hintSource);
         if (hasHint && !sameSource(source, pkg, hintSource, hintPkg)) {
@@ -299,20 +367,26 @@ final class MediaMonitor {
                 priority = Math.max(priority, Math.min(hintPriority, 90));
             }
         }
+        if (TeyesRadioBridge.hasFreshActiveRadio() && isGenericTeyesSource(source, pkg)) return false;
+        boolean radioSource = isRadioSource(source, pkg);
         String pretty = formatMediaText(context, source, artist, title, durationMs, false);
-        String clusterTitle = formatMediaText(context, source, artist, title, durationMs, true);
+        String clusterTitle = radioSource && !updateRadioText
+                ? "" : formatClusterTitle(source, title, durationMs);
         String line = "Мультимедиа: " + dash(source) + " / " + dash(artist) + " / " + dash(title)
                 + " / " + duration(durationMs) + " / " + dash(pretty);
         String sourceKey = sourceKey(source, pkg);
         boolean sameSource = sameSource(source, pkg, activeSource, activePkg);
         boolean locked = !TextUtils.isEmpty(activeSourceKey) && now - activeSourceAt < SOURCE_LOCK_MS;
-        if (!sameSource && locked && priority + SOURCE_SWITCH_MARGIN < activePriority) {
+        boolean forceRadio = forceCan && radioSource;
+        boolean breakLock = canBreakSourceLock(activeSource, activePkg, source, pkg, priority);
+        if (!forceCan && !forceRadio && !breakLock && !sameSource && locked && priority + SOURCE_SWITCH_MARGIN < activePriority) {
             if (AppPrefs.debug(context)) {
                 AppLog.line(context, "Мультимедиа: источник удержан " + activeSourceKey
                         + ", пропущен " + sourceKey + " priority=" + priority + "/" + activePriority);
             }
             return false;
         }
+        if (!forceCan && !forceRadio && !breakLock && sameSource && locked && priority + SOURCE_SWITCH_MARGIN < activePriority) return false;
         rememberPreview(source, pkg, artist, title, durationMs);
         if (!TextUtils.equals(line, lastLine)) {
             activeSource = source;
@@ -323,16 +397,38 @@ final class MediaMonitor {
             lastLine = line;
             lastAt = now;
             AppLog.setMedia(context, line);
-            if (priority >= 120 || isRadioSource(source, pkg)) {
-                String canKey = clusterEventKey("meta", source, pkg, artist, clusterTitle, durationMs);
-                if (!TextUtils.equals(canKey, lastClusterEventKey)) {
+            if (priority >= 120 || radioSource) {
+                String canKey = clusterEventKey("meta", source, pkg, artist, clusterTitle, durationMs,
+                        radioSource ? radioTextMode(updateRadioText, clearRadioText) : "");
+                if (forceCan || !TextUtils.equals(canKey, lastClusterEventKey)) {
                     lastClusterEventKey = canKey;
-                    CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(clusterTitle) ? clusterTitle : source);
+                    if (radioSource) {
+                        CanbusControl.sendMediaMetadata(context, source, artist, clusterTitle, updateRadioText, clearRadioText);
+                    } else {
+                        CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(clusterTitle) ? clusterTitle : source);
+                    }
                 }
             } else if (AppPrefs.debug(context)) {
                 AppLog.line(context, "Мультимедиа: stale/paused не отправлен в CAN source=" + source + " priority=" + priority);
             }
             AppLog.line(context, "Мультимедиа: источник=" + source + " пакет=" + pkg + " трек=" + title + " автор=" + artist);
+            return true;
+        }
+        if (forceCan && (priority >= 120 || radioSource)) {
+            activeSource = source;
+            activePkg = pkg;
+            activeSourceKey = sourceKey;
+            activeSourceAt = now;
+            activePriority = Math.max(activePriority, priority);
+            lastClusterEventKey = clusterEventKey("meta", source, pkg, artist, clusterTitle, durationMs,
+                    radioSource ? radioTextMode(updateRadioText, clearRadioText) : "");
+            if (radioSource) {
+                CanbusControl.sendMediaMetadata(context, source, artist, clusterTitle, updateRadioText, clearRadioText);
+            } else {
+                CanbusControl.sendMediaMetadata(context, source, artist, !TextUtils.isEmpty(clusterTitle) ? clusterTitle : source);
+            }
+            AppLog.line(context, "Мультимедиа: источник повторно отправлен=" + source
+                    + " пакет=" + pkg + " трек=" + title);
             return true;
         }
         if (sameSource) {
@@ -355,14 +451,15 @@ final class MediaMonitor {
             activeSourceAt = now;
             return;
         }
-        if (!sameSource && locked && activePriority >= 120) return;
+        if (!sameSource && locked && activePriority >= 120
+                && !canBreakSourceLock(activeSource, activePkg, source, pkg, priority)) return;
         String canKey = clusterEventKey("source", source, pkg, "", "", -1);
         if (TextUtils.equals(canKey, lastClusterEventKey)) return;
         rememberPreview(source, pkg, "", source, -1);
         activeSource = source;
         activePkg = pkg;
         activeSourceKey = sourceKey;
-        activePriority = priority;
+        activePriority = Math.min(priority, 110);
         activeSourceAt = now;
         String line = "Мультимедиа: " + dash(source) + " / - / - / --:--";
         lastLine = line;
@@ -452,14 +549,31 @@ final class MediaMonitor {
         int base = rank(controller.getPlaybackState()) * 100;
         if (isBluetoothSource(selectedSource) && isBluetoothPackage(pkg) && hasMetadata(controller)) return 360 + base;
         if (isCloudSource(selectedSource) && isCloudPackage(pkg) && hasMetadata(controller)) return 340 + base;
-        if (TextUtils.isEmpty(cleanSelectedSource(selectedSource)) && isCloudPackage(pkg)) return base + 40;
-        return base + (looksMedia(pkg) ? 20 : 0);
+        if (TextUtils.isEmpty(cleanSelectedSource(selectedSource))) {
+            if (isBluetoothPackage(pkg)) return 300 + base;
+            if (allowedMediaPackage(pkg) || looksMedia(pkg)) return 220 + base;
+        }
+        return base + (looksMedia(pkg) ? 40 : 0);
     }
 
     private static int sourceSessionPriority(String selectedSource, String pkg, PlaybackState state) {
+        int playbackRank = rank(state);
         if (isBluetoothSource(selectedSource) && isBluetoothPackage(pkg)) return 152;
-        if (isCloudSource(selectedSource) && isCloudPackage(pkg)) return 148;
-        return priorityForPlayback(rank(state));
+        if (isCloudSource(selectedSource) && isCloudPackage(pkg)) return playbackRank >= 2 ? 148 : priorityForPlayback(playbackRank);
+        if (isBluetoothPackage(pkg)) return playbackRank > 0 ? 128 : 80;
+        if (isRadioSource("", pkg)) return 135;
+        return priorityForPlayback(playbackRank);
+    }
+
+    private static boolean canBreakSourceLock(String oldSource, String oldPkg, String newSource, String newPkg, int priority) {
+        if (priority < 128) return false;
+        if (!isRadioSource(oldSource, oldPkg)) return false;
+        if (isGenericTeyesSource(newSource, newPkg)) return false;
+        return isBluetoothSource(newSource)
+                || isBluetoothPackage(newPkg)
+                || isUsbSource(newSource)
+                || isCloudSource(newSource)
+                || isNetworkRadioSource(newSource);
     }
 
     private static boolean hasMetadata(MediaController controller) {
@@ -476,10 +590,13 @@ final class MediaMonitor {
     private static boolean sourceAllowsPackage(String selectedSource, String pkg, boolean notification) {
         String selected = cleanSelectedSource(selectedSource);
         if (TextUtils.isEmpty(pkg)) return false;
+        if (TeyesRadioBridge.hasFreshActiveRadio()) return isRadioSource(selected, pkg) || isRadioSource("", pkg);
         if (isBluetoothSource(selected)) return isBluetoothPackage(pkg);
         if (isCloudSource(selected)) return isCloudPackage(pkg);
         if (isUsbSource(selected) || isRadioSource(selected, "")) return false;
-        return isCloudPackage(pkg) && !notification;
+        if (isBluetoothPackage(pkg) || isRadioSource("", pkg)) return true;
+        if (allowedMediaPackage(pkg) || looksMedia(pkg)) return notification || isCloudPackage(pkg);
+        return false;
     }
 
     private static String cleanSelectedSource(String selectedSource) {
@@ -489,7 +606,15 @@ final class MediaMonitor {
 
     private static boolean isBluetoothSource(String source) {
         String s = dash(source).toLowerCase(Locale.US);
-        return s.contains("bluetooth") || s.equals("bt") || s.contains("bt ");
+        return isBluetoothText(s);
+    }
+
+    private static boolean isNetworkRadioSource(String source) {
+        String s = dash(source).toLowerCase(Locale.US);
+        return s.contains("s-radio") || s.contains("s radio")
+                || s.contains("internet radio") || s.contains("интернет-радио")
+                || s.contains("интернет радио") || s.contains("network radio")
+                || s.contains("net radio") || s.contains("network_radio");
     }
 
     private static boolean isUsbSource(String source) {
@@ -499,16 +624,24 @@ final class MediaMonitor {
 
     private static boolean isCloudSource(String source) {
         String s = dash(source).toLowerCase(Locale.US);
+        if (isNetworkRadioSource(source)) return true;
         return s.contains("янд") || s.contains("yandex") || s.contains("cloud")
                 || s.contains("teyes music") || s.contains("облач") || s.contains("spotify")
                 || s.contains("youtube") || s.contains("интернет") || s.contains("online");
+    }
+
+    private static boolean isGenericCloudSource(String source) {
+        String s = dash(source).toLowerCase(Locale.US);
+        return s.equals("teyes music") || s.equals("cloud music")
+                || s.contains("network_music") || s.contains("network music")
+                || s.contains("net_music");
     }
 
     private static boolean isBluetoothPackage(String pkg) {
         String p = dash(pkg).toLowerCase(Locale.US);
         return "com.android.bluetooth".equals(p)
                 || "com.spd.bluetooth".equals(p)
-                || p.contains("bluetooth") || p.contains("btmusic") || p.contains("a2dp") || p.contains("avrcp");
+                || isBluetoothText(p);
     }
 
     private static boolean isCloudPackage(String pkg) {
@@ -526,6 +659,10 @@ final class MediaMonitor {
     private static String formatMediaText(Context context, String source, String artist, String title, long durationMs, boolean cluster) {
         int mode = AppPrefs.mediaTextFormat(context);
         String time = durationMs > 0 ? duration(durationMs) : "";
+        if (isNetworkRadioSource(source)) {
+            String station = firstText(title, source);
+            return cluster ? trimTo(station, 16) : station;
+        }
         String out;
         switch (mode) {
             case 0:
@@ -548,6 +685,17 @@ final class MediaMonitor {
         if (TextUtils.isEmpty(out)) out = firstText(title, artist, source);
         if (!cluster) return out;
         return compactClusterText(mode, source, artist, title, time, out);
+    }
+
+    private static String formatClusterTitle(String source, String title, long durationMs) {
+        String cleanTitle = firstText(title, source);
+        if (TextUtils.isEmpty(cleanTitle)) return "";
+        if (isNetworkRadioSource(source) || isRadioSource(source, "")) return trimTo(cleanTitle, 16);
+        if (isCloudSource(source)) return trimTo(cleanTitle, 16);
+        String time = durationMs > 0 ? duration(durationMs) : "";
+        if (TextUtils.isEmpty(time)) return trimTo(cleanTitle, 16);
+        int titleMax = Math.max(1, 15 - time.length());
+        return trimTo(cleanTitle, titleMax) + " " + time;
     }
 
     private static String compactClusterText(int mode, String source, String artist, String title, String time, String full) {
@@ -698,6 +846,7 @@ final class MediaMonitor {
         String p = pkg.toLowerCase(Locale.US);
         return p.contains("music") || p.contains("audio") || p.contains("radio") || p.contains("media")
                 || p.contains("player") || p.contains("bluetooth") || p.contains("syu") || p.contains("fm")
+                || p.contains("dab") || p.contains("dts")
                 || p.contains("btmusic") || p.contains("a2dp") || p.contains("avrcp")
                 || p.contains("yandex") || p.contains("zvuk") || p.contains("spotify") || p.contains("youtube");
     }
@@ -785,8 +934,10 @@ final class MediaMonitor {
     private static boolean isGenericTeyesSource(String source, String pkg) {
         String p = dash(pkg).toLowerCase(Locale.US);
         String s = dash(source).toLowerCase(Locale.US);
+        if (isNetworkRadioSource(source)) return false;
         if (s.contains("usb") || s.contains("bluetooth") || s.contains("bt")
                 || s.contains("radio") || s.contains("радио") || s.startsWith("am")
+                || s.contains("dab") || s.contains("dts")
                 || s.contains("carplay") || s.contains("android auto") || s.contains("androidauto")) {
             return false;
         }
@@ -802,21 +953,52 @@ final class MediaMonitor {
     private static boolean isRadioSource(String source, String pkg) {
         String p = dash(pkg).toLowerCase(Locale.US);
         String s = dash(source).toLowerCase(Locale.US);
-        return p.contains("radio") || s.contains("radio") || s.contains("радио") || s.equals("fm") || s.startsWith("am");
+        if (isNetworkRadioSource(source)) return false;
+        return p.contains("radio") || p.contains("dab") || p.contains("dts")
+                || s.contains("radio") || s.contains("радио") || s.contains("dab") || s.contains("dts")
+                || s.equals("fm") || s.startsWith("fm ") || s.startsWith("am");
     }
 
     private static boolean sourceOnlyAllowed(String source, String pkg) {
         String p = dash(pkg).toLowerCase(Locale.US);
         String s = dash(source).toLowerCase(Locale.US);
         return isRadioSource(source, pkg)
-                || s.contains("bluetooth") || s.equals("bt") || p.contains("bluetooth") || p.contains("btmusic")
-                || s.contains("usb") || s.contains("teyes") || s.contains("carplay") || s.contains("android auto")
+                || isBluetoothText(s) || isBluetoothText(p)
+                || s.contains("usb") || s.contains("carplay") || s.contains("android auto")
                 || s.contains("androidauto");
     }
 
+    private static boolean isBluetoothText(String value) {
+        String text = dash(value).toLowerCase(Locale.US);
+        return text.contains("bluetooth")
+                || text.equals("bt")
+                || text.startsWith("bt ")
+                || text.contains("btmusic")
+                || text.contains("bt_music")
+                || text.contains("bt-music")
+                || text.contains("bt audio")
+                || text.contains("bt_audio")
+                || text.contains("bt-audio")
+                || text.contains("bt музыка")
+                || text.contains("a2dp")
+                || text.contains("avrcp");
+    }
+
     private static String clusterEventKey(String type, String source, String pkg, String artist, String title, long durationMs) {
+        return clusterEventKey(type, source, pkg, artist, title, durationMs, "");
+    }
+
+    private static String clusterEventKey(String type, String source, String pkg, String artist, String title,
+                                          long durationMs, String textMode) {
         return type + "|" + sourceKey(source, pkg) + "|" + dash(artist).trim().toLowerCase(Locale.US)
-                + "|" + dash(title).trim().toLowerCase(Locale.US) + "|" + durationMs;
+                + "|" + dash(title).trim().toLowerCase(Locale.US) + "|" + durationMs
+                + "|" + dash(textMode);
+    }
+
+    private static String radioTextMode(boolean updateText, boolean clearText) {
+        if (updateText) return "radio-text";
+        if (clearText) return "radio-clear";
+        return "radio-source";
     }
 
     private static String dash(String value) {

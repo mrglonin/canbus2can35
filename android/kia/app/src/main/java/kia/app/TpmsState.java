@@ -27,14 +27,26 @@ final class TpmsState {
         if (context != null && !AppPrefs.tpmsEnabled(context)) return;
         if (index < 0 || index >= state.tires.length) return;
         Tire tire = state.tires[index];
-        tire.hasData = true;
-        tire.pressureBar = Math.max(0f, pressureBar);
-        tire.temperatureC = temperatureC;
-        tire.warning = thresholdWarning(context, tire.pressureBar, warning);
-        tire.lowBattery = lowBattery;
+        updateTire(context, tire, pressureBar, true, temperatureC, warning, lowBattery);
         tire.updatedAt = System.currentTimeMillis();
         state.status = state.connected ? "TPMS: данные обновляются" : state.status;
         state.updatedAt = System.currentTimeMillis();
+        broadcast(context);
+        TpmsAlertManager.onTpmsUpdate(context, new Snapshot(state));
+    }
+
+    static synchronized void canPressures(Context context, float[] pressureBar) {
+        if (context != null && !AppPrefs.tpmsEnabled(context)) return;
+        if (pressureBar == null || pressureBar.length < state.tires.length) return;
+        state.connected = true;
+        state.status = "TPMS: давление из CAN 0x593";
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < state.tires.length; i++) {
+            Tire tire = state.tires[i];
+            updateTire(context, tire, pressureBar[i], false, 0, 0, false);
+            tire.updatedAt = now;
+        }
+        state.updatedAt = now;
         broadcast(context);
         TpmsAlertManager.onTpmsUpdate(context, new Snapshot(state));
     }
@@ -43,6 +55,22 @@ final class TpmsState {
         state = new Snapshot();
         broadcast(context);
         TpmsAlertManager.onTpmsUpdate(context, new Snapshot(state));
+    }
+
+    private static void updateTire(Context context, Tire tire, float pressureBar, boolean hasTemperature,
+                                   int temperatureC, int warning, boolean lowBattery) {
+        boolean hadData = tire.hasData;
+        tire.hasData = true;
+        tire.pressureBar = Math.max(0f, pressureBar);
+        if (hasTemperature) {
+            tire.temperatureC = temperatureC;
+            tire.temperatureKnown = true;
+        } else if (!hadData) {
+            tire.temperatureC = 0;
+            tire.temperatureKnown = false;
+        }
+        tire.warning = thresholdWarning(context, tire.pressureBar, warning);
+        tire.lowBattery = lowBattery;
     }
 
     private static void broadcast(Context context) {
@@ -89,6 +117,7 @@ final class TpmsState {
         boolean hasData;
         float pressureBar;
         int temperatureC;
+        boolean temperatureKnown;
         int warning;
         boolean lowBattery;
         long updatedAt;
@@ -102,6 +131,7 @@ final class TpmsState {
             hasData = other.hasData;
             pressureBar = other.pressureBar;
             temperatureC = other.temperatureC;
+            temperatureKnown = other.temperatureKnown;
             warning = other.warning;
             lowBattery = other.lowBattery;
             updatedAt = other.updatedAt;
@@ -112,7 +142,7 @@ final class TpmsState {
         }
 
         String tempText() {
-            return hasData ? String.valueOf(temperatureC) : "__";
+            return hasData && temperatureKnown ? String.valueOf(temperatureC) : "__";
         }
 
         String warningText() {

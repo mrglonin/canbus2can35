@@ -2,6 +2,8 @@ package kia.app;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -24,9 +26,16 @@ final class CanbusControl {
     private static String updateStatus = "ожидание";
     private static long lastFrameAt;
     private static long lastV20At;
+    private static final Handler MUSIC_TITLE_HANDLER = new Handler(Looper.getMainLooper());
+    private static int musicTitleSeq;
+    private static MediaSource lastMetadataSource;
     private static int lastUartAvailable = -1;
     private static int lastUartDropped = -1;
     private static int mediaSecond;
+    private static final long CLOUD_ACTIVE_ARTIST_DELAY_MS = 500L;
+    private static final long CLOUD_ACTIVE_TITLE_DELAY_MS = 1700L;
+    private static final long CLOUD_FIRST_ARTIST_DELAY_MS = 1600L;
+    private static final long CLOUD_FIRST_TITLE_GAP_MS = 900L;
 
     private CanbusControl() {
     }
@@ -151,38 +160,125 @@ final class CanbusControl {
     }
 
     static void sendMediaTrack(Context context, String title) {
-        send(context, mediaSourceStatusPacket(MediaSource.USB_MUSIC));
-        send(context, textPacket(0x22, title, 16));
+        sendMusicMetadata(context, MediaSource.BLUETOOTH_AUDIO, "Bluetooth", "", title, false);
     }
 
     static void sendMediaMetadata(Context context, String source, String artist, String title) {
+        sendMediaMetadata(context, source, artist, title, true, true);
+    }
+
+    static void sendMediaMetadata(Context context, String source, String artist, String title,
+                                  boolean updateRadioText, boolean clearRadioText) {
         MediaSource mediaSource = mediaSource(source);
-        send(context, mediaSourceStatusPacket(mediaSource));
         switch (mediaSource) {
-            case BLUETOOTH_AUDIO:
-                send(context, textPacketWithSubtype(0x20, 0x1F, artist, 16));
-                send(context, textPacket(0x22, title, 16));
-                break;
             case FM_RADIO:
-                send(context, textPacket(0x20, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                sendRadioMetadata(context, mediaSource, source, title, updateRadioText, clearRadioText);
                 break;
             case AM_RADIO:
-                send(context, textPacket(0x20, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                sendRadioMetadata(context, mediaSource, source, title, updateRadioText, clearRadioText);
+                break;
+            case BLUETOOTH_AUDIO:
+                sendMusicMetadata(context, mediaSource, source, artist, title, false);
                 break;
             case BT_PHONE:
+                send(context, mediaSourceStatusPacket(mediaSource));
                 AppLog.line(context, "Мультимедиа: BT phone source без text-поля");
                 break;
             case USB_MUSIC:
             case CLOUD_MUSIC:
             case GENERIC_MUSIC:
             default:
-                send(context, textPacket(0x22, firstNonEmpty(title, sourceLabel(mediaSource, source)), 16));
+                sendMusicMetadata(context, mediaSource, source, artist, title,
+                        mediaSource == MediaSource.CLOUD_MUSIC);
                 break;
         }
     }
 
+    private static void sendMusicMetadata(Context context, MediaSource mediaSource, String source,
+                                          String artist, String title, boolean delayedTitle) {
+        if (mediaSource == MediaSource.BLUETOOTH_AUDIO) {
+            cancelDelayedMusicTitles();
+            rememberMetadataSource(mediaSource);
+            send(context, mediaSourceStatusPacket(mediaSource));
+            send(context, textPacket(0x21, firstNonEmpty(title, firstNonEmpty(artist, sourceLabel(mediaSource, source))), 16));
+            return;
+        }
+        final int seq;
+        final boolean firstCloudMetadata;
+        if (delayedTitle) {
+            seq = nextMusicTitleSeq();
+            firstCloudMetadata = rememberMetadataSource(mediaSource) != MediaSource.CLOUD_MUSIC;
+        } else {
+            cancelDelayedMusicTitles();
+            seq = 0;
+            rememberMetadataSource(mediaSource);
+            firstCloudMetadata = false;
+        }
+        send(context, mediaSourceStatusPacket(mediaSource));
+        if (!delayedTitle) {
+            send(context, textPacketWithSubtype(0x20, 0x1F, artist, 16));
+        }
+        String titleText = firstNonEmpty(title, sourceLabel(mediaSource, source));
+        if (!delayedTitle) {
+            send(context, textPacket(0x22, titleText, 16));
+            return;
+        }
+        Context app = context == null ? null : context.getApplicationContext();
+        Context target = app == null ? context : app;
+        String artistText = firstNonEmpty(artist, sourceLabel(mediaSource, source));
+        long artistDelay = firstCloudMetadata ? CLOUD_FIRST_ARTIST_DELAY_MS : CLOUD_ACTIVE_ARTIST_DELAY_MS;
+        long titleDelay = firstCloudMetadata
+                ? CLOUD_FIRST_ARTIST_DELAY_MS + CLOUD_FIRST_TITLE_GAP_MS
+                : CLOUD_ACTIVE_TITLE_DELAY_MS;
+        MUSIC_TITLE_HANDLER.postDelayed(() -> {
+            synchronized (CanbusControl.class) {
+                if (seq != musicTitleSeq) return;
+            }
+            send(target, textPacket(0x22, artistText, 16));
+        }, artistDelay);
+        MUSIC_TITLE_HANDLER.postDelayed(() -> {
+            synchronized (CanbusControl.class) {
+                if (seq != musicTitleSeq) return;
+            }
+            send(target, textPacket(0x22, titleText, 16));
+        }, titleDelay);
+    }
+
+    private static void sendRadioMetadata(Context context, MediaSource mediaSource, String source, String title,
+                                          boolean updateText, boolean clearText) {
+        cancelDelayedMusicTitles();
+        rememberMetadataSource(mediaSource);
+        if (updateText || clearText) send(context, mediaOffStatusPacket());
+        if (clearText) send(context, textPacket(0x20, "", 16));
+        send(context, radioSourceStatusPacket(mediaSource, firstNonEmpty(source, "") + " " + firstNonEmpty(title, "")));
+        if (updateText) {
+            String radioText = firstNonEmpty(title, sourceLabel(mediaSource, source));
+            if (!TextUtils.isEmpty(radioText)) send(context, textPacket(0x20, radioText, 16));
+        }
+    }
+
+    private static int nextMusicTitleSeq() {
+        synchronized (CanbusControl.class) {
+            return ++musicTitleSeq;
+        }
+    }
+
+    private static void cancelDelayedMusicTitles() {
+        synchronized (CanbusControl.class) {
+            musicTitleSeq++;
+        }
+    }
+
+    private static MediaSource rememberMetadataSource(MediaSource source) {
+        synchronized (CanbusControl.class) {
+            MediaSource previous = lastMetadataSource;
+            lastMetadataSource = source;
+            return previous;
+        }
+    }
+
     static void sendNavigationSourceQuiet(Context context) {
-        send(context, packet(0x7A, raiseFrame(new byte[]{0x06, 0x09, 0x06, 0x00, 0x00})));
+        sendQuiet(context, packet(0x7A, raiseFrame(new byte[]{0x06, 0x09, 0x06, 0x00, 0x00})));
     }
 
     static void sendCompassStep(Context context, int uiStep) {
@@ -417,6 +513,17 @@ final class CanbusControl {
         return packet(0x7A, raiseSourceStatus(source));
     }
 
+    private static byte[] mediaOffStatusPacket() {
+        return packet(0x7A, raiseFrame(new byte[]{0x06, 0x09, (byte) 0x80, 0x00, 0x00}));
+    }
+
+    private static byte[] radioSourceStatusPacket(MediaSource source, String title) {
+        if (source == MediaSource.FM_RADIO) {
+            return packet(0x7A, raiseFmSourceStatus(title));
+        }
+        return mediaSourceStatusPacket(source);
+    }
+
     private static byte[] raiseSourceStatus(MediaSource source) {
         if (source == MediaSource.BLUETOOTH_AUDIO) {
             return raiseFrame(new byte[]{0x06, 0x09, 0x0B, 0x04, 0x00});
@@ -438,6 +545,51 @@ final class CanbusControl {
         return raiseFrame(new byte[]{0x0A, 0x09, 0x16, 0x00, 0x01, 0x00, 0x00, (byte) sec});
     }
 
+    private static byte[] raiseFmSourceStatus(String title) {
+        int mhz10 = fmMhz10(title);
+        int mhz = mhz10 / 10;
+        int decimal = (mhz10 % 10) * 10;
+        return raiseFrame(new byte[]{0x08, 0x09, 0x02, 0x00, (byte) mhz, (byte) decimal, 0x00});
+    }
+
+    private static int fmMhz10(String value) {
+        String text = value == null ? "" : value;
+        for (int i = 0; i < text.length(); i++) {
+            if (!Character.isDigit(text.charAt(i))) continue;
+            int j = i;
+            boolean dot = false;
+            while (j < text.length()) {
+                char c = text.charAt(j);
+                if (Character.isDigit(c)) {
+                    j++;
+                } else if ((c == '.' || c == ',') && !dot) {
+                    dot = true;
+                    j++;
+                } else {
+                    break;
+                }
+            }
+            int parsed = parseMhz10(text.substring(i, j));
+            if (parsed >= 600 && parsed <= 1200) return parsed;
+            i = Math.max(i, j - 1);
+        }
+        return 1017;
+    }
+
+    private static int parseMhz10(String value) {
+        String clean = value == null ? "" : value.replace(',', '.');
+        int dot = clean.indexOf('.');
+        try {
+            if (dot < 0) return Integer.parseInt(clean) * 10;
+            int whole = Integer.parseInt(clean.substring(0, dot));
+            int tenth = dot + 1 < clean.length() && Character.isDigit(clean.charAt(dot + 1))
+                    ? clean.charAt(dot + 1) - '0' : 0;
+            return whole * 10 + tenth;
+        } catch (Exception ignored) {
+            return -1;
+        }
+    }
+
     private static byte[] raiseFrame(byte[] body) {
         byte[] frame = new byte[body.length + 2];
         frame[0] = (byte) 0xFD;
@@ -452,11 +604,14 @@ final class CanbusControl {
         String text = source == null ? "" : source.toLowerCase(Locale.US);
         if (text.contains("phone") || text.contains("телефон")) return MediaSource.BT_PHONE;
         if (text.contains("bluetooth") || text.contains("bt")) return MediaSource.BLUETOOTH_AUDIO;
-        if (text.contains("интернет") || text.contains("network")) return MediaSource.CLOUD_MUSIC;
+        if (text.contains("интернет") || text.contains("network")
+                || text.contains("s-radio") || text.contains("s radio")
+                || text.contains("net radio")) return MediaSource.CLOUD_MUSIC;
         if (text.equals("am") || text.startsWith("am ") || text.contains("am радио") || text.contains("am radio")) {
             return MediaSource.AM_RADIO;
         }
-        if (text.contains("fm") || text.contains("радио") || text.contains("radio")) return MediaSource.FM_RADIO;
+        if (text.contains("fm") || text.contains("радио") || text.contains("radio")
+                || text.contains("dab") || text.contains("dts")) return MediaSource.FM_RADIO;
         if (text.contains("яндекс") || text.contains("yandex") || text.contains("spotify")
                 || text.contains("youtube") || text.contains("cloud") || text.contains("teyes music")) {
             return MediaSource.CLOUD_MUSIC;
@@ -669,20 +824,9 @@ final class CanbusControl {
 
     private static void applyCanTpms(Context context, byte[] frame) {
         if (context != null && !AppPrefs.tpmsEnabled(context)) return;
-        if (frame.length < 13) return;
-        TpmsState.status(context, "TPMS: данные получены от Kia Canbus", true);
-        updateCanTire(context, 0, frame[6], frame[10]);
-        updateCanTire(context, 1, frame[5], frame[9]);
-        updateCanTire(context, 2, frame[7], frame[11]);
-        updateCanTire(context, 3, frame[8], frame[12]);
-    }
-
-    private static void updateCanTire(Context context, int index, byte pressureRaw, byte tempRaw) {
-        int p = pressureRaw & 0xff;
-        if (p == 0 || p == 0xff) return;
-        float pressure = (float) (p * 1.378952d / 100d);
-        int temp = (tempRaw & 0xff) - 50;
-        TpmsState.tire(context, index, pressure, temp, 0, false);
+        if (AppPrefs.debugCan(context)) {
+            AppLog.line(context, "TPMS: legacy 0x51 frame ignored, давление берётся только из CAN 0x593 00 11");
+        }
     }
 
     private static void setUpdateStatus(Context context, String value) {

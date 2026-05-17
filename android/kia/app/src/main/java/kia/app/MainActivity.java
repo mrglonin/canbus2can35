@@ -1,6 +1,7 @@
 package kia.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -11,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -20,8 +22,10 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TabletDashboardView tabletDashboardView;
     private BlindSpotOverlayView blindSpotOverlayView;
+    private AlertDialog startupUpdateDialog;
     private boolean touched;
     private boolean autoHideLaunch;
+    private boolean startupUpdatePromptDismissed;
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -51,11 +55,11 @@ public class MainActivity extends Activity {
         AppService.start(this);
         ObdMonitor.start(this);
         TpmsMonitor.start(this);
-        AppUpdater.checkOnLaunch(this);
         requestNextRuntimePermission();
         updatePermissionText();
         refreshState();
         scheduleAutoHide();
+        startStartupUpdateChecks();
     }
 
     @Override
@@ -70,6 +74,8 @@ public class MainActivity extends Activity {
         ObdMonitor.start(this);
         TpmsMonitor.start(this);
         scheduleAutoHide();
+        startupUpdatePromptDismissed = false;
+        startStartupUpdateChecks();
     }
 
     @Override
@@ -78,6 +84,7 @@ public class MainActivity extends Activity {
         IntentFilter filter = new IntentFilter(AppLog.ACTION_STATE);
         filter.addAction(ObdState.ACTION_STATE);
         filter.addAction(VehicleDisplayState.ACTION_STATE);
+        filter.addAction(ClimateState.ACTION_STATE);
         filter.addAction(TpmsState.ACTION_STATE);
         filter.addAction(CanbusControl.ACTION_STATE);
         filter.addAction(BlindSpotState.ACTION_STATE);
@@ -120,6 +127,7 @@ public class MainActivity extends Activity {
             unregisterReceiver(stateReceiver);
         } catch (IllegalArgumentException ignored) {
         }
+        dismissStartupUpdatePrompt();
     }
 
     @Override
@@ -213,6 +221,7 @@ public class MainActivity extends Activity {
     private void applyState(Intent intent) {
         if (intent == null) {
             refreshState();
+            maybeShowStartupUpdatePrompt();
             return;
         }
         if (TpmsState.ACTION_STATE.equals(intent.getAction())) {
@@ -220,6 +229,81 @@ public class MainActivity extends Activity {
         }
         refreshState();
         updatePermissionText();
+        maybeShowStartupUpdatePrompt();
+    }
+
+    private void startStartupUpdateChecks() {
+        CanbusControl.requestAdapterInfo(this);
+        AppUpdater.checkOnLaunch(this);
+        FirmwareReleaseUpdater.checkOnLaunch(this);
+        handler.postDelayed(this::maybeShowStartupUpdatePrompt, 2500L);
+    }
+
+    private void maybeShowStartupUpdatePrompt() {
+        if (isFinishing()) return;
+        if (Build.VERSION.SDK_INT >= 17 && isDestroyed()) return;
+        if (startupUpdatePromptDismissed) return;
+        if (startupUpdateDialog != null && startupUpdateDialog.isShowing()) return;
+
+        AppUpdater.Snapshot app = AppUpdater.snapshot();
+        FirmwareReleaseUpdater.Snapshot firmware = FirmwareReleaseUpdater.snapshot();
+        boolean appAvailable = app.updateAvailable
+                && !TextUtils.isEmpty(app.downloadUrl)
+                && !app.checking
+                && !app.downloading;
+        boolean firmwareAvailable = FirmwareReleaseUpdater.updateAvailable()
+                && !firmware.checking
+                && !firmware.downloading
+                && !firmware.flashing;
+        if (!appAvailable && !firmwareAvailable) return;
+
+        StringBuilder message = new StringBuilder();
+        if (appAvailable) {
+            message.append("Приложение: ")
+                    .append(TextUtils.isEmpty(app.assetName) ? "новая версия" : app.assetName)
+                    .append("\nТекущая: ")
+                    .append(TextUtils.isEmpty(app.currentVersion) ? "-" : app.currentVersion);
+        }
+        if (firmwareAvailable) {
+            if (message.length() > 0) message.append("\n\n");
+            message.append("Адаптер: ")
+                    .append(FirmwareReleaseUpdater.latestLabel())
+                    .append("\nТекущая: ")
+                    .append(FirmwareReleaseUpdater.currentAdapterLabel());
+        }
+        message.append("\n\nКнопка обновления сама скачает файл и запустит установку или USB update.");
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Доступна новая версия")
+                .setMessage(message.toString())
+                .setNegativeButton("Позже", (dialog, which) -> {
+                    startupUpdatePromptDismissed = true;
+                    dialog.dismiss();
+                });
+        if (appAvailable) {
+            builder.setPositiveButton("Обновить приложение", (dialog, which) -> {
+                startupUpdatePromptDismissed = true;
+                AppUpdater.downloadAndInstall(this);
+            });
+        }
+        if (firmwareAvailable) {
+            builder.setNeutralButton("Прошить адаптер", (dialog, which) -> {
+                startupUpdatePromptDismissed = true;
+                FirmwareReleaseUpdater.downloadAndFlash(this);
+            });
+        }
+        startupUpdateDialog = builder.create();
+        startupUpdateDialog.setOnDismissListener(dialog -> {
+            startupUpdateDialog = null;
+            UiUtils.enterImmersive(this);
+        });
+        startupUpdateDialog.show();
+    }
+
+    private void dismissStartupUpdatePrompt() {
+        if (startupUpdateDialog == null) return;
+        startupUpdateDialog.dismiss();
+        startupUpdateDialog = null;
     }
 
     private void openTpmsOnAlert() {

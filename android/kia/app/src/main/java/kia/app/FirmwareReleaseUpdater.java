@@ -19,6 +19,8 @@ import java.net.URL;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 final class FirmwareReleaseUpdater {
     static final String ACTION_STATE = "kia.app.FIRMWARE_RELEASE_STATE";
@@ -26,6 +28,8 @@ final class FirmwareReleaseUpdater {
     private static final String LATEST_MANIFEST_URL = "https://api.github.com/repos/mrglonin/canbus2can35/contents/updates/latest.json?ref=main";
     private static final String LATEST_RELEASE_URL = "https://api.github.com/repos/mrglonin/canbus2can35/releases/latest";
     private static final int MAX_FIRMWARE_SIZE = 114688;
+    private static final Pattern TAG_TOKEN = Pattern.compile("(?i)tag\\s*=\\s*v?\\s*(\\d{1,3})");
+    private static final Pattern VERSION_TOKEN = Pattern.compile("(?i)(?:^|[^a-z0-9])v\\s*(\\d{1,3})(?:[^a-z0-9]|$)");
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
@@ -40,9 +44,36 @@ final class FirmwareReleaseUpdater {
         return snapshot;
     }
 
+    static void checkOnLaunch(Context context) {
+        if (context == null || !AppPrefs.updateCheckOnLaunch(context)) return;
+        check(context.getApplicationContext(), false);
+    }
+
     static void checkNow(Context context) {
         if (context == null) return;
         check(context.getApplicationContext(), true);
+    }
+
+    static boolean updateAvailable() {
+        Snapshot current = snapshot();
+        if (TextUtils.isEmpty(current.downloadUrl) || current.assetSize > MAX_FIRMWARE_SIZE) return false;
+        String latest = firmwareToken(current.tagName + " " + current.assetName + " " + current.releaseName);
+        return !TextUtils.isEmpty(latest) && adapterNeedsFirmware(latest);
+    }
+
+    static String latestLabel() {
+        Snapshot current = snapshot();
+        if (!TextUtils.isEmpty(current.assetName)) return current.assetName;
+        if (!TextUtils.isEmpty(current.tagName)) return current.tagName;
+        return "BIN";
+    }
+
+    static String currentAdapterLabel() {
+        CanbusControl.Snapshot can = CanbusControl.snapshot();
+        String token = adapterFirmwareToken(can);
+        if (!TextUtils.isEmpty(token)) return token.toUpperCase(Locale.US);
+        if (can != null && !TextUtils.isEmpty(can.firmwareVersion)) return can.firmwareVersion;
+        return "не определена";
     }
 
     static void downloadAndFlash(Activity activity) {
@@ -78,8 +109,10 @@ final class FirmwareReleaseUpdater {
                     status = "Прошивка адаптера: git manifest/release BIN не найден";
                 } else if (info.assetSize > MAX_FIRMWARE_SIZE) {
                     status = "Прошивка адаптера: BIN больше 112 КБ";
+                } else if (updateAvailableFor(info)) {
+                    status = "Прошивка адаптера доступна: " + info.assetName;
                 } else {
-                    status = "Прошивка адаптера: найден " + info.assetName;
+                    status = "Прошивка адаптера: актуальная версия";
                 }
                 set(context, new Snapshot(status, info.tagName, info.releaseName, info.assetName,
                         info.downloadUrl, 0, info.assetSize, info.assetSize, false, false, false, false));
@@ -216,6 +249,39 @@ final class FirmwareReleaseUpdater {
         if (lowerName.contains("mode1")) score += 10;
         if (lowerName.contains("base")) score -= 20;
         return score;
+    }
+
+    private static boolean updateAvailableFor(ReleaseInfo info) {
+        if (info == null || TextUtils.isEmpty(info.downloadUrl) || info.assetSize > MAX_FIRMWARE_SIZE) return false;
+        String latest = firmwareToken(info.tagName + " " + info.assetName + " " + info.releaseName);
+        return !TextUtils.isEmpty(latest) && adapterNeedsFirmware(latest);
+    }
+
+    private static boolean adapterNeedsFirmware(String latestToken) {
+        CanbusControl.Snapshot can = CanbusControl.snapshot();
+        String current = adapterFirmwareToken(can);
+        if (!TextUtils.isEmpty(current)) return !TextUtils.equals(current, latestToken);
+        String version = can == null || can.firmwareVersion == null ? "" : can.firmwareVersion.toLowerCase(Locale.US);
+        if (version.length() == 0 || version.contains("не получ") || version.contains("не провер")) return false;
+        return version.contains("base") || version.contains("2can35") || version.contains("can");
+    }
+
+    private static String adapterFirmwareToken(CanbusControl.Snapshot can) {
+        if (can == null) return "";
+        Matcher tag = TAG_TOKEN.matcher(safe(can.v20Capabilities));
+        if (tag.find()) return "v" + tag.group(1);
+        return firmwareToken(safe(can.v20Capabilities) + " " + safe(can.firmwareVersion));
+    }
+
+    private static String firmwareToken(String text) {
+        if (TextUtils.isEmpty(text)) return "";
+        Matcher matcher = VERSION_TOKEN.matcher(text);
+        if (!matcher.find()) return "";
+        return "v" + matcher.group(1);
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private static void download(Activity activity, Snapshot source) {

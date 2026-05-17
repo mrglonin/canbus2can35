@@ -95,6 +95,20 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".YandexNavAccessibilityService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/yandex_nav_accessibility_service" />
+        </service>
+
         <receiver
             android:name=".BootReceiver"
             android:directBootAware="true"

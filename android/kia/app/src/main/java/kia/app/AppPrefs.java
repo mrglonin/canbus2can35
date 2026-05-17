@@ -3,6 +3,8 @@ package kia.app;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.ArrayList;
+
 final class AppPrefs {
     private static final String NAME = "Kia";
     private static final String KEY_DEBUG = "debug";
@@ -25,6 +27,7 @@ final class AppPrefs {
     private static final String KEY_BACKGROUND_ANIMATION = "background_animation";
     private static final String KEY_SAS_RATIO = "sas_ratio";
     private static final String KEY_OBD_ENABLED = "obd_enabled";
+    private static final String KEY_AMP_ENABLED = "amp_enabled";
     private static final String KEY_TPMS_ENABLED = "tpms_enabled";
     private static final String KEY_OBD_EMULATION = "obd_emulation";
     private static final String KEY_TPMS_LOW_BAR_X10 = "tpms_low_bar_x10";
@@ -33,6 +36,16 @@ final class AppPrefs {
     private static final String KEY_TPMS_ALERT_OVERLAY = "tpms_alert_overlay";
     private static final String KEY_TPMS_ALERT_SOUND = "tpms_alert_sound";
     private static final String KEY_TPMS_ALERT_SUPPRESSED_UNTIL = "tpms_alert_suppressed_until";
+    private static final String KEY_HOME_WIDGET_SPEED = "home_widget_speed";
+    private static final String KEY_HOME_WIDGET_RPM = "home_widget_rpm";
+    private static final String KEY_HOME_WIDGET_NAV = "home_widget_nav";
+    private static final String KEY_HOME_WIDGET_MUSIC = "home_widget_music";
+    private static final String KEY_HOME_WIDGET_ENGINE_TEMP = "home_widget_engine_temp";
+    private static final String KEY_HOME_WIDGET_CABIN_TEMP = "home_widget_cabin_temp";
+    private static final String KEY_HOME_WIDGET_CLIMATE_TEMP = "home_widget_climate_temp";
+    private static final String KEY_HOME_WIDGET_VOLTAGE = "home_widget_voltage";
+    private static final String KEY_HOME_WIDGET_TRIP = "home_widget_trip";
+    private static final String KEY_HOME_WIDGET_ORDER = "home_widget_order";
     private static final String KEY_DEBUG_CAN = "debug_can";
     private static final String KEY_DEBUG_UART = "debug_uart";
     private static final String KEY_UART_OVERLAY = "uart_overlay";
@@ -44,6 +57,28 @@ final class AppPrefs {
     private static final String KEY_DEFAULT_PROFILE_VERSION = "default_profile_version";
 
     private static final int DEFAULT_PROFILE_VERSION = 4;
+
+    static final String HOME_WIDGET_SPEED = "speed";
+    static final String HOME_WIDGET_RPM = "rpm";
+    static final String HOME_WIDGET_NAV = "nav";
+    static final String HOME_WIDGET_MUSIC = "music";
+    static final String HOME_WIDGET_ENGINE_TEMP = "engine";
+    static final String HOME_WIDGET_OUTSIDE_TEMP = "outside";
+    static final String HOME_WIDGET_CLIMATE_TEMP = "climate";
+    static final String HOME_WIDGET_VOLTAGE = "voltage";
+    static final String HOME_WIDGET_TRIP = "trip";
+
+    private static final String[] DEFAULT_HOME_WIDGET_ORDER = new String[]{
+            HOME_WIDGET_SPEED,
+            HOME_WIDGET_RPM,
+            HOME_WIDGET_NAV,
+            HOME_WIDGET_MUSIC,
+            HOME_WIDGET_ENGINE_TEMP,
+            HOME_WIDGET_OUTSIDE_TEMP,
+            HOME_WIDGET_CLIMATE_TEMP,
+            HOME_WIDGET_VOLTAGE,
+            HOME_WIDGET_TRIP
+    };
 
     private AppPrefs() {
     }
@@ -74,6 +109,7 @@ final class AppPrefs {
                 .putInt(KEY_MEDIA_TEXT_FORMAT, 2)
                 .putBoolean(KEY_BACKGROUND_ANIMATION, false)
                 .putBoolean(KEY_OBD_ENABLED, true)
+                .putBoolean(KEY_AMP_ENABLED, true)
                 .putBoolean(KEY_TPMS_ENABLED, true)
                 .putBoolean(KEY_OBD_EMULATION, false)
                 .putBoolean(KEY_TPMS_AUTO_OPEN, false)
@@ -150,11 +186,11 @@ final class AppPrefs {
     }
 
     static boolean navOverlay(Context context) {
-        return false;
+        return prefs(context).getBoolean(KEY_NAV_OVERLAY, false);
     }
 
     static void setNavOverlay(Context context, boolean value) {
-        prefs(context).edit().remove(KEY_NAV_OVERLAY).apply();
+        prefs(context).edit().putBoolean(KEY_NAV_OVERLAY, value).apply();
     }
 
     static boolean navCompass(Context context) {
@@ -220,27 +256,27 @@ final class AppPrefs {
     }
 
     static boolean mediaDebug(Context context) {
-        return false;
+        return prefs(context).getBoolean(KEY_MEDIA_DEBUG, false);
     }
 
     static void setMediaDebug(Context context, boolean value) {
-        prefs(context).edit().remove(KEY_MEDIA_DEBUG).apply();
+        prefs(context).edit().putBoolean(KEY_MEDIA_DEBUG, value).apply();
     }
 
     static boolean mediaScanAll(Context context) {
-        return false;
+        return prefs(context).getBoolean(KEY_MEDIA_SCAN_ALL, false);
     }
 
     static void setMediaScanAll(Context context, boolean value) {
-        prefs(context).edit().remove(KEY_MEDIA_SCAN_ALL).apply();
+        prefs(context).edit().putBoolean(KEY_MEDIA_SCAN_ALL, value).apply();
     }
 
     static boolean mediaOverlay(Context context) {
-        return false;
+        return prefs(context).getBoolean(KEY_MEDIA_OVERLAY, false);
     }
 
     static void setMediaOverlay(Context context, boolean value) {
-        prefs(context).edit().remove(KEY_MEDIA_OVERLAY).apply();
+        prefs(context).edit().putBoolean(KEY_MEDIA_OVERLAY, value).apply();
     }
 
     static int mediaTextFormat(Context context) {
@@ -269,11 +305,11 @@ final class AppPrefs {
     }
 
     static boolean backgroundAnimation(Context context) {
-        return false;
+        return prefs(context).getBoolean(KEY_BACKGROUND_ANIMATION, false);
     }
 
     static void setBackgroundAnimation(Context context, boolean value) {
-        prefs(context).edit().putBoolean(KEY_BACKGROUND_ANIMATION, false).apply();
+        prefs(context).edit().putBoolean(KEY_BACKGROUND_ANIMATION, value).apply();
     }
 
     static int sasRatio(Context context) {
@@ -292,12 +328,200 @@ final class AppPrefs {
         prefs(context).edit().putBoolean(KEY_OBD_ENABLED, value).apply();
     }
 
+    static boolean ampEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_AMP_ENABLED, true);
+    }
+
+    static void setAmpEnabled(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_AMP_ENABLED, value).apply();
+    }
+
     static boolean tpmsEnabled(Context context) {
         return prefs(context).getBoolean(KEY_TPMS_ENABLED, true);
     }
 
     static void setTpmsEnabled(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_TPMS_ENABLED, value).apply();
+    }
+
+    static boolean homeWidgetSpeed(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_SPEED, true);
+    }
+
+    static void setHomeWidgetSpeed(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_SPEED, value).apply();
+    }
+
+    static boolean homeWidgetRpm(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_RPM, true);
+    }
+
+    static void setHomeWidgetRpm(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_RPM, value).apply();
+    }
+
+    static boolean homeWidgetNav(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_NAV, true);
+    }
+
+    static void setHomeWidgetNav(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_NAV, value).apply();
+    }
+
+    static boolean homeWidgetMusic(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_MUSIC, true);
+    }
+
+    static void setHomeWidgetMusic(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_MUSIC, value).apply();
+    }
+
+    static boolean homeWidgetEngineTemp(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_ENGINE_TEMP, true);
+    }
+
+    static void setHomeWidgetEngineTemp(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_ENGINE_TEMP, value).apply();
+    }
+
+    static boolean homeWidgetCabinTemp(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_CABIN_TEMP, true);
+    }
+
+    static void setHomeWidgetCabinTemp(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_CABIN_TEMP, value).apply();
+    }
+
+    static boolean homeWidgetClimateTemp(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_CLIMATE_TEMP, true);
+    }
+
+    static void setHomeWidgetClimateTemp(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_CLIMATE_TEMP, value).apply();
+    }
+
+    static boolean homeWidgetVoltage(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_VOLTAGE, true);
+    }
+
+    static void setHomeWidgetVoltage(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_VOLTAGE, value).apply();
+    }
+
+    static boolean homeWidgetTrip(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_WIDGET_TRIP, true);
+    }
+
+    static void setHomeWidgetTrip(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_HOME_WIDGET_TRIP, value).apply();
+    }
+
+    static String[] homeWidgetOrder(Context context) {
+        ArrayList<String> out = new ArrayList<>();
+        String raw = prefs(context).getString(KEY_HOME_WIDGET_ORDER, "");
+        if (raw != null && raw.length() > 0) {
+            String[] parts = raw.split(",");
+            for (String part : parts) {
+                String id = part == null ? "" : part.trim();
+                if (validHomeWidgetId(id) && !contains(out, id)) out.add(id);
+            }
+        }
+        for (String id : DEFAULT_HOME_WIDGET_ORDER) {
+            if (!contains(out, id)) out.add(id);
+        }
+        return out.toArray(new String[0]);
+    }
+
+    static void moveHomeWidget(Context context, String id, int delta) {
+        if (!validHomeWidgetId(id) || delta == 0) return;
+        String[] order = homeWidgetOrder(context);
+        int index = -1;
+        for (int i = 0; i < order.length; i++) {
+            if (id.equals(order[i])) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) return;
+        int next = clamp(index + delta, 0, order.length - 1);
+        if (next == index) return;
+        String swap = order[next];
+        order[next] = order[index];
+        order[index] = swap;
+        saveHomeWidgetOrder(context, order);
+    }
+
+    static int homeWidgetOrderSignature(Context context) {
+        int signature = 17;
+        for (String id : homeWidgetOrder(context)) {
+            signature = signature * 31 + id.hashCode();
+        }
+        return signature;
+    }
+
+    static String homeWidgetLabel(String id) {
+        if (HOME_WIDGET_SPEED.equals(id)) return "Скорость";
+        if (HOME_WIDGET_RPM.equals(id)) return "Обороты";
+        if (HOME_WIDGET_NAV.equals(id)) return "Навигация";
+        if (HOME_WIDGET_MUSIC.equals(id)) return "Музыка";
+        if (HOME_WIDGET_ENGINE_TEMP.equals(id)) return "Температура двигателя";
+        if (HOME_WIDGET_OUTSIDE_TEMP.equals(id)) return "Улица: наружная температура";
+        if (HOME_WIDGET_CLIMATE_TEMP.equals(id)) return "Климат: заданная температура";
+        if (HOME_WIDGET_VOLTAGE.equals(id)) return "Вольтаж";
+        if (HOME_WIDGET_TRIP.equals(id)) return "Поездка: дистанция и время";
+        return id;
+    }
+
+    static boolean homeWidgetEnabled(Context context, String id) {
+        if (HOME_WIDGET_SPEED.equals(id)) return homeWidgetSpeed(context);
+        if (HOME_WIDGET_RPM.equals(id)) return homeWidgetRpm(context);
+        if (HOME_WIDGET_NAV.equals(id)) return homeWidgetNav(context);
+        if (HOME_WIDGET_MUSIC.equals(id)) return homeWidgetMusic(context);
+        if (HOME_WIDGET_ENGINE_TEMP.equals(id)) return homeWidgetEngineTemp(context);
+        if (HOME_WIDGET_OUTSIDE_TEMP.equals(id)) return homeWidgetCabinTemp(context);
+        if (HOME_WIDGET_CLIMATE_TEMP.equals(id)) return homeWidgetClimateTemp(context);
+        if (HOME_WIDGET_VOLTAGE.equals(id)) return homeWidgetVoltage(context);
+        if (HOME_WIDGET_TRIP.equals(id)) return homeWidgetTrip(context);
+        return false;
+    }
+
+    static void setHomeWidgetEnabled(Context context, String id, boolean value) {
+        if (HOME_WIDGET_SPEED.equals(id)) setHomeWidgetSpeed(context, value);
+        else if (HOME_WIDGET_RPM.equals(id)) setHomeWidgetRpm(context, value);
+        else if (HOME_WIDGET_NAV.equals(id)) setHomeWidgetNav(context, value);
+        else if (HOME_WIDGET_MUSIC.equals(id)) setHomeWidgetMusic(context, value);
+        else if (HOME_WIDGET_ENGINE_TEMP.equals(id)) setHomeWidgetEngineTemp(context, value);
+        else if (HOME_WIDGET_OUTSIDE_TEMP.equals(id)) setHomeWidgetCabinTemp(context, value);
+        else if (HOME_WIDGET_CLIMATE_TEMP.equals(id)) setHomeWidgetClimateTemp(context, value);
+        else if (HOME_WIDGET_VOLTAGE.equals(id)) setHomeWidgetVoltage(context, value);
+        else if (HOME_WIDGET_TRIP.equals(id)) setHomeWidgetTrip(context, value);
+    }
+
+    private static void saveHomeWidgetOrder(Context context, String[] order) {
+        StringBuilder out = new StringBuilder();
+        if (order != null) {
+            for (String id : order) {
+                if (!validHomeWidgetId(id)) continue;
+                if (out.length() > 0) out.append(',');
+                out.append(id);
+            }
+        }
+        prefs(context).edit().putString(KEY_HOME_WIDGET_ORDER, out.toString()).apply();
+    }
+
+    private static boolean validHomeWidgetId(String id) {
+        if (id == null) return false;
+        for (String known : DEFAULT_HOME_WIDGET_ORDER) {
+            if (known.equals(id)) return true;
+        }
+        return false;
+    }
+
+    private static boolean contains(ArrayList<String> values, String id) {
+        for (String value : values) {
+            if (value.equals(id)) return true;
+        }
+        return false;
     }
 
     static boolean obdEmulation(Context context) {

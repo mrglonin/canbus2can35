@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="kia.app" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="Sportage Nav Bridge"
+        android:theme="@style/AppTheme">
+        <receiver
+            android:name=".SportageNavBridgeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.sorento.navi.ACTION_MANEUVER_DATA" />
+                <action android:name="com.sorento.navi.ACTION_ETA_DATA" />
+                <action android:name="com.sorento.navi.ACTION_NAVI_ON_DATA" />
+                <action android:name="com.sorento.navi.ACTION_SPEED_DATA" />
+                <action android:name="com.sorento.navi.ACTION_EXCEEDED_DATA" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

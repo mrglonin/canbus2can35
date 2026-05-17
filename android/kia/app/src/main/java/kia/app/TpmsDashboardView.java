@@ -47,9 +47,19 @@ final class TpmsDashboardView extends View {
         float oy = (height - 720f * scale) / 2f;
 
         drawDarkBackground(canvas, ox, oy, scale);
+        if (compactMode(width, height)) {
+            drawCompactTires(canvas, width, height);
+            if (hasAlert()) postInvalidateDelayed(360);
+            return;
+        }
         drawCar(canvas, ox, oy, scale);
         drawTires(canvas, ox, oy, scale);
         if (hasAlert()) postInvalidateDelayed(360);
+    }
+
+    private boolean compactMode(int width, int height) {
+        float density = Math.max(0.1f, getResources().getDisplayMetrics().density);
+        return width / density < 760f || height / density < 500f;
     }
 
     private void drawDarkBackground(Canvas canvas, float ox, float oy, float scale) {
@@ -79,6 +89,29 @@ final class TpmsDashboardView extends View {
         drawTire(canvas, tire(1), 1, "П.П.(R.F.)", right, top, panelW, panelH, scale);
         drawTire(canvas, tire(2), 2, "Л.З.(L.R.)", left, bottom, panelW, panelH, scale);
         drawTire(canvas, tire(3), 3, "П.З.(R.R.)", right, bottom, panelW, panelH, scale);
+    }
+
+    private void drawCompactTires(Canvas canvas, int width, int height) {
+        float density = Math.max(0.1f, getResources().getDisplayMetrics().density);
+        float margin = 16f * density;
+        float gap = 10f * density;
+        float top = Math.min(86f * density, Math.max(60f * density, height * 0.24f));
+        float bottom = 14f * density;
+        float cardW = (width - margin * 2f - gap) / 2f;
+        float cardH = (height - top - bottom - gap) / 2f;
+        if (cardW < 120f * density || cardH < 92f * density) {
+            margin = 10f * density;
+            gap = 8f * density;
+            top = 64f * density;
+            bottom = 10f * density;
+            cardW = (width - margin * 2f - gap) / 2f;
+            cardH = (height - top - bottom - gap) / 2f;
+        }
+        float scale = Math.max(0.48f, Math.min(cardW / 330f, cardH / 196f));
+        drawTire(canvas, tire(0), 0, "Л.П.(L.F.)", margin, top, cardW, cardH, scale);
+        drawTire(canvas, tire(1), 1, "П.П.(R.F.)", margin + cardW + gap, top, cardW, cardH, scale);
+        drawTire(canvas, tire(2), 2, "Л.З.(L.R.)", margin, top + cardH + gap, cardW, cardH, scale);
+        drawTire(canvas, tire(3), 3, "П.З.(R.R.)", margin + cardW + gap, top + cardH + gap, cardW, cardH, scale);
     }
 
     private void drawTire(Canvas canvas, TpmsState.Tire tire, int index, String title, float x, float y, float w, float h, float scale) {

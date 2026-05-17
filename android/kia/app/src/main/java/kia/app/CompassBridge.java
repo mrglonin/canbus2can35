@@ -18,7 +18,8 @@ import java.util.Locale;
 
 final class CompassBridge implements SensorEventListener, LocationListener {
     private static final long COMPASS_REPEAT_MS = 450L;
-    private static final long HEADING_MAX_AGE_MS = 2500L;
+    private static final long COMPASS_RESEND_MS = 2500L;
+    private static final long HEADING_MAX_AGE_MS = 6000L;
     private static final float MIN_BEARING_SPEED_MPS = 1.5f;
     private static final float MAX_BEARING_ACCURACY_DEG = 45f;
     private static final float MAX_LOCATION_ACCURACY_M = 50f;
@@ -217,7 +218,7 @@ final class CompassBridge implements SensorEventListener, LocationListener {
         if (lastHeadingAt == 0 || now - lastHeadingAt > HEADING_MAX_AGE_MS) {
             lastSentUiStep = -1;
             synchronized (CompassBridge.class) {
-            lastStatus = "0x45 compass: нет свежего направления";
+                lastStatus = "0x45 compass: нет свежего направления";
             }
             if (AppPrefs.debug(context) && now - lastLogAt > 10000L) {
                 lastLogAt = now;
@@ -243,10 +244,11 @@ final class CompassBridge implements SensorEventListener, LocationListener {
             }
             return;
         }
-        if (uiStep == lastSentUiStep) {
+        if (uiStep == lastSentUiStep && now - lastSentAt < COMPASS_RESEND_MS) {
             return;
         }
         if (!AppService.usbReady()) {
+            lastSentUiStep = -1;
             synchronized (CompassBridge.class) {
                 lastStatus = String.format(Locale.US, "0x45 compass: %.0f deg ui=%02X ожидает USB",
                         heading, uiStep);

@@ -12,6 +12,8 @@ final class ObdState {
     private static long lastTouchBroadcastAt;
     private static long tripStartAt;
     private static long lastTripTouchAt;
+    private static long lastDistanceAt;
+    private static int lastDistanceSpeedKmh;
     private static boolean runtimeExplicit;
     private static Handler handler;
     private static Runnable pendingTouchBroadcast;
@@ -114,6 +116,7 @@ final class ObdState {
         state.fuelRate = Math.max(0f, fuelRate);
         state.currentMileageKm = Math.max(0d, currentMileageKm);
         state.totalMileageKm = Math.max(0d, totalMileageKm);
+        state.tripDistanceKm = Math.max(0d, currentMileageKm);
         state.updatedAt = System.currentTimeMillis();
         VehicleDisplayState.updateFromObd(context, state);
         broadcast(context);
@@ -124,7 +127,7 @@ final class ObdState {
         state.connected = true;
         state.status = "Kia Canbus: подключено, данные обновляются";
         state.updatedAt = System.currentTimeMillis();
-        updateRuntimeFromTripClock(state.updatedAt);
+        updateTripMetrics(state.updatedAt);
         long delta = state.updatedAt - lastTouchBroadcastAt;
         if (delta < 50L) {
             scheduleTouchBroadcast(context, 55L - delta);
@@ -135,18 +138,30 @@ final class ObdState {
 
     private static void sendTouchBroadcast(Context context) {
         lastTouchBroadcastAt = System.currentTimeMillis();
-        if (!runtimeExplicit) updateRuntimeFromTripClock(lastTouchBroadcastAt);
+        updateTripMetrics(lastTouchBroadcastAt);
         VehicleDisplayState.updateFromObd(context, state);
         broadcast(context);
     }
 
-    private static void updateRuntimeFromTripClock(long now) {
-        if (runtimeExplicit) return;
-        if (tripStartAt == 0L || now - lastTripTouchAt > 10 * 60_000L) {
+    private static void updateTripMetrics(long now) {
+        boolean reset = tripStartAt == 0L || now - lastTripTouchAt > 10 * 60_000L;
+        if (reset) {
             tripStartAt = now;
+            lastDistanceAt = now;
+            lastDistanceSpeedKmh = state.speedKmh;
+            state.tripDistanceKm = 0d;
+        } else if (lastDistanceAt > 0L && now > lastDistanceAt) {
+            long deltaMs = now - lastDistanceAt;
+            if (lastDistanceSpeedKmh > 0) {
+                state.tripDistanceKm += lastDistanceSpeedKmh * (deltaMs / 3_600_000d);
+            }
+            lastDistanceAt = now;
+            lastDistanceSpeedKmh = state.speedKmh;
         }
         lastTripTouchAt = now;
-        state.runtimeSeconds = (int) Math.max(0L, (now - tripStartAt) / 1000L);
+        if (!runtimeExplicit) {
+            state.runtimeSeconds = (int) Math.max(0L, (now - tripStartAt) / 1000L);
+        }
     }
 
     private static void scheduleTouchBroadcast(Context context, long delayMs) {
@@ -189,6 +204,7 @@ final class ObdState {
         float fuelRate;
         double currentMileageKm;
         double totalMileageKm;
+        double tripDistanceKm;
         long updatedAt;
 
         Snapshot() {
@@ -209,6 +225,7 @@ final class ObdState {
             fuelRate = other.fuelRate;
             currentMileageKm = other.currentMileageKm;
             totalMileageKm = other.totalMileageKm;
+            tripDistanceKm = other.tripDistanceKm;
             updatedAt = other.updatedAt;
         }
 
